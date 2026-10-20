@@ -9,6 +9,15 @@ class TvTabsTest {
     private val allOn = NavigationVisibility(home = true, shorts = true, music = true, search = true, categories = true)
 
     @Test
+    fun `TV edition keeps search beside home and always starts at home`() {
+        val navigation = simpleTvNavigation()
+
+        assertThat(navigation.tabs).containsExactly(FlowTab.Home, FlowTab.Search, FlowTab.Subscriptions, FlowTab.Library).inOrder()
+        assertThat(navigation.startTab).isEqualTo(FlowTab.Home)
+        assertThat(navigation.rootRoutes).contains(TV_SETTINGS_ROUTE)
+    }
+
+    @Test
     fun `follows the user's order and leaves Shorts and Explore off`() {
         val order = listOf(FlowTab.Library, FlowTab.Shorts, FlowTab.Music, FlowTab.Explore, FlowTab.Home).map(FlowTab::id)
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.dpadFocusGroup
@@ -68,6 +69,9 @@ fun TvHomeScreen(
                 .fillMaxSize()
                 .padding(top = dimens.overscanVertical),
     ) {
+        if (BuildConfig.TV_EDITION) {
+            TvHomeHeader(onRefresh = viewModel::refreshSelectedChip)
+        }
         if (feedEnabled && chips.chips.size > 1) {
             HomeChipRow(
                 state = chips,

@@ -8,6 +8,8 @@ import androidx.compose.material3.RippleDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.ui.components.shared.LocalDpadNavigation
 
 /**
@@ -31,7 +33,7 @@ fun FlowTvTheme(content: @Composable () -> Unit) {
         LocalRippleThemeConfiguration provides RippleDefaults.InsetFocusRingThemeConfiguration,
         LocalRippleConfiguration provides focusRing,
         LocalDpadNavigation provides true,
-        LocalTvDimens provides TvDimens(),
+        LocalTvDimens provides if (BuildConfig.TV_EDITION) TvDimens(feedCardMinWidth = 280.dp) else TvDimens(),
         content = content,
     )
 }

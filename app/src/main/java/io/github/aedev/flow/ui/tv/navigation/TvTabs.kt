@@ -33,3 +33,9 @@ fun tvNavigation(
         startTab = resolveDefaultFlowTab(defaultTabId, order, tvVisibility),
     )
 }
+
+fun simpleTvNavigation(): TvNavigation =
+    TvNavigation(
+        tabs = listOf(FlowTab.Home, FlowTab.Search, FlowTab.Subscriptions, FlowTab.Library),
+        startTab = FlowTab.Home,
+    )

@@ -61,6 +61,7 @@ android {
         versionName = "3.0.0"
 
         buildConfigField("int", "NIGHTLY_RUN", "0")
+        buildConfigField("boolean", "TV_EDITION", "false")
         buildConfigField("String", "APP_LANGUAGE_TAGS", "\"${(listOf("en") + translatedLocaleTags()).joinToString(",")}\"")
         // Last.fm keys come from the CI secrets; builds without them ask the viewer for their own key.
         buildConfigField("String", "LASTFM_API_KEY", "\"${secretValue("lastfmApiKey", "lastfm.apiKey", "LASTFM_API_KEY")}\"")
@@ -103,6 +104,19 @@ android {
         }
         create("foss") {
             dimension = "version"
+            buildConfigField("Boolean", "UPDATER_ENABLED", "false")
+        }
+        create("tv") {
+            dimension = "version"
+            applicationId = "io.github.aryankedare.flow.tv"
+            versionCode =
+                providers
+                    .gradleProperty("flow.tvBuildNumber")
+                    .orElse("1")
+                    .get()
+                    .toInt()
+            versionNameSuffix = "-tv"
+            buildConfigField("boolean", "TV_EDITION", "true")
             buildConfigField("Boolean", "UPDATER_ENABLED", "false")
         }
     }
@@ -189,6 +203,7 @@ android {
 
     sourceSets {
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
+        getByName("tv").kotlin.directories.add("src/foss/java")
     }
 
     compileOptions {
