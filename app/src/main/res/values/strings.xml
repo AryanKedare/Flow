@@ -3081,7 +3081,7 @@
     <string name="tv_guide_back">Close the active panel, return to the previous screen, or move toward Home before exiting.</string>
     <string name="tv_guide_left_edge">Move left from the content boundary to open the navigation rail.</string>
     <string name="tv_guide_rail">Use Up and Down to choose a destination, OK to open it, and Right to return to content.</string>
-    <string name="tv_guide_search_field">On the search field, open the TV keyboard to type in any language.</string>
+    <string name="tv_guide_search_field">Focus the search field to open the TV keyboard. Press OK to reopen it after closing it.</string>
     <string name="tv_guide_search_down">Move from the search bar into suggestions and results.</string>
     <string name="tv_guide_search_open">Open the focused suggestion or result.</string>
     <string name="tv_guide_search_voice">Start voice search when the TV has a supported microphone service.</string>

@@ -62,7 +62,7 @@ private val KindSelectorWidth = 320.dp
 
 /**
  * TV search: the query, voice search and the Videos and Music switch across the top, the phone's
- * suggestions and results under them. OK on the field raises the system keyboard, which types in
+ * suggestions and results under them. Focusing the field raises the system keyboard, which types in
  * every language. Both kinds read the one query, so switching kind keeps what was typed.
  */
 @Composable
