@@ -11,9 +11,20 @@ if git merge-base --is-ancestor "$upstream_sha" HEAD; then
   exit 0
 fi
 
-if ! git merge --no-edit --no-ff "$upstream_sha" -m "chore(sync): merge Flow-Tube/Flow main"; then
+before_merge="$(git rev-parse HEAD)"
+if ! git merge --no-edit --no-ff --no-commit "$upstream_sha"; then
+  git rev-parse -q --verify MERGE_HEAD > /dev/null || exit 1
+fi
+
+# The fork owns its CI; GITHUB_TOKEN cannot import upstream workflow definitions.
+if git ls-files -- .github/workflows | grep -q .; then
+  git restore --source="$before_merge" --staged --worktree -- .github/workflows
+fi
+
+if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
   git merge --abort
   printf 'Upstream has conflicts with the TV edition. Main was not changed.\n' >&2
   exit 1
 fi
+git commit -m "chore(sync): merge Flow-Tube/Flow main"
 printf 'changed=true\n'

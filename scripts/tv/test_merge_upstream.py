@@ -18,9 +18,11 @@ class MergeUpstreamTest(unittest.TestCase):
         self.git(self.root, "init", "-b", "main", str(self.upstream))
         self.configure(self.upstream)
         self.commit_file(self.upstream, "shared.txt", "base\n")
+        self.commit_file(self.upstream, ".github/workflows/build.yml", "upstream CI\n")
         self.git(self.root, "clone", str(self.upstream), str(self.fork))
         self.configure(self.fork)
         self.commit_file(self.fork, "tv.txt", "remote interface\n")
+        self.commit_file(self.fork, ".github/workflows/build.yml", "TV CI\n")
 
     def git(self, directory, *args):
         return subprocess.run(
@@ -33,6 +35,7 @@ class MergeUpstreamTest(unittest.TestCase):
         self.git(directory, "config", "user.email", "tv-test@example.invalid")
 
     def commit_file(self, directory, filename, content):
+        (directory / filename).parent.mkdir(parents=True, exist_ok=True)
         (directory / filename).write_text(content)
         self.git(directory, "add", filename)
         self.git(directory, "commit", "-m", "fixture update")
@@ -71,6 +74,17 @@ class MergeUpstreamTest(unittest.TestCase):
         self.assertEqual(self.git(self.fork, "rev-parse", "HEAD"), original)
         self.assertEqual(self.git(self.fork, "status", "--porcelain"), "")
         self.assertFalse((self.fork / ".git" / "MERGE_HEAD").exists())
+
+    def test_upstream_workflow_edits_keep_fork_ci_and_record_ancestry(self):
+        self.commit_file(self.upstream, ".github/workflows/build.yml", "changed upstream CI\n")
+        self.commit_file(self.upstream, ".github/workflows/new.yml", "new upstream workflow\n")
+        upstream_head = self.git(self.upstream, "rev-parse", "HEAD")
+        result = self.sync()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.fork / ".github/workflows/build.yml").read_text(), "TV CI\n")
+        self.assertFalse((self.fork / ".github/workflows/new.yml").exists())
+        self.git(self.fork, "merge-base", "--is-ancestor", upstream_head, "HEAD")
+        self.assertEqual(self.git(self.fork, "status", "--porcelain"), "")
 
 
 if __name__ == "__main__":
