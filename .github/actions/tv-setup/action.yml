@@ -8,6 +8,8 @@ runs:
         java-version: '21'
         distribution: temurin
     - uses: gradle/actions/setup-gradle@v6
-    - uses: android-actions/setup-android@v3
+    - uses: android-actions/setup-android@v4
+      with:
+        packages: platform-tools
     - shell: bash
       run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'
