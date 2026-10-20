@@ -1,0 +1,13 @@
+name: Set up Flow TV build
+description: Install the JDK, Gradle and Android platform used by Flow.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        java-version: '21'
+        distribution: temurin
+    - uses: gradle/actions/setup-gradle@v6
+    - uses: android-actions/setup-android@v3
+    - shell: bash
+      run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'

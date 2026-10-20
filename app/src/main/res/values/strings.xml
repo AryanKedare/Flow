@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Flow</string>
     <string name="app_launcher_name" translatable="false">Flow</string>
+    <string name="tv_edition_title">Flow TV</string>
+    <string name="tv_edition_hint">Choose a video with the arrow keys. Press OK to play.</string>
     <string name="subscriptions_search_placeholder">Search subscriptions ...</string>
     <string name="subscriptions_sort_label">Sort channels</string>
     <string name="subscriptions_sort_default">Default</string>

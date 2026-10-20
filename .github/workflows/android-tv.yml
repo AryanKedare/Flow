@@ -1,0 +1,139 @@
+name: Flow TV sync and APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flow-tv-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/tv-setup
+      - name: Test upstream merge behavior
+        run: python3 -m unittest discover -s scripts/tv -p 'test_*.py'
+      - name: Validate TV edition
+        run: >-
+          ./gradlew ktlintCheck :app:testTvDebugUnitTest :app:assembleTvDebug
+          --max-workers=2 --build-cache --stacktrace
+
+  sync-and-build:
+    if: github.event_name != 'pull_request' && github.repository == 'AryanKedare/Flow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Merge upstream into the working checkout
+        id: sync
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          bash scripts/tv/merge-upstream.sh | tee "$RUNNER_TEMP/tv-sync.log"
+          if grep -qx 'changed=true' "$RUNNER_TEMP/tv-sync.log"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Test upstream merge behavior
+        if: steps.sync.outputs.changed == 'true' || github.event_name != 'schedule'
+        run: python3 -m unittest discover -s scripts/tv -p 'test_*.py'
+      - uses: ./.github/actions/tv-setup
+        if: steps.sync.outputs.changed == 'true' || github.event_name != 'schedule'
+      - name: Validate merged TV source
+        if: steps.sync.outputs.changed == 'true' || github.event_name != 'schedule'
+        run: >-
+          ./gradlew ktlintCheck :app:testTvDebugUnitTest :app:assembleTvDebug
+          --max-workers=2 --build-cache --stacktrace
+      - name: Configure release signing
+        id: signing
+        if: steps.sync.outputs.changed == 'true' || github.event_name != 'schedule'
+        env:
+          TV_KEYSTORE: ${{ secrets.FLOW_TV_KEYSTORE_BASE64 }}
+          TV_PASSWORD: ${{ secrets.FLOW_TV_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          if [ -n "$TV_KEYSTORE" ] && [ -n "$TV_PASSWORD" ]; then
+            printf '%s' "$TV_KEYSTORE" | base64 --decode > release.keystore
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo 'Signed release skipped: configure FLOW_TV_KEYSTORE_BASE64 and FLOW_TV_KEYSTORE_PASSWORD.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Build release APK
+        if: steps.sync.outputs.changed == 'true' || github.event_name != 'schedule'
+        env:
+          STORE_PASSWORD: ${{ secrets.FLOW_TV_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.FLOW_TV_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: flow-tv
+        shell: bash
+        run: |
+          build_number="$(( $(date -u +%s) / 60 ))"
+          echo "TV_BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
+          ./gradlew :app:assembleTvRelease -Pflow.tvBuildNumber="$build_number" --max-workers=2 --build-cache --stacktrace
+      - name: Push validated upstream merge
+        if: steps.sync.outputs.changed == 'true'
+        run: git push origin HEAD:main
+      - name: Prepare signed release assets
+        if: steps.signing.outputs.available == 'true'
+        shell: bash
+        run: |
+          mkdir -p tv-release
+          cp app/build/outputs/apk/tv/release/app-tv-universal-release.apk tv-release/flow-tv.apk
+          cp app/build/outputs/apk/tv/release/app-tv-arm64-v8a-release.apk tv-release/flow-tv-arm64-v8a.apk
+          cp app/build/outputs/apk/tv/release/app-tv-armeabi-v7a-release.apk tv-release/flow-tv-armeabi-v7a.apk
+          signer="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          expected="$(cat scripts/tv/release-certificate.sha256)"
+          for apk in tv-release/*.apk; do
+            "$signer" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/tv-signer.txt"
+            actual="$(sed -n 's/^.*certificate SHA-256 digest: //p' "$RUNNER_TEMP/tv-signer.txt" | sort -u)"
+            test "$actual" = "$expected"
+          done
+          (cd tv-release && sha256sum *.apk > checksums.txt)
+          git rev-parse HEAD > tv-release/source-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.available == 'true'
+        with:
+          name: flow-tv-${{ env.TV_BUILD_NUMBER }}
+          path: tv-release/
+      - name: Publish signed GitHub release
+        if: steps.signing.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="tv-${TV_BUILD_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          printf '%s\n' \
+            'Flow TV: remote-friendly Home, Search, Subscriptions and Library.' \
+            '' \
+            'Choose flow-tv.apk for any supported architecture, or the smaller ARM APK for your TV.' \
+            '' \
+            "Source commit: $(git rev-parse HEAD)" > "$RUNNER_TEMP/tv-release-notes.txt"
+          gh release create "$tag" tv-release/* --target "$(git rev-parse HEAD)" \
+            --title "Flow TV build ${TV_BUILD_NUMBER}" --notes-file "$RUNNER_TEMP/tv-release-notes.txt" --latest
+      - name: Remove signing material
+        if: always()
+        shell: bash
+        run: rm -f release.keystore
