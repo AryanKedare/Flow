@@ -113,7 +113,7 @@
     <string name="collaborator">コラボレーター</string>
     <string name="library_history_label">履歴</string>
     <string name="library_downloads_label">ダウンロード</string>
-    <string name="local_media_permission_title">権限が必要です</string>
+    <string name="local_media_permission_title">権限がありません</string>
     <string name="library_settings_data_header"><![CDATA[設定とデータ]]></string>
     <string name="library_manage_data_label">データを管理</string>
     <string name="about">説明</string>
@@ -267,6 +267,12 @@
     <string name="library_section_header">あなたのコンテンツ</string>
     <string name="library_music_playlists_subtitle">あなたの音楽コレクション</string>
     <string name="library_saved_shorts_label">保存されたショートパンツ</string>
-    <string name="local_media_rescan">リスカ</string>
-    <string name="local_media_scanning">デバイスのスキャン..</string>
+    <string name="local_media_rescan">再読み込み</string>
+    <string name="local_media_scanning">デバイスをスキャンしています</string>
+    <string name="library_local_media_label">ローカルメディア</string>
+    <string name="library_local_media_subtitle">このデバイスで動画や音楽を再生する</string>
+    <string name="local_media_empty_title">%1$s が見つかりませんでした</string>
+    <string name="local_media_empty_body">このデバイスに保存されている動画や音楽はここに表示されます。</string>
+    <string name="local_media_permission_body">Flowがローカルの動画や音楽を見つけて再生できるように、メディアへのアクセスを許可してください。</string>
+    <string name="local_media_grant">アクセスを許可</string>
 </resources>
