@@ -2290,4 +2290,9 @@
         <item quantity="one">%1$d von %2$d Kanälen auf „Shorts“ und Live-Sendungen prüfen</item>
         <item quantity="other">%1$d von %2$d Kanälen werden auf Kurzfilme und Live-Sendungen überprüft</item>
     </plurals>
+    <string name="music_player_tab_up_next">Als nächstes</string>
+    <string name="music_player_tab_lyrics">Songtext</string>
+    <string name="lyrics_auto_romanize_japanese">Noch nicht in Japanisch verfügbar</string>
+    <string name="lyrics_keep_screen_on">Bildschirm nicht ausschalten</string>
+    <string name="lyrics_keep_screen_on_summary">Während Songtexte angezeigt und Musik abgespielt wird</string>
 </resources>

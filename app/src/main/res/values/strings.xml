@@ -1226,6 +1226,9 @@
     <string name="settings_categories_nav_tab_title">Explore tab in navigation</string>
     <string name="settings_categories_nav_tab_subtitle">Add a Trending &amp; Categories tab to the navigation bar</string>
     <string name="nav_explore">Explore</string>
+    <string name="nav_downloads">Downloads</string>
+    <string name="settings_downloads_nav_tab_title">Downloads tab in navigation</string>
+    <string name="settings_downloads_nav_tab_subtitle">Add a Downloads tab to the navigation bar</string>
     <string name="nav_more">More</string>
     <string name="nav_rail_expand">Expand navigation</string>
     <string name="nav_rail_collapse">Collapse navigation</string>
@@ -2158,6 +2161,11 @@
     <string name="settings_pause_music_muted_summary">Resume when the volume comes back</string>
     <string name="settings_music_resume_title">Resume podcasts and long tracks</string>
     <string name="settings_music_resume_summary">Start tracks over 10 minutes where you left off</string>
+    <string name="home_new_videos">New videos</string>
+    <string name="settings_resume_from_headphones_title">Resume from headphones</string>
+    <string name="settings_resume_from_headphones_summary">A Play button on headphones restarts your last songs</string>
+    <string name="playback_background_restricted_title">Background activity is restricted</string>
+    <string name="playback_background_restricted_subtitle">Your phone may stop Flow when you swipe it away. Tap to allow it.</string>
     <string name="settings_music_side_swipes_title">Speed and volume swipes</string>
     <string name="settings_music_side_swipes_summary">Swipe the left side for speed, the right for volume</string>
     <string name="music_watch_video_desc">Open the music video in the video player</string>
@@ -2463,11 +2471,23 @@
     <string name="download_size_estimate">~%1$s</string>
     <!-- Download dialog style (Content settings) -->
     <string name="download_menu_style_title">Download menu style</string>
-    <string name="download_menu_style_subtitle">Choose how the download dialog looks</string>
+    <string name="download_menu_style_subtitle">Choose how the download sheet looks</string>
     <string name="download_menu_style_classic">Classic</string>
-    <string name="download_menu_style_classic_desc">Full list of every quality and codec</string>
+    <string name="download_menu_style_classic_desc">Every quality on one screen</string>
     <string name="download_menu_style_compact">Compact</string>
     <string name="download_menu_style_compact_desc">Editable title, dropdowns and thread count</string>
+    <string name="download_ask_every_time_title">Ask every time</string>
+    <string name="download_ask_every_time_summary">When off, Download uses your download quality</string>
+    <string name="share_download_with_flow">Download with Flow</string>
+    <string name="share_download_not_a_video">Only videos can be downloaded from a shared link</string>
+    <string name="downloads_storage_card_title">Storage summary</string>
+    <string name="downloads_storage_card_summary">Show the space used and free at the top of Downloads</string>
+    <string name="downloads_confirm_delete_title">Ask before deleting</string>
+    <string name="downloads_confirm_delete_summary">Swipe to delete skips this and can be undone</string>
+    <string name="download_sheet_button">Download %1$s</string>
+    <string name="download_sheet_save_folder">%1$s · %2$s free</string>
+    <string name="download_sheet_change_folder">Change</string>
+    <string name="download_sheet_all_languages">All languages</string>
     <string name="downloading_template">Downloading %1$s...</string>
     <string name="download_quality_hdr">HDR</string>
     <string name="download_storage_access_prompt">Grant storage access to save downloads in public folders (optional)</string>
@@ -3486,6 +3506,10 @@
         <item quantity="one">Delete %1$d download from this device?</item>
         <item quantity="other">Delete %1$d downloads from this device?</item>
     </plurals>
+    <plurals name="downloads_deleted">
+        <item quantity="one">%1$d download deleted</item>
+        <item quantity="other">%1$d downloads deleted</item>
+    </plurals>
     <string name="downloads_sort_newest">Newest</string>
     <string name="downloads_sort_oldest">Oldest</string>
     <string name="downloads_sort_largest">Largest</string>
@@ -3787,8 +3811,8 @@
     <string name="settings_backup_one_copy">Each backup replaces the previous one in the folder.</string>
     <string name="settings_backup_needs_folder">Choose a folder first</string>
     <string name="settings_keywords_backup">export, import, restore, migrate, transfer, takeout, newpipe, libretube, freetube</string>
-    <string name="settings_quick_download_quality">Quick download quality</string>
-    <string name="settings_quick_download_quality_summary">Used when you download straight from a video card</string>
+    <string name="settings_quick_download_quality">Download quality</string>
+    <string name="settings_quick_download_quality_summary">Selected first when you download</string>
     <string name="settings_music_download_quality">Song download quality</string>
     <string name="settings_music_download_quality_summary">Used for songs, albums and music playlists</string>
     <string name="download_retag_title">Tags for older downloads</string>

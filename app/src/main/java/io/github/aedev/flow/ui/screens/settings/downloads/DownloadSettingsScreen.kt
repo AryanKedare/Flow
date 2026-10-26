@@ -186,6 +186,7 @@ internal fun DownloadSettingsScreen(
                 stringResource(musicQualityLabel(musicQuality))
             }
             toggleGroup(DownloadsIndex.menuStyle, menuStyles, menuStyle, viewModel::setMenuStyle)
+            switch(DownloadsIndex.askEveryTime, viewModel.askEveryTime, viewModel::setAskEveryTime)
             switch(DownloadsIndex.autoDownloadLikes, viewModel.autoDownloadLikes, viewModel::setAutoDownloadLikes)
             choice(DownloadsIndex.autoDownloadOpened, onClick = { picker = DownloadPicker.AUTO_DOWNLOAD }) {
                 stringResource(autoDownloadLabel(autoDownloadOpened))
@@ -199,6 +200,8 @@ internal fun DownloadSettingsScreen(
                 icon = Icons.Outlined.PermMedia,
                 onClick = { onNavigate(SettingsTarget(SettingsDestination.LOCAL_MEDIA)) },
             )
+            switch(DownloadsIndex.storageCard, viewModel.storageCard, viewModel::setStorageCard)
+            switch(DownloadsIndex.confirmDelete, viewModel.confirmDelete, viewModel::setConfirmDelete)
             info(DownloadsIndex.retag, value = retagValue)
             nav(
                 DownloadsIndex.findEarlier,

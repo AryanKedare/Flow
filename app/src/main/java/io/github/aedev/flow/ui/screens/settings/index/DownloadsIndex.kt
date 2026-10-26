@@ -55,6 +55,13 @@ internal object DownloadsIndex {
             R.string.settings_section_download_defaults,
             summary = R.string.download_menu_style_subtitle,
         )
+    val askEveryTime =
+        entry(
+            "ask_every_time",
+            R.string.download_ask_every_time_title,
+            R.string.settings_section_download_defaults,
+            summary = R.string.download_ask_every_time_summary,
+        )
     val autoDownloadLikes =
         entry(
             "auto_download_likes",
@@ -82,6 +89,20 @@ internal object DownloadsIndex {
             R.string.download_subtitle_file,
             R.string.settings_section_download_defaults,
             summary = R.string.download_subtitle_file_subtitle,
+        )
+    val storageCard =
+        entry(
+            "storage_card",
+            R.string.downloads_storage_card_title,
+            R.string.local_section_library,
+            summary = R.string.downloads_storage_card_summary,
+        )
+    val confirmDelete =
+        entry(
+            "confirm_delete",
+            R.string.downloads_confirm_delete_title,
+            R.string.local_section_library,
+            summary = R.string.downloads_confirm_delete_summary,
         )
     val retag = entry("retag", R.string.download_retag_title, R.string.local_section_library)
     val findEarlier = entry("find_earlier", R.string.downloads_find_earlier_title, R.string.local_section_library)
@@ -129,10 +150,13 @@ internal object DownloadsIndex {
             codec,
             musicQuality,
             menuStyle,
+            askEveryTime,
             autoDownloadLikes,
             autoDownloadOpened,
             wifiOnly,
             subtitleFile,
+            storageCard,
+            confirmDelete,
             retag,
             findEarlier,
             concurrentDownloads,

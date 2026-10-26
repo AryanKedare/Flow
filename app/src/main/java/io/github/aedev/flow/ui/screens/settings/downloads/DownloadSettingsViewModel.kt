@@ -92,6 +92,9 @@ class DownloadSettingsViewModel
         val codec = preferences.defaultDownloadCodec.asState(VideoCodec.AUTO)
         val musicQuality = preferences.musicDownloadQuality.asState(MusicAudioQuality.HIGH)
         val menuStyle = preferences.downloadDialogStyle.asState(DownloadDialogStyle.FULL)
+        val askEveryTime = preferences.downloadAskEveryTime.asState(true)
+        val storageCard = preferences.downloadsStorageCard.asState(true)
+        val confirmDelete = preferences.downloadsConfirmDelete.asState(true)
         val wifiOnly = preferences.downloadOverWifiOnly.asState(false)
         val autoDownloadLikes = preferences.autoDownloadLikedMusic.asState(false)
         val autoDownloadOpened = preferences.autoDownloadOpenedVideos.asState(AutoDownloadMode.OFF)
@@ -162,6 +165,12 @@ class DownloadSettingsViewModel
         fun setMusicQuality(value: MusicAudioQuality) = write { preferences.setMusicDownloadQuality(value) }
 
         fun setMenuStyle(value: DownloadDialogStyle) = write { preferences.setDownloadDialogStyle(value) }
+
+        fun setAskEveryTime(value: Boolean) = write { preferences.setDownloadAskEveryTime(value) }
+
+        fun setStorageCard(value: Boolean) = write { preferences.setDownloadsStorageCard(value) }
+
+        fun setConfirmDelete(value: Boolean) = write { preferences.setDownloadsConfirmDelete(value) }
 
         // Queued downloads wait on the network the setting allowed when they were queued, so it is re-applied.
         fun setAutoDownloadLikes(value: Boolean) = write { preferences.setAutoDownloadLikedMusic(value) }
