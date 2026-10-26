@@ -51,7 +51,7 @@ const val DEFAULT_BACKGROUND_PLAY_ENABLED = true
 
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
-private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
+private const val MAX_UNPLAYABLE_VIDEO_IDS = 1_000
 
 /**
  * Preferences that never leave the device in a backup: the proxy password, and SponsorBlock's
@@ -3885,7 +3885,7 @@ enum class BufferProfile(
     AGGRESSIVE("Fast Start", 5_000, 30_000, 500, 2_500),
 
     // Balanced: Good default for most connections
-    STABLE("Balanced", 30_000, 50_000, 2_500, 5_000),
+    STABLE("Balanced", 20_000, 50_000, 2_500, 5_000),
 
     // Data Saver: Minimize data usage with smaller buffers
     DATASAVER("Data Saver", 12_000, 25_000, 1_500, 3_000),

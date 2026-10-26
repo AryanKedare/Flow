@@ -150,12 +150,17 @@ fun MediaDownloadDialogCompact(
                 ?: codecsForHeight.firstOrNull() ?: "",
         )
     }
-    var selectedAudioIndex by remember(audioStreams, lastAudioLabel) {
+    var selectedAudioIndex by remember(audioStreams, lastAudioLabel, preferredLang) {
         mutableStateOf(
-            audioStreams.indexOfFirst { audioOptionLabel(it, audioLabelStrings) == lastAudioLabel }.takeIf { it >= 0 }
-                ?: audioStreams.indices.maxByOrNull { DownloadStreamPolicy.audioBitrateKbps(audioStreams[it]) }
-                ?: 0,
+            DownloadStreamPolicy.defaultAudioIndex(audioStreams, preferredLang, lastAudioLabel) {
+                audioOptionLabel(it, audioLabelStrings)
+            },
         )
+    }
+
+    val audioTracks = remember(audioStreams) { DownloadStreamPolicy.audioTrackChoices(audioStreams) }
+    var videoAudio by remember(audioStreams, preferredLang) {
+        mutableStateOf(DownloadStreamPolicy.pickAacAudio(audioStreams, preferredLang))
     }
 
     val selectedSizeText = approxDownloadSizeLabel(streamSizes[VideoCodecUtils.streamSizeKey(selectedHeight, selectedCodec)])
@@ -185,7 +190,7 @@ fun MediaDownloadDialogCompact(
                 DownloadStreamPolicy.videoHeight(it) == selectedHeight &&
                     DownloadStreamPolicy.videoCodecKey(it) == selectedCodec
             } ?: return
-        val audio = DownloadStreamPolicy.pickAacAudio(audioStreams, preferredLang)
+        val audio = videoAudio
         if (audio == null) {
             Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
             return
@@ -280,6 +285,17 @@ fun MediaDownloadDialogCompact(
                                 codecOptionLabel(codec, separatorDot) to { selectedCodec = codec }
                             },
                     )
+                    if (audioTracks.size > 1) {
+                        Spacer(Modifier.height(10.dp))
+                        DownloadDropdownRow(
+                            label = stringResource(R.string.audio_track),
+                            value = videoAudio?.let(DownloadStreamPolicy::audioLanguageLabel).orEmpty(),
+                            options =
+                                audioTracks.map { track ->
+                                    DownloadStreamPolicy.audioLanguageLabel(track).orEmpty() to { videoAudio = track }
+                                },
+                        )
+                    }
                     if (subtitleOptions.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))
                         DownloadSubtitleRow(
