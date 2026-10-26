@@ -237,4 +237,36 @@
     <string name="similar_to">似ているかも</string>
     <string name="music_home_your_subscriptions">登録チャンネル</string>
     <string name="player_settings_ambient_mode">アンビエント モード</string>
+    <string name="home_load_more_failed">より多くのビデオを読み込むことができません</string>
+    <string name="home_load_more_failed_body">接続を確認する</string>
+    <string name="home_refresh_failed">フィードを更新できません</string>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="other">%1$d の %2$d チャネルのショートカットとライブのチェック</item>
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="other">最終更新 %1$s - %2$d チェックされた動画</item>
+    </plurals>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="other">%d チャンネルをロードできません</item>
+    </plurals>
+    <string name="content_settings_channel_group_badge_subtitle">サブスクリプショングループでラベルアバター</string>
+    <string name="channel_add_to_group">グループに追加</string>
+    <string name="channel_groups_sheet_title">チャンネルグループ</string>
+    <string name="channel_groups_empty">グループはまだありません</string>
+    <string name="subscriptions_failed_channels_body">最近の動画は、このフィードから欠落しています: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s と %2$d より</string>
+    <string name="retry">リトリート</string>
+    <string name="copy_logs">ログのコピー</string>
+    <string name="logs_copied">コピーされたログ</string>
+    <string name="logs_copy_failed">ログをコピーできない</string>
+    <string name="channel_error_log_clip_label">フローチャンネルエラーログ</string>
+    <string name="failed_to_load_channel">チャネルをロードできなかった</string>
+    <string name="conjunction_and">そして、</string>
+    <string name="streamed_date_template">ストリーミング %1$s</string>
+    <string name="channel_and_more_template">%1$s と %2$d より</string>
+    <string name="library_section_header">あなたのコンテンツ</string>
+    <string name="library_music_playlists_subtitle">あなたの音楽コレクション</string>
+    <string name="library_saved_shorts_label">保存されたショートパンツ</string>
+    <string name="local_media_rescan">リスカ</string>
+    <string name="local_media_scanning">デバイスのスキャン..</string>
 </resources>
