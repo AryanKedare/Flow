@@ -38,7 +38,7 @@
     <string name="liked_videos">Beğenilen Videolar</string>
     <string name="share_song">Şarkıyı paylaş</string>
     <string name="empty_liked">Beğeni yok</string>
-    <string name="empty_liked_body">Beğendiğin videolar burada görünecek</string>
+    <string name="empty_liked_body">Beğendiğin içerikler burada görünecek</string>
     <string name="song">Şarkı</string>
     <string name="video">Video</string>
     <string name="share">Paylaş</string>
@@ -2097,4 +2097,46 @@
     <string name="scrobbling_import_summary">En çok çaldığınız sanatçıları favorilerine ekle</string>
     <string name="scrobbling_hide_secret">Gizli</string>
     <string name="scrobbling_show_secret">Göstermek</string>
+    <plurals name="subscriptions_failed_channels_title">
+        <item quantity="one">%d kanal yüklenemedi</item>
+        <item quantity="other">%d kanallar yüklenemedi</item>
+    </plurals>
+    <string name="content_settings_channel_group_badge_title">Kanal profil resimlerinde grubu göster</string>
+    <string name="content_settings_channel_group_badge_subtitle">Profil resimlerinde abonelik grubunu göster</string>
+    <string name="subscriptions_failed_channels_body">Son videoları bu akışta bulunmuyor: %1$s</string>
+    <string name="subscriptions_failed_channels_more">%1$s ve %2$d kanal daha</string>
+    <string name="streamed_date_template">%1$s yayınlandı</string>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">%1$d video indirilsin mi? Bu işlem cihazda önemli miktarda yer kaplayabilir.</item>
+        <item quantity="other">%1$d video indirilsin mi? Bu işlem cihazda önemli miktarda yer kaplayabilir.</item>
+    </plurals>
+    <string name="music_player_tab_up_next">Sıradaki</string>
+    <string name="music_player_tab_lyrics">Şarkı Sözleri</string>
+    <string name="music_player_lyrics_full_screen">Tam ekran şarkı sözleri</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">%2$d kanaldan %1$d tanesi yenileniyor</item>
+        <item quantity="other">%2$d kanaldan %1$d tanesi yenileniyor</item>
+    </plurals>
+    <plurals name="subscriptions_refresh_checks_template">
+        <item quantity="one">%2$d kanaldan %1$d tanesi kontrol ediliyor</item>
+        <item quantity="other">%2$d kanaldan %1$d tanesi kontrol ediliyor</item>
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">Son yenileme: %1$s - \\%2$d video kontrol edildi</item>
+        <item quantity="other">Son yenileme: %1$s - \\%2$d video kontrol edildi</item>
+    </plurals>
+    <string name="lyrics_play_from_line">Bu satırdan itibaren oynatın</string>
+    <string name="lyrics_show_translation">Çeviri</string>
+    <string name="lyrics_show_translation_summary">Şarkı sözlerinin altında çevrilmiş satırı göster</string>
+    <string name="lyrics_show_romanization_summary">Farklı alfabelerdeki şarkı sözlerini Latin harfleriyle de göster</string>
+    <string name="lyrics_choose_source">Şarkı sözleri kaynağını seçin</string>
+    <string name="lyrics_synced_badge">Senkronize</string>
+    <string name="lyrics_edit">Şarkı sözlerini düzenle</string>
+    <string name="lyrics_copy">Şarkı sözlerini kopyala</string>
+    <string name="lyrics_copied">Şarkı sözleri kopyalandı</string>
+    <string name="lyrics_alignment">Hizalama</string>
+    <string name="lyrics_align_left">Sola hizala</string>
+    <string name="lyrics_align_center">Ortaya hizala</string>
+    <string name="lyrics_align_right">Sağa hizala</string>
+    <string name="lyrics_adjust_sync">Senkronizasyon farkını ayarla</string>
 </resources>
