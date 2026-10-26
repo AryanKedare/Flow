@@ -279,4 +279,9 @@
     <string name="empty_watch_history">視聴履歴がありません</string>
     <string name="clear">クリア</string>
     <string name="empty_watch_history_body">視聴した動画がここに表示されます</string>
+    <string name="library_manage_data_subtitle">キャッシュと履歴を削除</string>
+    <string name="empty_description">説明はありません</string>
+    <string name="clear_all">全て削除</string>
+    <string name="clear_watch_history_alert_title">再生履歴を削除しますか？</string>
+    <string name="clear_watch_history_alert_body">これにより、視聴履歴からすべての動画が削除されます。この操作は元に戻せません。</string>
 </resources>
