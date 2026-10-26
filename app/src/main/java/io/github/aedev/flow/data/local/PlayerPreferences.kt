@@ -77,6 +77,7 @@ class PlayerPreferences(
         val QUEUE_AUTOPLAY_ENABLED = booleanPreferencesKey("queue_autoplay_enabled")
         val START_VIDEOS_PAUSED = booleanPreferencesKey("start_videos_paused")
         val OPEN_VIDEOS_FULLSCREEN = booleanPreferencesKey("open_videos_fullscreen")
+        val RESUME_FROM_HEADPHONES = booleanPreferencesKey("resume_from_headphones")
         val MUSIC_ENDLESS_RADIO_ENABLED = booleanPreferencesKey("music_endless_radio_enabled")
         val AUTOPLAY_COUNTDOWN_SECONDS = intPreferencesKey("autoplay_countdown_seconds")
         val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
@@ -131,6 +132,7 @@ class PlayerPreferences(
 
         // Download dialog style + remembered last-used download options (compact dialog)
         val DOWNLOAD_DIALOG_STYLE = stringPreferencesKey("download_dialog_style")
+        val DOWNLOAD_ASK_EVERY_TIME = booleanPreferencesKey("download_ask_every_time")
         val LAST_DOWNLOAD_TYPE = stringPreferencesKey("last_download_type")
         val LAST_DOWNLOAD_HEIGHT = intPreferencesKey("last_download_height")
         val LAST_DOWNLOAD_CODEC = stringPreferencesKey("last_download_codec")
@@ -1623,6 +1625,17 @@ class PlayerPreferences(
     suspend fun setOpenVideosFullscreen(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.OPEN_VIDEOS_FULLSCREEN] = enabled
+        }
+    }
+
+    /** A Play button on headphones may start the last songs after Flow was closed. */
+    val resumeFromHeadphones: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.RESUME_FROM_HEADPHONES] ?: true }
+
+    suspend fun setResumeFromHeadphones(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.RESUME_FROM_HEADPHONES] = enabled
         }
     }
 
@@ -3187,6 +3200,17 @@ class PlayerPreferences(
     suspend fun setDownloadDialogStyle(style: DownloadDialogStyle) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DOWNLOAD_DIALOG_STYLE] = style.name
+        }
+    }
+
+    /** Download opens the download menu; off, it downloads the default choice at once. */
+    val downloadAskEveryTime: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.DOWNLOAD_ASK_EVERY_TIME] ?: true }
+
+    suspend fun setDownloadAskEveryTime(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOWNLOAD_ASK_EVERY_TIME] = enabled
         }
     }
 
