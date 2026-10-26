@@ -268,11 +268,15 @@
     <string name="library_music_playlists_subtitle">あなたの音楽コレクション</string>
     <string name="library_saved_shorts_label">保存されたショートパンツ</string>
     <string name="local_media_rescan">再読み込み</string>
-    <string name="local_media_scanning">デバイスをスキャンしています</string>
+    <string name="local_media_scanning">デバイスをスキャンしています…</string>
     <string name="library_local_media_label">ローカルメディア</string>
     <string name="library_local_media_subtitle">このデバイスで動画や音楽を再生する</string>
     <string name="local_media_empty_title">%1$s が見つかりませんでした</string>
     <string name="local_media_empty_body">このデバイスに保存されている動画や音楽はここに表示されます。</string>
     <string name="local_media_permission_body">Flowがローカルの動画や音楽を見つけて再生できるように、メディアへのアクセスを許可してください。</string>
     <string name="local_media_grant">アクセスを許可</string>
+    <string name="cancel">キャンセル</string>
+    <string name="empty_watch_history">視聴履歴がありません</string>
+    <string name="clear">クリア</string>
+    <string name="empty_watch_history_body">視聴した動画がここに表示されます</string>
 </resources>
