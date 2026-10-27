@@ -12,9 +12,29 @@ object ProfileFiles {
         context: Context,
         scope: StoreScope,
         name: String,
+    ): File = dataStore(context, scope, "$name.preferences_pb")
+
+    /** A DataStore file, which Default keeps in `files/datastore/`. */
+    fun dataStore(
+        context: Context,
+        scope: StoreScope,
+        fileName: String,
+    ): File = file(context, scope, "datastore/$fileName")
+
+    /** A file Default keeps directly under `files/`. */
+    fun file(
+        context: Context,
+        scope: StoreScope,
+        path: String,
     ): File {
         val app = context.applicationContext
-        return preferences(app.filesDir, app.noBackupFilesDir, ActiveProfile.get(app), scope, name)
+        return File(root(app.filesDir, app.noBackupFilesDir, ActiveProfile.get(app), scope), path)
+    }
+
+    /** Where the running profile keeps what Default keeps directly under `no_backup/`: private, never backed up. */
+    fun noBackupRoot(context: Context): File {
+        val app = context.applicationContext
+        return noBackupRoot(app.noBackupFilesDir, ActiveProfile.get(app))
     }
 
     internal fun preferences(
@@ -24,6 +44,11 @@ object ProfileFiles {
         scope: StoreScope,
         name: String,
     ): File = File(root(filesDir, noBackupFilesDir, profile, scope), "datastore/$name.preferences_pb")
+
+    internal fun noBackupRoot(
+        noBackupFilesDir: File,
+        profile: RunningProfile,
+    ): File = if (profile.isDefault) noBackupFilesDir else privateRoot(noBackupFilesDir, profile)
 
     // DEFAULT_ONLY resolves to the private folder rather than Default's file, so a sync path that runs in another
     // profile by mistake writes to a file nobody reads instead of into Default's sync state.
@@ -38,9 +63,17 @@ object ProfileFiles {
         return when (scope) {
             StoreScope.PROFILE_SETTINGS -> File(filesDir, "profile_settings/${profile.id}")
             StoreScope.PROFILE_LIBRARY -> File(filesDir, "profile_library/${profile.id}")
-            StoreScope.PROFILE_PRIVATE, StoreScope.DEFAULT_ONLY -> File(noBackupFilesDir, "profiles/${profile.id}")
+            StoreScope.PROFILE_PRIVATE, StoreScope.DEFAULT_ONLY -> privateRoot(noBackupFilesDir, profile)
             StoreScope.DEVICE -> filesDir
         }
+    }
+
+    private fun privateRoot(
+        noBackupFilesDir: File,
+        profile: RunningProfile,
+    ): File {
+        require(isSafeProfileId(profile.id)) { "Unsafe profile id" }
+        return File(noBackupFilesDir, "profiles/${profile.id}")
     }
 }
 

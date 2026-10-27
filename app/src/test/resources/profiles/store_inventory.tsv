@@ -28,19 +28,6 @@ prefs_datastore	now_playing_widget	main:widget/core/state/NowPlayingState.kt	DEV
 prefs_datastore	animated_artwork	main:data/music/artwork/AnimatedArtworkCache.kt	DEVICE	-	Album to artwork-loop lookup; not personal.
 prefs_datastore	downloads	main:data/music/DownloadManager.kt	DEVICE	-	Legacy downloaded-track list and its Room migration marker.
 factory_datastore	every safePreferencesDataStore	main:data/local/SafeDataStore.kt	DEVICE	-	The one wrapper every preferences store goes through; each call states its scope and ProfileFiles picks the file.
-typed_datastore	flow_neuro_brain_v10.json	main:data/recommendation/NeuroStorage.kt	PROFILE	private	The video brain.
-typed_datastore	flow_neuro_content_v1.json	main:data/recommendation/NeuroContentStore.kt	PROFILE	private	Content vectors learned from the profile.
-typed_datastore	flow_neuro_categories_v1.json	main:data/recommendation/NeuroCategoryStore.kt	PROFILE	private	Engine state.
-typed_datastore	flow_neuro_cowatch_v1.json	main:data/recommendation/NeuroCoWatchStore.kt	PROFILE	private	Co-watch graph from the profile's sessions.
-typed_datastore	flow_neuro_neighbours_v1.json	main:data/recommendation/NeuroNeighbourStore.kt	PROFILE	private	Engine state.
-typed_datastore	flow_blocked_channel_names_v1.json	main:data/recommendation/BlockedChannelNameStore.kt	PROFILE	private	Names for the profile's blocked channels.
-typed_datastore	flow_music_brain_v1.json	main:data/recommendation/music/MusicBrainStorage.kt	PROFILE	private	The music brain.
-datastore_file	flow_neuro_brain_v7.json, v8, v9	main:data/recommendation/NeuroStorage.kt	DEFAULT_ONLY	-	Legacy brains, migrated for Default only.
-factory_datastore	sync_ledger_<collection>.json x8	main:sync/apply/SyncChangeLedgerStore.kt	DEFAULT_ONLY	-	Diffs Default's collections against what was last pushed.
-factory_datastore	flow_video_stats_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.
-factory_datastore	flow_video_stats_hot_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.
-factory_datastore	flow_music_stats_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.
-factory_datastore	flow_music_stats_hot_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.
 shared_prefs	youtube_identity	main:utils/potoken/VisitorIdentityStore.kt	PROFILE	identity	Visitor data per profile; Default keeps the name, others get youtube_identity_<id>.
 shared_prefs	flow_prefs	main:utils/potoken/VisitorIdentityStore.kt	DEVICE	-	Only deletes the legacy visitor keys.
 shared_prefs	flow_prefs	main:utils/cipher/PipePipeNsigDecoder.kt	DEVICE	-	Player-JS id cache with a 24 h lifetime.
@@ -91,7 +78,6 @@ files_dir	downloads/	main:ui/screens/settings/downloads/DownloadSettingsViewMode
 files_dir	flow_crashes.log	main:utils/FlowCrashHandler.kt	DEVICE	-	Crash log.
 files_dir	cipher_cache/	main:utils/cipher/PlayerJsFetcher.kt	DEVICE	-	Player JS.
 files_dir	lyrics/	main:data/lyrics/LyricsCacheManager.kt	DEVICE	-	Lyrics are content, not personal.
-files_dir	user_neuro_brain.json	main:data/recommendation/NeuroStorage.kt	DEFAULT_ONLY	-	Pre-DataStore brain, migrated for Default only.
 files_dir	offline_subtitles/	main:data/video/OfflineSubtitleStore.kt	DEVICE	-	Subtitles of downloads.
 files_dir	downloads/	main:data/video/VideoDownloadManager.kt	DEVICE	-	Internal downloads, and the staging fallback when external storage is missing.
 files_dir	download_covers/	main:data/video/storage/DownloadCovers.kt	DEVICE	-	Covers of downloads.
@@ -101,9 +87,6 @@ files_dir	local_embedded_tags.json	main:data/localmedia/LocalEmbeddedTags.kt	DEV
 files_dir	local_subtitles.json	main:data/localmedia/LocalSubtitleStore.kt	DEVICE	-	Subtitle choices for local media.
 files_dir	fake_stream_wall, fake_stream_wall_all	main:player/datasource/FakeStreamWallDataSource.kt	DEVICE	-	Debug switch files.
 no_backup_dir	headphone_resume_off	main:service/HeadphoneResume.kt	DEVICE	-	Player control; written during a switch so no headset resumes.
-no_backup_dir	neuro_brain_before_v<N>.json	main:data/recommendation/NeuroStorage.kt	PROFILE	private	Brain copy before a migration; the delete is prefix-wide, so it needs the profile's own folder.
-no_backup_dir	neuro/home_snapshots/	main:data/recommendation/snapshot/HomeSnapshotStore.kt	PROFILE	private	Records that profile's Home.
-no_backup_dir	discord_tokens.enc	github:discord/DiscordTokenStore.kt	PROFILE	private	Personal OAuth tokens; the Keystore alias stays shared.
 cache_dir	innertube_http_cache/	main:FlowApplication.kt	CACHE	-	Deleted at switch: suggestion and sw.js_data GETs might be stored.
 cache_dir	recap/	main:ui/screens/recap/story/RecapShare.kt	CACHE	-	Share images from the active profile; deleted at switch.
 cache_dir	image_cache/	main:di/AppModule.kt	CACHE	-	Thumbnails; shared.
@@ -135,3 +118,21 @@ files_dir	datastore/<name>.preferences_pb	main:data/profile/ProfileFiles.kt	DEVI
 files_dir	profile_settings/<id>/	main:data/profile/ProfileFiles.kt	PROFILE	settings	Another profile's settings stores.
 files_dir	profile_library/<id>/	main:data/profile/ProfileFiles.kt	PROFILE	library	Another profile's library stores.
 no_backup_dir	profiles/<id>/	main:data/profile/ProfileFiles.kt	PROFILE	private	Another profile's private stores, and an unread copy of any Default-only store it touches.
+profile_file	flow_neuro_brain_v10.json	main:data/recommendation/NeuroStorage.kt	PROFILE	private	The video brain.
+profile_file	flow_neuro_content_v1.json	main:data/recommendation/NeuroContentStore.kt	PROFILE	private	Content vectors learned from the profile.
+profile_file	flow_neuro_categories_v1.json	main:data/recommendation/NeuroCategoryStore.kt	PROFILE	private	Engine state.
+profile_file	flow_neuro_cowatch_v1.json	main:data/recommendation/NeuroCoWatchStore.kt	PROFILE	private	Co-watch graph from the profile's sessions.
+profile_file	flow_neuro_neighbours_v1.json	main:data/recommendation/NeuroNeighbourStore.kt	PROFILE	private	Engine state.
+profile_file	flow_blocked_channel_names_v1.json	main:data/recommendation/BlockedChannelNameStore.kt	PROFILE	private	Names for the profile's blocked channels.
+profile_file	flow_music_brain_v1.json	main:data/recommendation/music/MusicBrainStorage.kt	PROFILE	private	The music brain.
+profile_file	neuro_brain_before_v<N>.json	main:data/recommendation/NeuroStorage.kt	PROFILE	private	Brain copy before a migration; the delete is prefix-wide, so it needs the profile's own folder.
+profile_file	neuro/home_snapshots/	main:data/recommendation/snapshot/HomeSnapshotStore.kt	PROFILE	private	Records that profile's Home.
+profile_file	discord_tokens.enc	github:discord/DiscordTokenStore.kt	PROFILE	private	Personal OAuth tokens; the Keystore alias stays shared.
+profile_file	music_queue	main:data/local/QueuePersistence.kt	PROFILE	private	Checks for a saved queue before the store can be read.
+profile_file	user_neuro_brain.json	main:data/recommendation/NeuroStorage.kt	DEFAULT_ONLY	-	Pre-DataStore brain, migrated for Default only.
+profile_file	flow_neuro_brain_v7.json, v8, v9	main:data/recommendation/NeuroStorage.kt	DEFAULT_ONLY	-	Legacy brains, migrated for Default only.
+profile_file	sync_ledger_<collection>.json x8	main:sync/apply/SyncChangeLedgerStore.kt	DEFAULT_ONLY	-	Diffs Default's collections against what was last pushed.
+profile_file	flow_video_stats_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.
+profile_file	flow_video_stats_hot_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.
+profile_file	flow_music_stats_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.
+profile_file	flow_music_stats_hot_v1.json	main:data/stats/MonthlyLedgerStore.kt	PROFILE	library	Monthly stats for recap; names live in VideoStatsRecorder and MusicStatsStorage.

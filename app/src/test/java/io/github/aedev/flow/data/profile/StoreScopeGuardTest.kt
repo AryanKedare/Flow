@@ -25,6 +25,7 @@ class StoreScopeGuardTest {
         val kind: String,
         val source: String,
         val name: String?,
+        val scope: String? = null,
     )
 
     private class NamedCall(
@@ -66,9 +67,32 @@ class StoreScopeGuardTest {
                     call.start.findAll(text).map { Hit(call.kind, source, nameOf(call, text, it.range.last)) }
                 } +
                     UNNAMED_PATTERNS.filter { (_, pattern) -> pattern.containsMatchIn(text) }.map { (kind, _) -> Hit(kind, source, null) } +
-                    DIRECTORY_ROOTS.filter { (_, root) -> usesRoot(text, root) }.map { (kind, _) -> Hit(kind, source, null) }
+                    DIRECTORY_ROOTS.filter { (_, root) -> usesRoot(text, root) }.map { (kind, _) -> Hit(kind, source, null) } +
+                    profileFileHits(source, text)
             }.toSet()
     }
+
+    /**
+     * Calls into ProfileFiles that state a scope. A call that passes a scope through (the preferences wrapper) is
+     * checked where its caller states it instead.
+     */
+    private fun profileFileHits(
+        source: String,
+        text: String,
+    ): List<Hit> =
+        PROFILE_FILE_CALL
+            .findAll(text)
+            .mapNotNull { match ->
+                val arguments = arguments(text, match.range.last)
+                val scope =
+                    if (match.groupValues[1] == "noBackupRoot") {
+                        "PROFILE_PRIVATE"
+                    } else {
+                        arguments.firstOrNull { it.startsWith("StoreScope.") }?.removePrefix("StoreScope.") ?: return@mapNotNull null
+                    }
+                val name = if (match.groupValues[1] == "noBackupRoot") null else resolved(arguments.last(), text)
+                Hit("profile_file", source, name, scope)
+            }.toList()
 
     @Test
     fun `every row is well formed`() {
@@ -162,6 +186,8 @@ class StoreScopeGuardTest {
     ): Boolean {
         if (row.source != hit.source) return false
         if (hit.kind == "datastore_file" && row.kind in DATASTORE_KINDS) return true
+        if (hit.kind in FACTORY_KINDS && row.kind == "profile_file") return true
+        if (hit.scope != null && hit.scope != storeScopeOf(row)) return false
         return row.kind == hit.kind && (hit.name == null || hit.name == row.name)
     }
 
@@ -179,6 +205,17 @@ class StoreScopeGuardTest {
         return table to source
     }
 
+    /** A literal or same-file `const val` argument, or null when the name is computed. */
+    private fun resolved(
+        argument: String,
+        text: String,
+    ): String? {
+        val trimmed = argument.trim()
+        STRING_LITERAL.matchEntire(trimmed)?.let { return it.groupValues[1] }
+        if (!CONSTANT.matches(trimmed)) return null
+        return Regex("""const\s+val\s+$trimmed\s*=\s*"([^"$]*)"""").find(text)?.groupValues?.get(1)
+    }
+
     /** The store name a call passes, with a same-file `const val` resolved; a computed name stays as written. */
     private fun nameOf(
         call: NamedCall,
@@ -188,11 +225,7 @@ class StoreScopeGuardTest {
         val arguments = arguments(text, openParen)
         val named = arguments.firstOrNull { it.startsWith("${call.parameter} ") || it.startsWith("${call.parameter}=") }
         val argument = (named?.substringAfter('=') ?: arguments.getOrElse(call.position) { "" }).trim()
-        STRING_LITERAL.matchEntire(argument)?.let { return it.groupValues[1] }
-        if (CONSTANT.matches(argument)) {
-            Regex("""const\s+val\s+$argument\s*=\s*"([^"$]*)"""").find(text)?.let { return it.groupValues[1] }
-        }
-        return argument
+        return resolved(argument, text) ?: argument
     }
 
     private fun arguments(
@@ -307,7 +340,10 @@ class StoreScopeGuardTest {
                 "cache_dir" to "cacheDir",
             )
 
-        val SCANNED_KINDS = NAMED_CALLS.map { it.kind }.toSet() + UNNAMED_PATTERNS.keys + DIRECTORY_ROOTS.keys
+        val PROFILE_FILE_CALL = Regex("""\bProfileFiles\.(preferences|dataStore|file|noBackupRoot)\(""")
+        val FACTORY_KINDS = setOf("factory_datastore", "datastore_file")
+
+        val SCANNED_KINDS = NAMED_CALLS.map { it.kind }.toSet() + UNNAMED_PATTERNS.keys + DIRECTORY_ROOTS.keys + "profile_file"
         val KINDS = SCANNED_KINDS + setOf("room_table", "room_dao")
 
         val TRAILING_COMMENT = Regex("""\s//\s.*$""")

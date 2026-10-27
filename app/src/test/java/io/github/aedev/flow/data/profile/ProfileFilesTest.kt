@@ -52,6 +52,21 @@ class ProfileFilesTest {
     }
 
     @Test
+    fun `Default keeps its no_backup files where they are, another profile in its private folder`() {
+        assertThat(ProfileFiles.noBackupRoot(noBackupFilesDir, default).path).isEqualTo("/data/user/0/app/no_backup")
+        assertThat(ProfileFiles.noBackupRoot(noBackupFilesDir, study).path).isEqualTo("/data/user/0/app/no_backup/profiles/${study.id}")
+    }
+
+    @Test
+    fun `a legacy file only Default has is never looked for in Default's place from another profile`() {
+        val defaults = File(ProfileFiles.root(filesDir, noBackupFilesDir, default, StoreScope.DEFAULT_ONLY), "user_neuro_brain.json")
+        val other = File(ProfileFiles.root(filesDir, noBackupFilesDir, study, StoreScope.DEFAULT_ONLY), "user_neuro_brain.json")
+
+        assertThat(defaults.path).isEqualTo("/data/user/0/app/files/user_neuro_brain.json")
+        assertThat(other.path).startsWith("/data/user/0/app/no_backup/profiles/${study.id}/")
+    }
+
+    @Test
     fun `an id that could leave its folder is refused`() {
         listOf("../d", "a/b", "", ".").forEach { id ->
             assertThrows(IllegalArgumentException::class.java) {
