@@ -28,6 +28,7 @@ internal object DestinationIndex {
                 when (destination) {
                     in notOnTv -> SettingAvailability.NotOnTv
                     SettingsDestination.REMOTE_GUIDE -> SettingAvailability.TvOnly
+                    SettingsDestination.PROFILES, SettingsDestination.PROFILE_EDIT -> SettingAvailability.Profiles
                     else -> SettingAvailability.Always
                 },
         )
@@ -48,8 +49,10 @@ internal object DestinationIndex {
     /** The editor is left out: it opens one theme, so it has no page of its own to find. */
     val all: List<SettingEntry> =
         SettingsDestination.entries
-            .filter { it != SettingsDestination.HOME && it != SettingsDestination.CUSTOM_THEME_EDIT }
-            .map(::entry)
+            .filter {
+                it != SettingsDestination.HOME && it != SettingsDestination.CUSTOM_THEME_EDIT &&
+                    it != SettingsDestination.PROFILE_EDIT
+            }.map(::entry)
 
     private fun summaryOf(destination: SettingsDestination): Int? =
         when (destination) {
@@ -79,6 +82,8 @@ internal object DestinationIndex {
             SettingsDestination.SCROBBLING -> R.string.scrobbling_summary
             SettingsDestination.BACKUP -> R.string.settings_backup_summary
             SettingsDestination.SYNC -> R.string.sync_devices_subtitle
+            SettingsDestination.PROFILES -> R.string.profiles_summary
+            SettingsDestination.PROFILE_EDIT -> null
             SettingsDestination.HISTORY -> R.string.settings_history_summary
             SettingsDestination.DOWNLOADS -> R.string.settings_downloads_summary
             SettingsDestination.LOCAL_MEDIA -> R.string.settings_local_media_summary

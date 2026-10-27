@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.profiles
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -28,14 +29,17 @@ import java.text.BreakIterator
 /**
  * A profile as a circle in its colour, showing its photo, its emoji or the first character of its name. Material 3
  * ships no avatar, so this is a Surface; the name beside it is what screen readers announce, so it adds no label.
+ * [label] is the name to take the initial from while it is still being typed.
  */
 @Composable
 fun ProfileAvatar(
     profile: Profile,
     modifier: Modifier = Modifier,
     size: Dp = ProfileAvatarDefaults.Size,
+    label: String? = null,
 ) {
     val context = LocalContext.current
+    val initial = profileInitial(label ?: profile.displayName(context))
     val tones = profileTones(profile.colorKey)
     Surface(
         modifier = modifier.size(size),
@@ -46,15 +50,7 @@ fun ProfileAvatar(
         Box(contentAlignment = Alignment.Center) {
             when (profile.avatar.kind) {
                 ProfileAvatar.PHOTO -> {
-                    val request =
-                        remember(profile.id, profile.avatar.photoVersion) {
-                            val file = ProfileAvatarPhotos.fileFor(context, profile.id)
-                            ImageRequest
-                                .Builder(context)
-                                .data(file)
-                                .memoryCacheKey("profile_avatar:${profile.id}:${profile.avatar.photoVersion}")
-                                .build()
-                        }
+                    val request = remember(profile.id, profile.avatar.photoVersion) { profilePhotoRequest(context, profile) }
                     AsyncImage(
                         model = request,
                         contentDescription = null,
@@ -64,16 +60,27 @@ fun ProfileAvatar(
                 }
 
                 ProfileAvatar.EMOJI -> {
-                    Text(profile.avatar.emoji.ifBlank { profileInitial(profile.displayName(context)) }, style = textStyleFor(size))
+                    Text(profile.avatar.emoji.ifBlank { initial }, style = textStyleFor(size))
                 }
 
                 else -> {
-                    Text(profileInitial(profile.displayName(context)), style = textStyleFor(size))
+                    Text(initial, style = textStyleFor(size))
                 }
             }
         }
     }
 }
+
+/** A profile's saved photo, cached under its version so a new photo is never hidden behind the old one. */
+fun profilePhotoRequest(
+    context: Context,
+    profile: Profile,
+): ImageRequest =
+    ImageRequest
+        .Builder(context)
+        .data(ProfileAvatarPhotos.fileFor(context, profile.id))
+        .memoryCacheKey("profile_avatar:${profile.id}:${profile.avatar.photoVersion}")
+        .build()
 
 object ProfileAvatarDefaults {
     val Size = 40.dp

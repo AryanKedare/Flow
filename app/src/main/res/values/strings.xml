@@ -2889,6 +2889,72 @@
     <string name="diagnostics_profile_delete_title">Delete %1$s?</string>
     <string name="diagnostics_profile_delete_body">Everything this profile keeps on this device is removed.</string>
     <string name="profile_default_name">Default</string>
+    <string name="profiles_title">Profiles</string>
+    <string name="profiles_summary">Separate feeds, history and settings for each person</string>
+    <string name="profiles_keywords">profile, user, person, family, account, switch user</string>
+    <string name="profiles_edit_title">Edit profile</string>
+    <string name="profiles_new_title">New profile</string>
+    <string name="profiles_add">Add profile</string>
+    <string name="profiles_add_summary">Each profile keeps its own feed, history and settings</string>
+    <string name="profiles_limit">You can have up to %1$d profiles</string>
+    <string name="profiles_count">%1$d of %2$d profiles</string>
+    <string name="profiles_footer">Profiles keep feeds, history and settings apart. They are not locked, so anyone using this device can switch. Downloads, language, region and player controls are shared by all profiles.</string>
+    <string name="profiles_in_use">In use</string>
+    <string name="profiles_default_syncs">Syncs with your other devices</string>
+    <string name="profiles_more">More options for %1$s</string>
+    <string name="profiles_switch">Switch</string>
+    <string name="profiles_edit">Edit</string>
+    <string name="profiles_rename">Rename</string>
+    <string name="profiles_delete">Delete</string>
+    <string name="profiles_delete_title">Delete %1$s?</string>
+    <string name="profiles_delete_body">Its history, subscriptions, playlists, notes and recommendations are removed from this device. Downloads stay. This can\'t be undone.</string>
+    <string name="profiles_deleted">Profile deleted</string>
+    <string name="profiles_name">Name</string>
+    <string name="profiles_name_taken">Another profile already has this name</string>
+    <string name="profiles_color">Color</string>
+    <string name="profiles_color_blue">Blue</string>
+    <string name="profiles_color_teal">Teal</string>
+    <string name="profiles_color_green">Green</string>
+    <string name="profiles_color_amber">Amber</string>
+    <string name="profiles_color_orange">Orange</string>
+    <string name="profiles_color_red">Red</string>
+    <string name="profiles_color_pink">Pink</string>
+    <string name="profiles_color_purple">Purple</string>
+    <string name="profiles_picture">Picture</string>
+    <string name="profiles_photo">Choose a photo</string>
+    <string name="profiles_initial">Initial</string>
+    <string name="profiles_initial_glyph" translatable="false">Aa</string>
+    <string name="profiles_start_with">Start with</string>
+    <string name="profiles_start_fresh">Start fresh</string>
+    <string name="profiles_copy_from">Copy from %1$s</string>
+    <string name="profiles_copy_settings">Settings</string>
+    <string name="profiles_copy_settings_summary">Theme, playback and app preferences</string>
+    <string name="profiles_copy_subscriptions">Subscriptions</string>
+    <string name="profiles_copy_subscriptions_summary">Channels and channel groups</string>
+    <string name="profiles_copy_recommendations">Recommendations</string>
+    <string name="profiles_copy_recommendations_summary">What Flow has learned about your taste</string>
+    <string name="profiles_create_and_switch">Create and switch</string>
+    <string name="profiles_create">Create profile</string>
+    <string name="profiles_save">Save</string>
+    <string name="profiles_limit_reached">You already have %1$d profiles</string>
+    <string name="profiles_copy_failed">Couldn\'t copy from this profile, so nothing was created</string>
+    <string name="profiles_photo_failed">Couldn\'t use that photo</string>
+    <string name="profiles_switch_failed">Couldn\'t switch profiles. Try again.</string>
+    <string name="profiles_switch_refused_car">Disconnect from your car to switch profiles</string>
+    <string name="profiles_switch_refused_sync">Wait for sync to finish to switch profiles</string>
+    <string name="profiles_switch_refused_backup">Wait for the backup to finish to switch profiles</string>
+    <string-array name="profiles_emoji" translatable="false">
+        <item>🎧</item>
+        <item>📚</item>
+        <item>🎮</item>
+        <item>🍳</item>
+        <item>⚽</item>
+        <item>🌙</item>
+        <item>🎬</item>
+        <item>🎨</item>
+        <item>🐶</item>
+        <item>🌱</item>
+    </string-array>
     <string name="reminder_bedtime_title">It\'s bedtime! 😴</string>
     <string name="reminder_bedtime_body">Time to wind down based on your schedule.</string>
     <string name="reminder_break_title">Take a break! ☕</string>
