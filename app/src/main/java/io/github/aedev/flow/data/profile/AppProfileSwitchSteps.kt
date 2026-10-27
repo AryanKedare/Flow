@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
+import io.github.aedev.flow.discord.DiscordPresenceController
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.notification.WellbeingAlarms
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -20,6 +21,7 @@ import io.github.aedev.flow.sync.SyncManager
 import io.github.aedev.flow.utils.potoken.PoTokenGenerator
 import io.github.aedev.flow.widget.core.state.clearNowPlayingSnapshot
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import javax.inject.Inject
 
@@ -35,6 +37,7 @@ class AppProfileSwitchSteps
         private val videoStats: VideoStatsRecorder,
         private val sync: dagger.Lazy<SyncManager>,
         private val backups: dagger.Lazy<BackupCoordinator>,
+        private val discord: DiscordPresenceController,
     ) : ProfileSwitchSteps {
         private val registry: ProfileRegistry get() = ActiveProfile.registry(context)
 
@@ -86,6 +89,8 @@ class AppProfileSwitchSteps
             NotificationHelper.cancelProfileNotifications(context)
             // The Now Playing widgets would keep this profile's last track until the next one plays something.
             context.clearNowPlayingSnapshot()
+            // Discord would show this profile's last track until its gateway noticed the process was gone.
+            withTimeoutOrNull(DISCORD_TIMEOUT_MS) { discord.endForSwitch() }
         }
 
         override suspend fun clearCaches() {
@@ -111,3 +116,5 @@ class AppProfileSwitchSteps
             Runtime.getRuntime().exit(0)
         }
     }
+
+private const val DISCORD_TIMEOUT_MS = 2_000L
