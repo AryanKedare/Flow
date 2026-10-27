@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Android 12 and newer. Cloud backup carries settings only; moving to a new phone also carries the
-  library. The recommendation engine, sync identity, caches and downloads never leave the device
+  library. Other profiles keep each class in its own folder (profile_settings, profile_library), so a
+  folder include carries all of them; their private files sit in no_backup and never leave. The recommendation engine, sync identity, caches and downloads never leave the device
   (#907), and neither does the YouTube visitor identity (#921). Anything not listed stays local.
 -->
 <data-extraction-rules>
@@ -14,6 +15,8 @@
         <include domain="file" path="datastore/audio_settings.preferences_pb" />
         <include domain="file" path="datastore/local_media.preferences_pb" />
         <include domain="sharedpref" path="flow_language_prefs.xml" />
+        <include domain="file" path="datastore/profiles_registry.json" />
+        <include domain="file" path="profile_settings" />
     </cloud-backup>
     <device-transfer>
         <include domain="file" path="datastore/player_preferences.preferences_pb" />
@@ -24,6 +27,8 @@
         <include domain="file" path="datastore/audio_settings.preferences_pb" />
         <include domain="file" path="datastore/local_media.preferences_pb" />
         <include domain="sharedpref" path="flow_language_prefs.xml" />
+        <include domain="file" path="datastore/profiles_registry.json" />
+        <include domain="file" path="profile_settings" />
         <include domain="database" path="flow_database" />
         <include domain="database" path="flow_database-wal" />
         <include domain="database" path="flow_database-shm" />
@@ -41,5 +46,6 @@
         <include domain="file" path="datastore/flow_video_stats_hot_v1.json" />
         <include domain="file" path="datastore/flow_music_stats_v1.json" />
         <include domain="file" path="datastore/flow_music_stats_hot_v1.json" />
+        <include domain="file" path="profile_library" />
     </device-transfer>
 </data-extraction-rules>

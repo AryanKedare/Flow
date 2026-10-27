@@ -91,6 +91,10 @@ class ProfileRegistry internal constructor(
         return complete.running()
     }
 
+    /** After a restore: the app reopens in Default, whichever profile was active when the backup was made. */
+    suspend fun reopenInDefault(): ProfileRegistryState =
+        store.updateData { stored -> stored.completed(newId, now).let { it.copy(activeId = it.defaultId) } }
+
     companion object {
         const val FILE_NAME = "profiles_registry.json"
         private const val TAG = "ProfileRegistry"

@@ -92,6 +92,25 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `after a restore the app reopens in Default and keeps every profile`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study"}],"defaultId":"d","activeId":"study"}""")
+
+        val restored = withRegistry { it.reopenInDefault() }
+
+        assertThat(restored.activeId).isEqualTo("d")
+        assertThat(restored.profiles.map { it.id }).containsExactly("d", "study").inOrder()
+        assertThat(ProfileRegistry.peek(file)).isEqualTo(RunningProfile(id = "d", isDefault = true))
+    }
+
+    @Test
+    fun `a restore that brought no registry starts Default`() {
+        val restored = withRegistry(newId = { "fresh" }) { it.reopenInDefault() }
+
+        assertThat(restored.defaultId).isEqualTo("fresh")
+        assertThat(restored.activeId).isEqualTo("fresh")
+    }
+
+    @Test
     fun `a file from a newer version still reads`() {
         write(
             """{"profiles":[{"id":"d","avatar":{"kind":"hologram","frames":3},"pin":"x"}],""" +

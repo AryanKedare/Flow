@@ -38,7 +38,7 @@ object ActiveProfile {
             RunningProfile(id = "", isDefault = true)
         }
 
-    private fun registry(context: Context): ProfileRegistry =
+    internal fun registry(context: Context): ProfileRegistry =
         registry ?: synchronized(this) {
             registry ?: ProfileRegistry(registryFile(context)).also { registry = it }
         }
