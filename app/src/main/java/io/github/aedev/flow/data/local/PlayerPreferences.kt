@@ -3973,19 +3973,22 @@ class PlayerPreferences(
 
     /** Without [includeDevice], only this profile's own settings, as a new profile copies them. */
     suspend fun getExportData(includeDevice: Boolean = true): SettingsBackup {
-        val profile =
-            context.playerPreferencesDataStore.data
-                .first()
-                .asMap()
-        val stored =
+        val device =
             if (includeDevice) {
-                profile +
-                    context.devicePreferencesDataStore.data
-                        .first()
-                        .asMap()
+                context.devicePreferencesDataStore.data
+                    .first()
+                    .asMap()
             } else {
-                profile
+                emptyMap()
             }
+        val stored =
+            exportedPreferences(
+                context.playerPreferencesDataStore.data
+                    .first()
+                    .asMap(),
+                device,
+                DeviceKeys.NAMES,
+            )
         val strings = mutableMapOf<String, String>()
         val booleans = mutableMapOf<String, Boolean>()
         val ints = mutableMapOf<String, Int>()
@@ -4018,6 +4021,16 @@ class PlayerPreferences(
             ?.let { tag -> withContext(Dispatchers.Main.immediate) { AppLanguageManager.applyLanguageTag(context, tag) } }
     }
 }
+
+/**
+ * The settings a backup carries. Device keys were copied out of the profile store, not moved, so the profile store's
+ * own copies of them are stale and only the device store's count.
+ */
+internal fun exportedPreferences(
+    profile: Map<Preferences.Key<*>, Any>,
+    device: Map<Preferences.Key<*>, Any>,
+    deviceNames: Set<String>,
+): Map<Preferences.Key<*>, Any> = profile.filterKeys { it.name !in deviceNames } + device
 
 private fun SettingsBackup.splitBy(predicate: (String) -> Boolean): Pair<SettingsBackup, SettingsBackup> =
     SettingsBackup(
