@@ -8,11 +8,10 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.local.NO_LIKES
+import io.github.aedev.flow.data.profile.ActiveProfile
+import io.github.aedev.flow.data.profile.ProfileSlices
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
-import io.github.aedev.flow.data.recommendation.music.FavouriteArtistsStore
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
-import io.github.aedev.flow.data.stats.RecapBackup
-import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore
 import kotlinx.coroutines.CancellationException
@@ -25,7 +24,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -66,9 +64,8 @@ class BackupCoordinator
         private val repository: BackupRepository,
         private val musicBrain: MusicBrainEngine,
         private val localDataManager: LocalDataManager,
-        private val videoStats: VideoStatsRecorder,
-        private val favouriteArtists: FavouriteArtistsStore,
         private val syncLedger: SyncChangeLedgerStore,
+        private val slices: ProfileSlices,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val _operation = MutableStateFlow<BackupOperation>(BackupOperation.Idle)
@@ -110,14 +107,7 @@ class BackupCoordinator
             }
 
         fun exportMaster(uri: Uri) =
-            exportTo(uri, R.string.master_backup_export_success, R.string.master_backup_export_failed) {
-                repository.exportMasterBackup(
-                    uri,
-                    musicBrain = musicBrainBytes(),
-                    recap = recapBytes(),
-                    favouriteArtists = favouriteArtists.export(),
-                )
-            }
+            exportTo(uri, R.string.master_backup_export_success, R.string.master_backup_export_failed) { slices.export(uri) }
 
         /** Writes the automatic backup now, into the chosen folder, and records when it ran. */
         fun backUpNow(
@@ -135,12 +125,7 @@ class BackupCoordinator
                     }
 
                     LocalDataManager.AutoBackupType.MASTER -> {
-                        repository.exportMasterToFolder(
-                            folder,
-                            musicBrain = musicBrainBytes(),
-                            recap = recapBytes(),
-                            favouriteArtists = favouriteArtists.export(),
-                        )
+                        slices.exportToFolder(folder)
                     }
                 }
             if (result.isSuccess) {
@@ -154,7 +139,7 @@ class BackupCoordinator
         fun importFlowBackup(uri: Uri) =
             run(context.getString(R.string.import_flow_backup_item_title)) {
                 val result = repository.importData(uri)
-                if (result.isSuccess) syncLedger.reset()
+                if (result.isSuccess) resetSyncLedgers()
                 result.fold(
                     onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_flow_backup_success)) },
                     onFailure = { failed(R.string.import_flow_backup_failed_template, it) },
@@ -163,14 +148,8 @@ class BackupCoordinator
 
         fun importMaster(uri: Uri) =
             run(context.getString(R.string.master_backup_title)) {
-                val result =
-                    repository.importMasterBackup(
-                        uri,
-                        onMusicBrain = { bytes -> musicBrain.importBrainFromStream(bytes.inputStream()) },
-                        onRecap = ::restoreRecap,
-                        onFavouriteArtists = favouriteArtists::restore,
-                    )
-                if (result.isSuccess) syncLedger.reset()
+                val result = slices.import(uri)
+                if (result.isSuccess) resetSyncLedgers()
                 result.fold(
                     onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_master_backup_success)) },
                     onFailure = { failed(R.string.import_failed_template, it) },
@@ -397,16 +376,9 @@ class BackupCoordinator
                 else -> context.getString(R.string.import_failed_template, error.message ?: context.getString(R.string.unknown_error))
             }
 
-        private suspend fun musicBrainBytes(): ByteArray? =
-            runCatching { ByteArrayOutputStream().also { musicBrain.exportBrainToStream(it) }.toByteArray() }.getOrNull()
-
-        private suspend fun recapBytes(): ByteArray? =
-            runCatching { RecapBackup(video = videoStats.snapshot(), music = musicBrain.listeningStats()).encode() }.getOrNull()
-
-        private suspend fun restoreRecap(bytes: ByteArray) {
-            val backup = RecapBackup.decode(bytes) ?: return
-            backup.video?.let { videoStats.restore(it) }
-            backup.music?.let { musicBrain.restoreListeningStats(it) }
+        // The ledgers describe Default's data, the only profile that syncs; an import into another profile leaves them be.
+        private suspend fun resetSyncLedgers() {
+            if (ActiveProfile.get(context).isDefault) syncLedger.reset()
         }
 
         private suspend fun writeStream(

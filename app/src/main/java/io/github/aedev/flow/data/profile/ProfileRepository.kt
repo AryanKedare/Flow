@@ -14,19 +14,35 @@ class ProfileRepository
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
+        private val slices: ProfileSlices,
     ) {
         private val registry: ProfileRegistry get() = ActiveProfile.registry(context)
 
         val state: Flow<ProfileRegistryState> get() = registry.state
 
-        /** The new profile, or null when there are already [ProfileRegistry.MAX_PROFILES]. */
+        /**
+         * Registers a profile and, when [copy] names parts, writes them from the running profile as its seed. A seed
+         * that can't be written takes the new entry with it, so a half-copied profile never appears.
+         */
         suspend fun create(
             name: String,
             colorKey: String = "",
             avatar: ProfileAvatar = ProfileAvatar(),
-        ): Profile? {
+            copy: Set<SlicePart> = emptySet(),
+        ): CreateResult {
             require(name.isNotBlank()) { "A new profile needs a name" }
-            return registry.add(name.trim(), colorKey, avatar)
+            val profile = registry.add(name.trim(), colorKey, avatar) ?: return CreateResult.LimitReached
+            if (copy.isEmpty()) return CreateResult.Created(profile)
+            return slices.writeSeed(profile.id, copy).fold(
+                onSuccess = { CreateResult.Created(profile) },
+                onFailure = { cause ->
+                    withContext(Dispatchers.IO) {
+                        registry.remove(profile.id)
+                        ProfileFolders.of(context).delete(profile.id)
+                    }
+                    CreateResult.CopyFailed(cause)
+                },
+            )
         }
 
         suspend fun rename(
@@ -46,3 +62,16 @@ class ProfileRepository
                 true
             }
     }
+
+sealed interface CreateResult {
+    data class Created(
+        val profile: Profile,
+    ) : CreateResult
+
+    /** There are already [ProfileRegistry.MAX_PROFILES]. */
+    data object LimitReached : CreateResult
+
+    data class CopyFailed(
+        val cause: Throwable,
+    ) : CreateResult
+}

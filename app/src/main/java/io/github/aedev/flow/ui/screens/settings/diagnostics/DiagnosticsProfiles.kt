@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.settings.diagnostics
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.Icon
@@ -18,6 +19,7 @@ internal fun SettingsListScope.debugProfiles(
     state: ProfileRegistryState?,
     runningId: String,
     onAdd: () -> Unit,
+    onAddCopy: () -> Unit,
     onSwitch: (String) -> Unit,
     onDelete: (Profile) -> Unit,
 ) {
@@ -55,6 +57,16 @@ internal fun SettingsListScope.debugProfiles(
                     title = stringResource(R.string.diagnostics_profile_add),
                     onClick = onAdd,
                     leadingIcon = Icons.Outlined.PersonAdd,
+                    showChevron = false,
+                    shape = shape,
+                )
+            }
+            row("diagnostics.profiles.add_copy") { shape ->
+                FlowNavRow(
+                    title = stringResource(R.string.diagnostics_profile_add_copy),
+                    supportingText = stringResource(R.string.diagnostics_profile_add_copy_summary),
+                    onClick = onAddCopy,
+                    leadingIcon = Icons.Outlined.ContentCopy,
                     showChevron = false,
                     shape = shape,
                 )

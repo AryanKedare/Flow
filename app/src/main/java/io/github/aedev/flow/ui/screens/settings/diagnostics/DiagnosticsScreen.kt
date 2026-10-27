@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.profile.Profile
+import io.github.aedev.flow.data.profile.SlicePart
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.info
@@ -161,6 +162,7 @@ internal fun DiagnosticsScreen(
                 state = profileState,
                 runningId = viewModel.runningProfileId,
                 onAdd = { viewModel.addProfile(newProfileName) },
+                onAddCopy = { viewModel.addProfile(newProfileName, copy = SlicePart.entries.toSet()) },
                 onSwitch = viewModel::switchProfile,
                 onDelete = { profileToDelete = it },
             )

@@ -11,7 +11,10 @@ import dagger.hilt.android.HiltAndroidApp
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.profile.ActiveProfile
+import io.github.aedev.flow.data.profile.PendingSlice
 import io.github.aedev.flow.data.profile.PostSwitchWork
+import io.github.aedev.flow.data.profile.ProfileFiles
+import io.github.aedev.flow.data.profile.ProfileSlices
 import io.github.aedev.flow.data.profile.ProfileWebView
 import io.github.aedev.flow.data.profile.ProfileWorkReconciler
 import io.github.aedev.flow.data.repository.NewPipeDownloader
@@ -82,6 +85,9 @@ class FlowApplication :
 
     @Inject
     lateinit var postSwitchWork: PostSwitchWork
+
+    @Inject
+    lateinit var profileSlices: dagger.Lazy<ProfileSlices>
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
@@ -155,6 +161,9 @@ class FlowApplication :
         }
          */
 
+        PendingSlice.start(ProfileFiles.noBackupRoot(this), CoroutineScope(SupervisorJob() + Dispatchers.IO)) { file ->
+            profileSlices.get().applyPending(file)
+        }
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             launch { profileWorkReconciler.reconcile() }
             launch { postSwitchWork.runIfSwitched() }

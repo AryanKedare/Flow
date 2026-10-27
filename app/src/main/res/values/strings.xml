@@ -2879,6 +2879,8 @@
     <string name="diagnostics_profile_running">In use</string>
     <string name="diagnostics_profile_switch">Switch to this profile</string>
     <string name="diagnostics_profile_add">Add profile</string>
+    <string name="diagnostics_profile_add_copy">Add a copy of this profile</string>
+    <string name="diagnostics_profile_add_copy_summary">Settings, subscriptions and recommendations</string>
     <string name="diagnostics_profile_new_name">Profile %1$d</string>
     <string name="diagnostics_profile_delete">Delete profile</string>
     <string name="diagnostics_profile_delete_title">Delete %1$s?</string>
