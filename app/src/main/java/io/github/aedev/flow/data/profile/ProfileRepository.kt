@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.profile
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.video.downloader.collection.DownloadedCollections
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -15,6 +16,7 @@ class ProfileRepository
     constructor(
         @ApplicationContext private val context: Context,
         private val slices: ProfileSlices,
+        private val collections: dagger.Lazy<DownloadedCollections>,
     ) {
         private val registry: ProfileRegistry get() = ActiveProfile.registry(context)
 
@@ -59,6 +61,7 @@ class ProfileRepository
                 if (!isSafeProfileId(id) || id == ActiveProfile.get(context).id) return@withContext false
                 if (!registry.remove(id)) return@withContext false
                 ProfileFolders.of(context).delete(id)
+                collections.get().forgetProfile(id)
                 true
             }
     }
