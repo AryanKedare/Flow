@@ -135,6 +135,22 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `a profile's colour and avatar change together, and only for a profile that exists`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study","name":"Study"}],"defaultId":"d","activeId":"d"}""")
+        val photo = ProfileAvatar(kind = ProfileAvatar.PHOTO, photoVersion = 7)
+
+        withRegistry { registry ->
+            assertThat(registry.setAppearance("study", "teal", photo)).isTrue()
+            assertThat(registry.setAppearance("missing", "teal", photo)).isFalse()
+        }
+
+        val study = withRegistry { it.state.first() }.profiles.single { it.id == "study" }
+        assertThat(study.colorKey).isEqualTo("teal")
+        assertThat(study.avatar).isEqualTo(photo)
+        assertThat(study.name).isEqualTo("Study")
+    }
+
+    @Test
     fun `Default and the active profile are never removed`() {
         write("""{"profiles":[{"id":"d"},{"id":"study"},{"id":"music"}],"defaultId":"d","activeId":"study"}""")
 

@@ -1,11 +1,13 @@
 package io.github.aedev.flow.data.profile
 
+import android.content.Context
 import android.util.Log
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.Serializer
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import io.github.aedev.flow.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +31,9 @@ data class Profile(
     val avatar: ProfileAvatar = ProfileAvatar(),
     val createdAt: Long = 0L,
 )
+
+/** The name to show: Default's is blank until it is renamed, and shows the localized "Default". */
+fun Profile.displayName(context: Context): String = name.ifBlank { context.getString(R.string.profile_default_name) }
 
 /**
  * Flat rather than sealed, so an older build that meets an avatar kind it doesn't know shows the initial instead
@@ -128,6 +133,22 @@ class ProfileRegistry internal constructor(
             complete.copy(profiles = complete.profiles.map { if (it.id == id) it.copy(name = name) else it })
         }
         return renamed
+    }
+
+    /** Changes how a profile looks: its colour and its avatar. */
+    suspend fun setAppearance(
+        id: String,
+        colorKey: String,
+        avatar: ProfileAvatar,
+    ): Boolean {
+        var changed = false
+        store.updateData { stored ->
+            val complete = stored.completed(newId, now)
+            if (complete.profiles.none { it.id == id }) return@updateData complete
+            changed = true
+            complete.copy(profiles = complete.profiles.map { if (it.id == id) it.copy(colorKey = colorKey, avatar = avatar) else it })
+        }
+        return changed
     }
 
     /** Removes a profile from the registry. Default and the active profile are never removed. */
