@@ -2838,12 +2838,12 @@
     <string name="start_radio_desc">Tocar rádio baseada nesta música</string>
     <plurals name="playlists_count_template">
         <item quantity="one">%1$d playlist</item>
-        <item quantity="many">%1$d playlists</item>
+        <item quantity="many">%1$d de playlists</item>
         <item quantity="other">%1$d playlists</item>
     </plurals>
     <plurals name="shorts_count_template">
         <item quantity="one">%1$d Short</item>
-        <item quantity="many">%1$d Shorts</item>
+        <item quantity="many">%1$d de Shorts</item>
         <item quantity="other">%1$d Shorts</item>
     </plurals>
     <plurals name="library_items_count">
@@ -4353,7 +4353,7 @@
         <item quantity="many">%1$d temas importados</item>
         <item quantity="other">%1$d temas importados</item>
     </plurals>
-    <string name="taste_keywords">persona, perfil, algoritmo, recomendações, interesses, cérebro, motor, centro de controle</string>
+    <string name="taste_keywords">persona, perfil, algoritmo, recomendações, interesses, cérebro, motor, central de controle</string>
     <string name="taste_shape_header">Perfil de gosto</string>
     <plurals name="taste_hidden_count">
         <item quantity="one">%d item oculto</item>
@@ -4413,8 +4413,8 @@
     </plurals>
     <plurals name="songs_download_queued">
         <item quantity="one">%d música adicionada à fila para download</item>
-        <item quantity="many">%d músicas adicionada à fila para baixar</item>
-        <item quantity="other">%d músicas adicionada à fila para baixar</item>
+        <item quantity="many">%d de músicas adicionadas à fila para baixar</item>
+        <item quantity="other">%d músicas adicionadas à fila para baixar</item>
     </plurals>
     <string name="channel_about_handle">Manusear</string>
     <string name="settings_downloads_nav_tab_title">Aba de downloads na navegação</string>
