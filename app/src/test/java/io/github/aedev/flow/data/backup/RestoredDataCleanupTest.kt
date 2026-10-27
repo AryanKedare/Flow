@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.backup
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.profile.ProfileFolders
 import org.junit.After
 import org.junit.Test
 import java.io.File
@@ -11,6 +12,7 @@ class RestoredDataCleanupTest {
     private val filesDir = File(dataDir, "files")
     private val noBackupFilesDir = File(dataDir, "no_backup")
     private val sharedPrefsDir = File(dataDir, "shared_prefs")
+    private val folders = ProfileFolders(filesDir, noBackupFilesDir, dataDir)
 
     @After
     fun cleanUp() {
@@ -39,7 +41,7 @@ class RestoredDataCleanupTest {
         file(noBackupFilesDir, "profiles/gone/datastore/music_queue.preferences_pb")
         file(sharedPrefsDir, "youtube_identity_gone.xml")
 
-        val removed = RestoredDataCleanup.deleteUnlistedProfiles(filesDir, noBackupFilesDir, sharedPrefsDir, setOf("default", "study"))
+        val removed = RestoredDataCleanup.deleteUnlistedProfiles(folders, setOf("default", "study"))
 
         assertThat(removed).containsExactly("gone", "gone", "gone", "youtube_identity_gone.xml")
         kept.forEach { assertThat(it.exists()).isTrue() }
@@ -57,7 +59,7 @@ class RestoredDataCleanupTest {
                 file(sharedPrefsDir, "flow_language_prefs.xml"),
             )
 
-        val removed = RestoredDataCleanup.deleteUnlistedProfiles(filesDir, noBackupFilesDir, sharedPrefsDir, setOf("default"))
+        val removed = RestoredDataCleanup.deleteUnlistedProfiles(folders, setOf("default"))
 
         assertThat(removed).isEmpty()
         defaults.forEach { assertThat(it.exists()).isTrue() }
@@ -65,6 +67,6 @@ class RestoredDataCleanupTest {
 
     @Test
     fun `a restore with no profile folders removes nothing`() {
-        assertThat(RestoredDataCleanup.deleteUnlistedProfiles(filesDir, noBackupFilesDir, sharedPrefsDir, emptySet())).isEmpty()
+        assertThat(RestoredDataCleanup.deleteUnlistedProfiles(folders, emptySet())).isEmpty()
     }
 }

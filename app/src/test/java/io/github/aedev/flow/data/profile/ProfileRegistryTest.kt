@@ -111,6 +111,40 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `profiles can be added up to the limit`() {
+        var next = 0
+        val added = withRegistry(newId = { "p${next++}" }) { registry -> (1..6).map { registry.add("P$it", "", ProfileAvatar()) } }
+
+        assertThat(added.take(4).map { it?.name }).containsExactly("P1", "P2", "P3", "P4").inOrder()
+        assertThat(added.drop(4)).containsExactly(null, null)
+        assertThat(withRegistry { it.state.first() }.profiles).hasSize(ProfileRegistry.MAX_PROFILES)
+    }
+
+    @Test
+    fun `only Default may be renamed to a blank name`() {
+        write("""{"profiles":[{"id":"d","name":"Me"},{"id":"study","name":"Study"}],"defaultId":"d","activeId":"d"}""")
+
+        withRegistry { registry ->
+            assertThat(registry.rename("study", " ")).isFalse()
+            assertThat(registry.rename("study", "Books")).isTrue()
+            assertThat(registry.rename("d", "")).isTrue()
+            assertThat(registry.rename("missing", "X")).isFalse()
+        }
+
+        assertThat(withRegistry { it.state.first() }.profiles.map { it.name }).containsExactly("", "Books").inOrder()
+    }
+
+    @Test
+    fun `Default and the active profile are never removed`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study"},{"id":"music"}],"defaultId":"d","activeId":"study"}""")
+
+        val results = withRegistry { registry -> listOf("d", "study", "music", "missing").map { registry.remove(it) } }
+
+        assertThat(results).containsExactly(false, false, true, false).inOrder()
+        assertThat(withRegistry { it.state.first() }.profiles.map { it.id }).containsExactly("d", "study").inOrder()
+    }
+
+    @Test
     fun `a file from a newer version still reads`() {
         write(
             """{"profiles":[{"id":"d","avatar":{"kind":"hologram","frames":3},"pin":"x"}],""" +

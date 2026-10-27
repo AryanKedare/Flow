@@ -6,8 +6,8 @@ import android.app.backup.BackupDataOutput
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import io.github.aedev.flow.data.profile.ActiveProfile
+import io.github.aedev.flow.data.profile.ProfileFolders
 import kotlinx.coroutines.runBlocking
-import java.io.File
 
 /**
  * Auto Backup with extra steps after a restore, before the app first runs: install-only files an older
@@ -33,9 +33,7 @@ class FlowBackupAgent : BackupAgent() {
         val registry = runBlocking { ActiveProfile.registry(this@FlowBackupAgent).reopenInDefault() }
         val unlisted =
             RestoredDataCleanup.deleteUnlistedProfiles(
-                filesDir = filesDir,
-                noBackupFilesDir = noBackupFilesDir,
-                sharedPrefsDir = File(dataDir, "shared_prefs"),
+                folders = ProfileFolders.of(this),
                 profileIds = registry.profiles.mapTo(HashSet()) { it.id },
             )
         if (unlisted.isNotEmpty()) Log.i(TAG, "Removed profiles the restored registry doesn't list: $unlisted")

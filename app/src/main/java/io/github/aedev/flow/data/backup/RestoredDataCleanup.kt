@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.backup
 
+import io.github.aedev.flow.data.profile.ProfileFolders
 import java.io.File
 
 /**
@@ -24,31 +25,15 @@ internal object RestoredDataCleanup {
             "sync_music_brain_crdt.preferences_pb",
         )
     private const val SYNC_LEDGER_PREFIX = "sync_ledger_"
-    private const val IDENTITY_PREFIX = "youtube_identity_"
 
     /**
-     * Deletes the folders and visitor identities of profiles the restored registry doesn't list, so nothing of a
-     * profile that is gone can resurface, and returns what it removed. Default's files are never touched: its
-     * stores keep their own names outside these folders.
+     * Deletes everything of the profiles the restored registry doesn't list, so nothing of a profile that is gone
+     * can resurface, and returns what it removed. Default's files are never touched.
      */
     fun deleteUnlistedProfiles(
-        filesDir: File,
-        noBackupFilesDir: File,
-        sharedPrefsDir: File,
+        folders: ProfileFolders,
         profileIds: Set<String>,
-    ): List<String> {
-        val folders =
-            listOf(File(filesDir, "profile_settings"), File(filesDir, "profile_library"), File(noBackupFilesDir, "profiles"))
-                .flatMap { root -> root.listFiles { file -> file.name !in profileIds }.orEmpty().toList() }
-        val identities =
-            sharedPrefsDir
-                .listFiles { file ->
-                    file.name.startsWith(IDENTITY_PREFIX) &&
-                        file.name.removePrefix(IDENTITY_PREFIX).removeSuffix(".xml") !in profileIds
-                }.orEmpty()
-                .toList()
-        return (folders + identities).filter { it.deleteRecursively() }.map { it.name }
-    }
+    ): List<String> = (folders.idsOnDisk() - profileIds).flatMap(folders::delete).map { it.name }
 
     /** Deletes those files under [filesDir] and returns the names it removed. */
     fun deleteInstallOnlyFiles(filesDir: File): List<String> {

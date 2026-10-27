@@ -91,12 +91,58 @@ class ProfileRegistry internal constructor(
         return complete.running()
     }
 
+    /** Adds a profile and returns it, or null when there are already [MAX_PROFILES]. */
+    suspend fun add(
+        name: String,
+        colorKey: String,
+        avatar: ProfileAvatar,
+    ): Profile? {
+        var added: Profile? = null
+        store.updateData { stored ->
+            val complete = stored.completed(newId, now)
+            if (complete.profiles.size >= MAX_PROFILES) return@updateData complete
+            val profile = Profile(id = newId(), name = name, colorKey = colorKey, avatar = avatar, createdAt = now())
+            added = profile
+            complete.copy(profiles = complete.profiles + profile)
+        }
+        return added
+    }
+
+    /** Renames a profile; only Default may go back to a blank name, which shows the localized default. */
+    suspend fun rename(
+        id: String,
+        name: String,
+    ): Boolean {
+        var renamed = false
+        store.updateData { stored ->
+            val complete = stored.completed(newId, now)
+            if (name.isBlank() && id != complete.defaultId) return@updateData complete
+            if (complete.profiles.none { it.id == id }) return@updateData complete
+            renamed = true
+            complete.copy(profiles = complete.profiles.map { if (it.id == id) it.copy(name = name) else it })
+        }
+        return renamed
+    }
+
+    /** Removes a profile from the registry. Default and the active profile are never removed. */
+    suspend fun remove(id: String): Boolean {
+        var removed = false
+        store.updateData { stored ->
+            val complete = stored.completed(newId, now)
+            if (id == complete.defaultId || id == complete.activeId || complete.profiles.none { it.id == id }) return@updateData complete
+            removed = true
+            complete.copy(profiles = complete.profiles.filterNot { it.id == id })
+        }
+        return removed
+    }
+
     /** After a restore: the app reopens in Default, whichever profile was active when the backup was made. */
     suspend fun reopenInDefault(): ProfileRegistryState =
         store.updateData { stored -> stored.completed(newId, now).let { it.copy(activeId = it.defaultId) } }
 
     companion object {
         const val FILE_NAME = "profiles_registry.json"
+        const val MAX_PROFILES = 5
         private const val TAG = "ProfileRegistry"
 
         /**
