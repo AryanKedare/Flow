@@ -38,7 +38,7 @@ interface ProfileSwitchSteps {
 
     suspend fun persistActive(target: String)
 
-    fun restart()
+    suspend fun restart()
 }
 
 /**

@@ -149,3 +149,4 @@ cache_dir	innertube_http_cache/, recap/, playlists/	main:data/profile/AppProfile
 profile_file	pending_restore.zip	main:FlowApplication.kt	PROFILE	private	A seed or restore waiting for the running profile, applied at start before the start destination is picked.
 profile_file	pending_restore.zip	main:data/profile/ProfileSlices.kt	PROFILE	private	The seed a new profile copies from the running one, written into the new profile's private folder.
 no_backup_dir	profiles/<id>/pending_restore.zip	main:data/profile/ProfileSlices.kt	PROFILE	private	A new profile's private folder, resolved by id before that profile ever runs.
+cache_dir	held_link/	main:data/profile/SwitchIntentQueue.kt	CACHE	-	A playlist file shared during a switch, kept for the next profile to open; replaced by the next one.

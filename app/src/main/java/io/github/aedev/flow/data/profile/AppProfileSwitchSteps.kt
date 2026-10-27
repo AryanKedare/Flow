@@ -1,13 +1,10 @@
 package io.github.aedev.flow.data.profile
 
 import android.app.ActivityOptions
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import android.window.SplashScreen
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.data.backup.BackupCoordinator
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
@@ -63,7 +60,10 @@ class AppProfileSwitchSteps
 
         override fun closeGate() = ProfileSwitchGate.close()
 
-        override fun reopenGate() = ProfileSwitchGate.reopen()
+        override fun reopenGate() {
+            ProfileSwitchGate.reopen()
+            SwitchIntentQueue.drop()
+        }
 
         override fun finishOpenSessions() = BeforeProfileSwitch.run()
 
@@ -98,8 +98,8 @@ class AppProfileSwitchSteps
             registry.setActive(target)
         }
 
-        override fun restart() {
-            val relaunch = Intent.makeRestartActivityTask(ComponentName(context, MainActivity::class.java))
+        override suspend fun restart() {
+            val relaunch = SwitchIntentQueue.relaunchIntent(context)
             // Measured in PR 2.0: a start that does not come from the launcher gets a splash without the icon.
             val options =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

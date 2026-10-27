@@ -53,7 +53,7 @@ class ProfileSwitcherTest {
             calls += "persistActive:$target"
         }
 
-        override fun restart() {
+        override suspend fun restart() {
             calls += "restart"
         }
     }

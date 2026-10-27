@@ -35,6 +35,7 @@ import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.playlist.PlaylistImport
 import io.github.aedev.flow.data.playlist.PlaylistTransfer
+import io.github.aedev.flow.data.profile.SwitchIntentQueue
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.data.repository.OriginalTitleRepository
@@ -381,6 +382,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        if (SwitchIntentQueue.holdIfSwitching(this, intent, playlistFileIn(intent))) return
         if (!NotificationHelper.opensInRunningProfile(this, intent)) {
             intent.replaceExtras(Bundle())
             return
@@ -390,7 +392,7 @@ class MainActivity : ComponentActivity() {
             links.openRoute(UPDATE_ROUTE)
             return
         }
-        val playlistFile = playlistFileIn(intent)
+        val playlistFile = SwitchIntentQueue.heldPlaylist(this, intent) ?: playlistFileIn(intent)
         if (playlistFile != null) {
             if (!isRestoringState) importPlaylistFile(playlistFile)
             return
