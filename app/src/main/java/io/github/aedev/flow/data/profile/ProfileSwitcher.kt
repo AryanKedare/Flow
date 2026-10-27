@@ -26,6 +26,7 @@ interface ProfileSwitchSteps {
 
     suspend fun awaitWrites()
 
+    /** Cancels what the running profile left scheduled or showing: its work, its alarms and its notifications. */
     suspend fun cancelProfileWork()
 
     suspend fun persistActive(target: String)

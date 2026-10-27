@@ -47,7 +47,7 @@ class AutoBackupWorker(
 ) : CoroutineWorker(appContext, params) {
     companion object {
         const val WORK_NAME = "auto_backup_work"
-        private const val NOTIFICATION_CHANNEL_ID = "auto_backup_channel"
+        const val NOTIFICATION_CHANNEL_ID = "auto_backup_channel"
         private const val NOTIFICATION_ID_SUCCESS = 5001
         private const val NOTIFICATION_ID_FAILURE = 5002
 

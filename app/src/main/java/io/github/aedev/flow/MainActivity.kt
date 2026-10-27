@@ -381,6 +381,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        if (!NotificationHelper.opensInRunningProfile(this, intent)) {
+            intent.replaceExtras(Bundle())
+            return
+        }
         if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_UPDATE, false)) {
             intent.removeExtra(NotificationHelper.EXTRA_OPEN_UPDATE)
             links.openRoute(UPDATE_ROUTE)

@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
+import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.notification.WellbeingAlarms
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.MusicResumeTracker
@@ -62,6 +63,7 @@ class AppProfileSwitchSteps
         override suspend fun cancelProfileWork() {
             ProfileWork.cancelAll(context)
             WellbeingAlarms.cancel(context)
+            NotificationHelper.cancelProfileNotifications(context)
         }
 
         override suspend fun persistActive(target: String) {
