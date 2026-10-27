@@ -8,6 +8,7 @@ import android.os.Build
 import android.window.SplashScreen
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.MainActivity
+import io.github.aedev.flow.data.backup.BackupCoordinator
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.scrobble.Scrobbler
@@ -18,6 +19,7 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.MusicResumeTracker
 import io.github.aedev.flow.player.PlaybackShutdown
 import io.github.aedev.flow.service.MusicServiceState
+import io.github.aedev.flow.sync.SyncManager
 import io.github.aedev.flow.utils.potoken.PoTokenGenerator
 import io.github.aedev.flow.widget.core.state.clearNowPlayingSnapshot
 import kotlinx.coroutines.flow.first
@@ -34,6 +36,8 @@ class AppProfileSwitchSteps
         private val musicBrainEngine: MusicBrainEngine,
         private val neuroEngine: FlowNeuroEngine,
         private val videoStats: VideoStatsRecorder,
+        private val sync: dagger.Lazy<SyncManager>,
+        private val backups: dagger.Lazy<BackupCoordinator>,
     ) : ProfileSwitchSteps {
         private val registry: ProfileRegistry get() = ActiveProfile.registry(context)
 
@@ -43,6 +47,11 @@ class AppProfileSwitchSteps
 
                 // The car shows this profile's library and would drop its connection mid-drive.
                 MusicServiceState.isCarConnected -> SwitchRefusal.CAR_CONNECTED
+
+                // Both write this profile's data until they finish; the restart would cut them off halfway.
+                sync.get().isBusy -> SwitchRefusal.SYNC_RUNNING
+
+                backups.get().isRunning -> SwitchRefusal.BACKUP_RUNNING
 
                 registry.state
                     .first()

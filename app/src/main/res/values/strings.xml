@@ -2606,6 +2606,8 @@
     <string name="import_master_backup_failed">Failed to import master backup</string>
     <!-- Device Sync (FLOW-SYNC/1) -->
     <string name="sync_devices_title">Sync devices</string>
+    <string name="sync_default_only_title">Switch to %1$s to sync</string>
+    <string name="sync_default_only_body">Other profiles stay on this device only</string>
     <string name="sync_devices_subtitle">Sync library, history &amp; profile over local Wi-Fi</string>
     <string name="sync_notification_title">Syncing devices</string>
     <string name="sync_notification_text">Transferring your library over local Wi-Fi…</string>

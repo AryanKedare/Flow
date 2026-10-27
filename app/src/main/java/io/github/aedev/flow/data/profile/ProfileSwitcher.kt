@@ -4,7 +4,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class SwitchRefusal { UNKNOWN_PROFILE, ALREADY_ACTIVE, CAR_CONNECTED }
+enum class SwitchRefusal { UNKNOWN_PROFILE, ALREADY_ACTIVE, CAR_CONNECTED, SYNC_RUNNING, BACKUP_RUNNING }
 
 sealed interface SwitchResult {
     data object Restarting : SwitchResult
