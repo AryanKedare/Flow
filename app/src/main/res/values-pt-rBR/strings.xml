@@ -1535,7 +1535,7 @@
     <string name="download_threads_label">Conexões</string>
     <string name="download_no_compatible_audio">Nenhuma transmissão de áudio compatível — não é possível baixar</string>
     <string name="download_menu_style_title">Estilo do menu de baixar</string>
-    <string name="download_menu_style_subtitle">Escolha como a caixa de diálogo de baixar parece</string>
+    <string name="download_menu_style_subtitle">Escolha como será a aparência de download</string>
     <string name="download_menu_style_classic">Clássico</string>
     <string name="download_menu_style_classic_desc">Todas as qualidades em uma só tela</string>
     <string name="download_menu_style_compact">Compacto</string>
@@ -4438,4 +4438,11 @@
         <item quantity="many">%1$d downloads excluídos</item>
         <item quantity="other">%1$d downloads excluídos</item>
     </plurals>
+    <string name="nav_downloads">Downloads</string>
+    <string name="settings_resume_from_headphones_title">Retomar a partir dos fones de ouvido</string>
+    <string name="settings_resume_from_headphones_summary">O botão Reproduzir nos fones de ouvido reinicia a reprodução da última música ouvida</string>
+    <string name="playback_background_restricted_subtitle">Seu telefone pode interromper o Flow quando você deslizar o dedo para fechar a tela. Toque para permitir.</string>
+    <string name="download_ask_every_time_summary">Quando desativado, o Download utiliza a sua qualidade de download</string>
+    <string name="downloads_confirm_delete_summary">Deslizar para excluir ignora esta etapa e pode ser desfeita</string>
+    <string name="settings_keywords_tilt_fullscreen">Girar, trava de rotação, rotação automática, paisagem, lateral</string>
 </resources>
