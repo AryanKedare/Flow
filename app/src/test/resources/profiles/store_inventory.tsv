@@ -139,3 +139,4 @@ profile_file	flow_music_stats_hot_v1.json	main:data/stats/MonthlyLedgerStore.kt	
 prefs_datastore	device_preferences	main:data/local/DevicePreferencesStore.kt	DEVICE	-	Device settings moved out of player_preferences and flow_preferences: downloads, language, region, player controls, storage, update checks.
 profile_file	player_preferences	main:data/local/DevicePreferencesStore.kt	PROFILE	settings	Checked before the one-time copy of device keys, so an unreadable file is not taken as empty.
 profile_file	flow_preferences	main:data/local/DevicePreferencesStore.kt	PROFILE	settings	Checked before the one-time copy of device keys, so an unreadable file is not taken as empty.
+profile_file	flow_database	main:data/local/AppDatabase.kt	PROFILE	library	The running profile's database; Default keeps databases/flow_database, another profile opens profile_library/<id>/databases/flow_database.

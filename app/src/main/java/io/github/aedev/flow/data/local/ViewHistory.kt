@@ -41,7 +41,7 @@ private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferen
 class ViewHistory private constructor(
     private val context: Context,
 ) {
-    private val database = AppDatabase.getDatabase(context)
+    private val database = AppDatabase.profile(context)
     private val dao = database.watchHistoryDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

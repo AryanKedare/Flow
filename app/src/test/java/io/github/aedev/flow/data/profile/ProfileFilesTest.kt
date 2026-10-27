@@ -67,6 +67,13 @@ class ProfileFilesTest {
     }
 
     @Test
+    fun `Default's database stays where Room has always kept it, another profile's sits in its library folder`() {
+        assertThat(ProfileFiles.database(filesDir, noBackupFilesDir, default, "flow_database")).isNull()
+        assertThat(ProfileFiles.database(filesDir, noBackupFilesDir, study, "flow_database")?.path)
+            .isEqualTo("/data/user/0/app/files/profile_library/${study.id}/databases/flow_database")
+    }
+
+    @Test
     fun `an id that could leave its folder is refused`() {
         listOf("../d", "a/b", "", ".").forEach { id ->
             assertThrows(IllegalArgumentException::class.java) {

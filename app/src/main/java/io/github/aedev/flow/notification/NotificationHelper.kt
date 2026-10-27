@@ -75,7 +75,7 @@ object NotificationHelper {
     ) {
         withContext(Dispatchers.IO) {
             try {
-                val db = AppDatabase.getDatabase(context)
+                val db = AppDatabase.profile(context)
                 db.notificationDao().insertNotification(entity)
             } catch (e: Exception) {
                 android.util.Log.e("NotificationHelper", "Failed to store notification", e)

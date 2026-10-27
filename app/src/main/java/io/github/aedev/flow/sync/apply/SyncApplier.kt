@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.local.dao.SyncLogDao
 import io.github.aedev.flow.data.local.dao.SyncPeerDao
 import io.github.aedev.flow.data.local.entity.SyncLogEntity
 import io.github.aedev.flow.data.local.entity.SyncPeerEntity
+import io.github.aedev.flow.di.ProfileDb
 import io.github.aedev.flow.sync.identity.DeviceIdentity
 import io.github.aedev.flow.sync.merge.LikesMerger
 import io.github.aedev.flow.sync.merge.NotesMerger
@@ -50,7 +51,7 @@ class SyncApplier
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
-        private val db: AppDatabase,
+        @ProfileDb private val db: AppDatabase,
         private val dataAccess: SyncDataAccess,
         private val tracker: SyncChangeTracker,
         private val brains: BrainSyncAccess,

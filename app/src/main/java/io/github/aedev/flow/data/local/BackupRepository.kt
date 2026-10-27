@@ -172,7 +172,7 @@ class BackupRepository(
     private val searchHistoryRepo = SearchHistoryRepository(context)
     private val subscriptionRepo = SubscriptionRepository.getInstance(context)
     private val likedVideosRepo = LikedVideosRepository.getInstance(context)
-    private val database = AppDatabase.getDatabase(context)
+    private val database = AppDatabase.profile(context)
     private val takeoutImporter by lazy {
         YouTubeTakeoutImporter(
             context = context,
