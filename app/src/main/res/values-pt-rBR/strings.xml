@@ -4431,4 +4431,11 @@
     <string name="download_sheet_save_folder">%1$s · %2$s livre</string>
     <string name="download_sheet_change_folder">Mudar</string>
     <string name="download_sheet_all_languages">Todos os idiomas</string>
+    <string name="player_settings_tilt_fullscreen">Inclinar para entrar em tela cheia</string>
+    <string name="player_settings_tilt_fullscreen_subtitle">Vire para os lados para entrar em tela cheia, mesmo com a rotação bloqueada</string>
+    <plurals name="downloads_deleted">
+        <item quantity="one">%1$d download excluído</item>
+        <item quantity="many">%1$d downloads excluídos</item>
+        <item quantity="other">%1$d downloads excluídos</item>
+    </plurals>
 </resources>
