@@ -21,6 +21,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -76,6 +77,9 @@ class AutoBackupWorker(
 
     override suspend fun doWork(): Result =
         withContext(Dispatchers.IO) {
+            // One schedule and one folder for the whole device; until a backup holds every profile, only Default's
+            // data is written there, so one profile never overwrites another's backup.
+            if (!ActiveProfile.get(appContext).isDefault) return@withContext Result.success()
             val ldm = LocalDataManager(appContext)
             val playerPrefs = PlayerPreferences(appContext)
 

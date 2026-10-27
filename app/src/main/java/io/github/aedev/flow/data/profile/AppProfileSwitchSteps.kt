@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.scrobble.Scrobbler
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
+import io.github.aedev.flow.notification.WellbeingAlarms
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.MusicResumeTracker
 import io.github.aedev.flow.player.PlaybackShutdown
@@ -56,6 +57,11 @@ class AppProfileSwitchSteps
             musicBrainEngine.awaitWrites()
             neuroEngine.awaitWrites()
             videoStats.awaitWrites()
+        }
+
+        override suspend fun cancelProfileWork() {
+            ProfileWork.cancelAll(context)
+            WellbeingAlarms.cancel(context)
         }
 
         override suspend fun persistActive(target: String) {

@@ -11,6 +11,7 @@ import dagger.hilt.android.HiltAndroidApp
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.profile.ActiveProfile
+import io.github.aedev.flow.data.profile.ProfileWorkReconciler
 import io.github.aedev.flow.data.repository.NewPipeDownloader
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
@@ -73,6 +74,9 @@ class FlowApplication :
 
     @Inject
     internal lateinit var homeFeedLanguageReset: HomeFeedLanguageReset
+
+    @Inject
+    lateinit var profileWorkReconciler: ProfileWorkReconciler
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
@@ -146,6 +150,7 @@ class FlowApplication :
          */
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            launch { profileWorkReconciler.reconcile() }
             BackgroundCheckScheduler.follow(this@FlowApplication, playerPreferences)
         }
         SleepTimerManager.attachExitCallback { PlaybackShutdown.closeApp(this) }

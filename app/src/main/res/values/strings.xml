@@ -2884,6 +2884,10 @@
     <string name="diagnostics_profile_delete_title">Delete %1$s?</string>
     <string name="diagnostics_profile_delete_body">Everything this profile keeps on this device is removed.</string>
     <string name="profile_default_name">Default</string>
+    <string name="reminder_bedtime_title">It\'s bedtime! 😴</string>
+    <string name="reminder_bedtime_body">Time to wind down based on your schedule.</string>
+    <string name="reminder_break_title">Take a break! ☕</string>
+    <string name="reminder_break_body">You\'ve been watching for a while.</string>
     <string name="reset">Reset</string>
     <string name="diagnostics_no_crashes">No crash reports</string>
     <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>

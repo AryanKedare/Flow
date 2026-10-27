@@ -26,6 +26,8 @@ interface ProfileSwitchSteps {
 
     suspend fun awaitWrites()
 
+    suspend fun cancelProfileWork()
+
     suspend fun persistActive(target: String)
 
     fun restart()
@@ -51,6 +53,8 @@ class ProfileSwitcher internal constructor(
         steps.stopPlayback()
         // A write that never finishes must not keep the user from switching; what landed is kept.
         withTimeoutOrNull(writeTimeoutMs) { steps.awaitWrites() }
+        // Cancelled before the new profile is persisted: WorkManager reruns interrupted work in the next process.
+        steps.cancelProfileWork()
         steps.persistActive(target)
         steps.restart()
         return SwitchResult.Restarting

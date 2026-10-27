@@ -31,6 +31,10 @@ class ProfileSwitcherTest {
             if (writesNeverFinish) awaitCancellation()
         }
 
+        override suspend fun cancelProfileWork() {
+            calls += "cancelProfileWork"
+        }
+
         override suspend fun persistActive(target: String) {
             calls += "persistActive:$target"
         }
@@ -41,7 +45,7 @@ class ProfileSwitcherTest {
     }
 
     @Test
-    fun `a switch stops and saves A before persisting B, and restarts last`() =
+    fun `a switch stops, saves and cancels A's work before persisting B, and restarts last`() =
         runTest {
             val steps = RecordingSteps()
 
@@ -49,8 +53,16 @@ class ProfileSwitcherTest {
 
             assertThat(result).isEqualTo(SwitchResult.Restarting)
             assertThat(steps.calls)
-                .containsExactly("refusal", "finishOpenSessions", "saveQueue", "stopPlayback", "awaitWrites", "persistActive:b", "restart")
-                .inOrder()
+                .containsExactly(
+                    "refusal",
+                    "finishOpenSessions",
+                    "saveQueue",
+                    "stopPlayback",
+                    "awaitWrites",
+                    "cancelProfileWork",
+                    "persistActive:b",
+                    "restart",
+                ).inOrder()
         }
 
     @Test
