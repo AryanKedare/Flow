@@ -140,3 +140,5 @@ prefs_datastore	device_preferences	main:data/local/DevicePreferencesStore.kt	DEV
 profile_file	player_preferences	main:data/local/DevicePreferencesStore.kt	PROFILE	settings	Checked before the one-time copy of device keys, so an unreadable file is not taken as empty.
 profile_file	flow_preferences	main:data/local/DevicePreferencesStore.kt	PROFILE	settings	Checked before the one-time copy of device keys, so an unreadable file is not taken as empty.
 profile_file	flow_database	main:data/local/AppDatabase.kt	PROFILE	library	The running profile's database; Default keeps databases/flow_database, another profile opens profile_library/<id>/databases/flow_database.
+profile_file	youtube_identity	main:utils/potoken/VisitorIdentityStore.kt	PROFILE	identity	Default keeps youtube_identity; another profile gets youtube_identity_<id>.
+profile_file	music_home_cache_prefs	main:data/recommendation/MusicRecommendationAlgorithm.kt	CACHE	-	Follows its rows in each profile's database, so another profile gets music_home_cache_prefs_<id>.

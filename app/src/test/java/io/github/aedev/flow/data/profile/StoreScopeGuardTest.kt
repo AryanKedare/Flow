@@ -84,11 +84,23 @@ class StoreScopeGuardTest {
             .findAll(text)
             .mapNotNull { match ->
                 val arguments = arguments(text, match.range.last)
+                val call = match.groupValues[1]
                 val scope =
-                    IMPLICIT_SCOPES[match.groupValues[1]]
-                        ?: arguments.firstOrNull { it.startsWith("StoreScope.") }?.removePrefix("StoreScope.")
-                        ?: return@mapNotNull null
-                val name = if (match.groupValues[1] == "noBackupRoot") null else resolved(arguments.last(), text)
+                    when (call) {
+                        in UNSCOPED_CALLS -> {
+                            null
+                        }
+
+                        in IMPLICIT_SCOPES -> {
+                            IMPLICIT_SCOPES.getValue(call)
+                        }
+
+                        else -> {
+                            arguments.firstOrNull { it.startsWith("StoreScope.") }?.removePrefix("StoreScope.")
+                                ?: return@mapNotNull null
+                        }
+                    }
+                val name = if (call == "noBackupRoot") null else resolved(arguments.last(), text)
                 Hit("profile_file", source, name, scope)
             }.toList()
 
@@ -356,8 +368,11 @@ class StoreScopeGuardTest {
                 "cache_dir" to "cacheDir",
             )
 
-        val PROFILE_FILE_CALL = Regex("""\bProfileFiles\s*\.(preferences|dataStore|file|noBackupRoot|database)\(""")
+        val PROFILE_FILE_CALL = Regex("""\bProfileFiles\s*\.(preferences|dataStore|file|noBackupRoot|database|sharedPreferencesName)\(""")
         val IMPLICIT_SCOPES = mapOf("noBackupRoot" to "PROFILE_PRIVATE", "database" to "PROFILE_LIBRARY")
+
+        /** Per-profile names whose rows give the scope themselves: an identity file and a cache. */
+        val UNSCOPED_CALLS = setOf("sharedPreferencesName")
         val FACTORY_KINDS = setOf("factory_datastore", "datastore_file")
 
         val SCANNED_KINDS = NAMED_CALLS.map { it.kind }.toSet() + UNNAMED_PATTERNS.keys + DIRECTORY_ROOTS.keys + "profile_file"

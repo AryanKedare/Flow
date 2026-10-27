@@ -74,6 +74,15 @@ class ProfileFilesTest {
     }
 
     @Test
+    fun `Default keeps its SharedPreferences names, another profile gets its own`() {
+        assertThat(ProfileFiles.sharedPreferencesName(default, "youtube_identity")).isEqualTo("youtube_identity")
+        assertThat(ProfileFiles.sharedPreferencesName(study, "youtube_identity")).isEqualTo("youtube_identity_${study.id}")
+        assertThrows(IllegalArgumentException::class.java) {
+            ProfileFiles.sharedPreferencesName(RunningProfile(id = "../x", isDefault = false), "youtube_identity")
+        }
+    }
+
+    @Test
     fun `an id that could leave its folder is refused`() {
         listOf("../d", "a/b", "", ".").forEach { id ->
             assertThrows(IllegalArgumentException::class.java) {
