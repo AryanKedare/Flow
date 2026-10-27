@@ -45,6 +45,7 @@ import io.github.aedev.flow.data.local.HomeViewMode
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.profile.ProfilesFeature
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
@@ -52,7 +53,9 @@ import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.profiles.ProfileTopBarAction
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
+import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.screens.home.chips.HomeChipRow
 import kotlinx.coroutines.flow.collectLatest
@@ -66,6 +69,7 @@ fun HomeScreen(
     onVideoClick: (Video) -> Unit,
     onShortClick: (ShortsQueueSource) -> Unit,
     onSearchClick: () -> Unit,
+    onOpenSettings: (SettingsTarget) -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
     onOpenShortsFeed: () -> Unit = {},
     onPlayMix: (videos: List<Video>, title: String) -> Unit = { _, _ -> },
@@ -155,6 +159,7 @@ fun HomeScreen(
                         )
                     }
                 },
+                trailingAction = if (ProfilesFeature.isVisible) ({ ProfileTopBarAction(onOpenSettings) }) else null,
             )
         },
     ) { padding ->

@@ -2895,6 +2895,9 @@
     <string name="profiles_edit_title">Edit profile</string>
     <string name="profiles_new_title">New profile</string>
     <string name="profiles_add">Add profile</string>
+    <string name="profiles_manage">Manage profiles</string>
+    <string name="profiles_action_description">Profile: %1$s. Switch profile</string>
+    <string name="profiles_sheet_footer">Profiles keep feeds, history and settings apart. They are not locked, so anyone using this device can switch.</string>
     <string name="profiles_add_summary">Each profile keeps its own feed, history and settings</string>
     <string name="profiles_limit">You can have up to %1$d profiles</string>
     <string name="profiles_count">%1$d of %2$d profiles</string>
