@@ -17,6 +17,7 @@ import io.github.aedev.flow.notification.WellbeingAlarms
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.MusicResumeTracker
 import io.github.aedev.flow.player.PlaybackShutdown
+import io.github.aedev.flow.service.MusicServiceState
 import io.github.aedev.flow.widget.core.state.clearNowPlayingSnapshot
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -38,6 +39,9 @@ class AppProfileSwitchSteps
             when {
                 target == ActiveProfile.get(context).id -> SwitchRefusal.ALREADY_ACTIVE
 
+                // The car shows this profile's library and would drop its connection mid-drive.
+                MusicServiceState.isCarConnected -> SwitchRefusal.CAR_CONNECTED
+
                 registry.state
                     .first()
                     .profiles
@@ -45,6 +49,10 @@ class AppProfileSwitchSteps
 
                 else -> null
             }
+
+        override fun closeGate() = ProfileSwitchGate.close()
+
+        override fun reopenGate() = ProfileSwitchGate.reopen()
 
         override fun finishOpenSessions() = BeforeProfileSwitch.run()
 

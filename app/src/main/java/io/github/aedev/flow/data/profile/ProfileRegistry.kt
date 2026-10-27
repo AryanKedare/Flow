@@ -56,10 +56,14 @@ data class ProfileRegistryState(
     val postSwitch: Boolean = false,
 )
 
-/** The profile a process runs as. [id] is blank only when the registry could not be read; Default's paths never use it. */
+/**
+ * The profile a process runs as. [id] is blank only when the registry could not be read; Default's paths never use
+ * it. [afterSwitch] is true in the first process after a switch to it.
+ */
 data class RunningProfile(
     val id: String,
     val isDefault: Boolean,
+    val afterSwitch: Boolean = false,
 )
 
 /**
@@ -193,7 +197,8 @@ class ProfileRegistry internal constructor(
     }
 }
 
-private fun ProfileRegistryState.running() = RunningProfile(id = checkNotNull(activeId), isDefault = activeId == defaultId)
+private fun ProfileRegistryState.running() =
+    RunningProfile(id = checkNotNull(activeId), isDefault = activeId == defaultId, afterSwitch = postSwitch)
 
 internal fun ProfileRegistryState.isComplete(): Boolean =
     isSafeProfileId(defaultId) &&

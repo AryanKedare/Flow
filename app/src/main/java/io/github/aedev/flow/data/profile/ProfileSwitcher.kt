@@ -4,7 +4,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class SwitchRefusal { UNKNOWN_PROFILE, ALREADY_ACTIVE }
+enum class SwitchRefusal { UNKNOWN_PROFILE, ALREADY_ACTIVE, CAR_CONNECTED }
 
 sealed interface SwitchResult {
     data object Restarting : SwitchResult
@@ -17,6 +17,10 @@ sealed interface SwitchResult {
 /** What a switch does, in the order [ProfileSwitcher] runs it; the app's implementation is [AppProfileSwitchSteps]. */
 interface ProfileSwitchSteps {
     suspend fun refusal(target: String): SwitchRefusal?
+
+    fun closeGate()
+
+    fun reopenGate()
 
     fun finishOpenSessions()
 
@@ -49,15 +53,21 @@ class ProfileSwitcher internal constructor(
 
     suspend fun switchTo(target: String): SwitchResult {
         steps.refusal(target)?.let { return SwitchResult.Refused(it) }
-        steps.finishOpenSessions()
-        steps.saveQueue()
-        steps.stopPlayback()
-        // A write that never finishes must not keep the user from switching; what landed is kept.
-        withTimeoutOrNull(writeTimeoutMs) { steps.awaitWrites() }
-        // Cancelled before the new profile is persisted: WorkManager reruns interrupted work in the next process.
-        steps.cancelProfileWork()
-        steps.persistActive(target)
-        steps.restart()
+        steps.closeGate()
+        try {
+            steps.finishOpenSessions()
+            steps.saveQueue()
+            steps.stopPlayback()
+            // A write that never finishes must not keep the user from switching; what landed is kept.
+            withTimeoutOrNull(writeTimeoutMs) { steps.awaitWrites() }
+            // Cancelled before the new profile is persisted: WorkManager reruns interrupted work in the next process.
+            steps.cancelProfileWork()
+            steps.persistActive(target)
+            steps.restart()
+        } catch (e: Throwable) {
+            steps.reopenGate()
+            throw e
+        }
         return SwitchResult.Restarting
     }
 

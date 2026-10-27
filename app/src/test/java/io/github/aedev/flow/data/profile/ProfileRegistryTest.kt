@@ -159,6 +159,15 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `the first process after a switch knows it`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study"}],"defaultId":"d","activeId":"d"}""")
+
+        withRegistry { it.setActive("study") }
+
+        assertThat(ProfileRegistry.peek(file)).isEqualTo(RunningProfile(id = "study", isDefault = false, afterSwitch = true))
+    }
+
+    @Test
     fun `a start without a switch finds no marker`() {
         write("""{"profiles":[{"id":"d"}],"defaultId":"d","activeId":"d"}""")
 
@@ -169,7 +178,7 @@ class ProfileRegistryTest {
     fun `a file from a newer version still reads`() {
         write(
             """{"profiles":[{"id":"d","avatar":{"kind":"hologram","frames":3},"pin":"x"}],""" +
-                """"defaultId":"d","activeId":"d","postSwitch":true}""",
+                """"defaultId":"d","activeId":"d","cloudLinked":true}""",
         )
 
         val state = withRegistry { it.state.first() }
