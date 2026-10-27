@@ -2874,6 +2874,16 @@
     <string name="diagnostics_reset_session_confirm_title">Reset YouTube session?</string>
     <string name="diagnostics_reset_session_confirm_body">Flow will build a new playback identity. Try this if videos stop after a minute or won\'t play.\n\nPlayback may be rough for a minute or two. Your saved data is not affected.</string>
     <string name="diagnostics_reset_session_done">YouTube session reset. Reopen the video to try again.</string>
+    <string name="diagnostics_profiles_section">Profiles (debug)</string>
+    <string name="diagnostics_profiles_footer">Debug builds only. Switching restarts the app.</string>
+    <string name="diagnostics_profile_running">In use</string>
+    <string name="diagnostics_profile_switch">Switch to this profile</string>
+    <string name="diagnostics_profile_add">Add profile</string>
+    <string name="diagnostics_profile_new_name">Profile %1$d</string>
+    <string name="diagnostics_profile_delete">Delete profile</string>
+    <string name="diagnostics_profile_delete_title">Delete %1$s?</string>
+    <string name="diagnostics_profile_delete_body">Everything this profile keeps on this device is removed.</string>
+    <string name="profile_default_name">Default</string>
     <string name="reset">Reset</string>
     <string name="diagnostics_no_crashes">No crash reports</string>
     <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>

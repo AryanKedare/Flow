@@ -146,9 +146,8 @@ class Media3MusicService : MediaLibraryService() {
          * Stops playback and the service from inside it. Sent through the controller, it lands after
          * the player commands the caller already queued, which a direct stopService() overtakes.
          */
-        fun requestStop(controller: MediaController) {
+        fun requestStop(controller: MediaController): ListenableFuture<SessionResult> =
             controller.sendCustomCommand(CommandStop, Bundle.EMPTY)
-        }
     }
 
     private lateinit var mediaLibrarySession: MediaLibrarySession

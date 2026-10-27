@@ -136,6 +136,18 @@ class ProfileRegistry internal constructor(
         return removed
     }
 
+    /** Makes [id] the profile the next process runs as. The caller restarts the process. */
+    suspend fun setActive(id: String): Boolean {
+        var set = false
+        store.updateData { stored ->
+            val complete = stored.completed(newId, now)
+            if (!isSafeProfileId(id) || complete.profiles.none { it.id == id }) return@updateData complete
+            set = true
+            complete.copy(activeId = id)
+        }
+        return set
+    }
+
     /** After a restore: the app reopens in Default, whichever profile was active when the backup was made. */
     suspend fun reopenInDefault(): ProfileRegistryState =
         store.updateData { stored -> stored.completed(newId, now).let { it.copy(activeId = it.defaultId) } }

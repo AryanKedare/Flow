@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.profile.ActiveProfile
+import io.github.aedev.flow.data.profile.ProfileRegistryState
+import io.github.aedev.flow.data.profile.ProfileRepository
+import io.github.aedev.flow.data.profile.ProfileSwitcher
 import io.github.aedev.flow.data.recommendation.snapshot.HomeSnapshotStore
 import io.github.aedev.flow.player.stream.ResetYouTubeSession
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
@@ -27,6 +31,8 @@ class DiagnosticsViewModel
         private val preferences: PlayerPreferences,
         private val snapshots: HomeSnapshotStore,
         private val resetYouTubeSession: ResetYouTubeSession,
+        private val profiles: ProfileRepository,
+        private val switcher: ProfileSwitcher,
     ) : SettingsViewModel() {
         val device: DeviceInfo by lazy { FlowDiagnostics.deviceInfo(context) }
 
@@ -76,4 +82,13 @@ class DiagnosticsViewModel
             }
 
         suspend fun resetSession() = resetYouTubeSession()
+
+        val profileState: StateFlow<ProfileRegistryState?> = profiles.state.asState(null)
+        val runningProfileId: String = ActiveProfile.get(context).id
+
+        fun addProfile(name: String) = write { profiles.create(name) }
+
+        fun deleteProfile(id: String) = write { profiles.delete(id) }
+
+        fun switchProfile(id: String) = write { switcher.switchTo(id) }
     }
