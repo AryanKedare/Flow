@@ -129,3 +129,5 @@ webview	app_webview/	main:utils/cipher/CipherWebView.kt	PROFILE	identity	Shares 
 webview	app_webview/	github:discord/DiscordLoginActivity.kt	PROFILE	identity	Discord login cookies; suffixed per profile on API 28+.
 glance_state	appWidget-<id>	main:widget/playlist/PlaylistWidgetConfig.kt	DEVICE	-	The widget belongs to the launcher; its playlist gets keyed per profile.
 glance_state	appWidget-<id>	main:widget/quickactions/QuickActionsConfig.kt	DEVICE	-	The widget belongs to the launcher.
+factory_datastore	profiles_registry.json	main:data/profile/ProfileRegistry.kt	DEVICE	-	The profiles and which one is active; the one store every profile shares.
+files_dir	datastore/profiles_registry.json	main:data/profile/ActiveProfile.kt	DEVICE	-	The registry path, built from the base context before the application context exists.
