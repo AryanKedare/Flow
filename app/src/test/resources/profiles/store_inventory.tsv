@@ -27,7 +27,7 @@ prefs_datastore	widget_theme	main:widget/core/theme/WidgetThemeSignatureStore.kt
 prefs_datastore	now_playing_widget	main:widget/core/state/NowPlayingState.kt	DEVICE	-	Mirrors what the launcher shows; cleared on switch so every widget redraws.
 prefs_datastore	animated_artwork	main:data/music/artwork/AnimatedArtworkCache.kt	DEVICE	-	Album to artwork-loop lookup; not personal.
 prefs_datastore	downloads	main:data/music/DownloadManager.kt	DEVICE	-	Legacy downloaded-track list and its Room migration marker.
-datastore_wrapper	preferencesDataStore	main:data/local/SafeDataStore.kt	DEVICE	-	The one wrapper every preferences store goes through; it gains a required scope in Phase 1.
+factory_datastore	every safePreferencesDataStore	main:data/local/SafeDataStore.kt	DEVICE	-	The one wrapper every preferences store goes through; each call states its scope and ProfileFiles picks the file.
 typed_datastore	flow_neuro_brain_v10.json	main:data/recommendation/NeuroStorage.kt	PROFILE	private	The video brain.
 typed_datastore	flow_neuro_content_v1.json	main:data/recommendation/NeuroContentStore.kt	PROFILE	private	Content vectors learned from the profile.
 typed_datastore	flow_neuro_categories_v1.json	main:data/recommendation/NeuroCategoryStore.kt	PROFILE	private	Engine state.
@@ -131,3 +131,7 @@ glance_state	appWidget-<id>	main:widget/playlist/PlaylistWidgetConfig.kt	DEVICE	
 glance_state	appWidget-<id>	main:widget/quickactions/QuickActionsConfig.kt	DEVICE	-	The widget belongs to the launcher.
 factory_datastore	profiles_registry.json	main:data/profile/ProfileRegistry.kt	DEVICE	-	The profiles and which one is active; the one store every profile shares.
 files_dir	datastore/profiles_registry.json	main:data/profile/ActiveProfile.kt	DEVICE	-	The registry path, built from the base context before the application context exists.
+files_dir	datastore/<name>.preferences_pb	main:data/profile/ProfileFiles.kt	DEVICE	-	Default's and device stores' paths, unchanged from before profiles.
+files_dir	profile_settings/<id>/	main:data/profile/ProfileFiles.kt	PROFILE	settings	Another profile's settings stores.
+files_dir	profile_library/<id>/	main:data/profile/ProfileFiles.kt	PROFILE	library	Another profile's library stores.
+no_backup_dir	profiles/<id>/	main:data/profile/ProfileFiles.kt	PROFILE	private	Another profile's private stores, and an unread copy of any Default-only store it touches.

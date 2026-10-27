@@ -121,20 +121,24 @@ class ProfileRegistry internal constructor(
 
 private fun ProfileRegistryState.running() = RunningProfile(id = checkNotNull(activeId), isDefault = activeId == defaultId)
 
-internal fun ProfileRegistryState.isComplete(): Boolean = profiles.any { it.id == defaultId } && profiles.any { it.id == activeId }
+internal fun ProfileRegistryState.isComplete(): Boolean =
+    isSafeProfileId(defaultId) &&
+        isSafeProfileId(activeId) &&
+        profiles.any { it.id == defaultId } &&
+        profiles.any { it.id == activeId }
 
 internal fun ProfileRegistryState.completed(
     newId: () -> String,
     now: () -> Long,
 ): ProfileRegistryState {
     val withDefault =
-        if (profiles.any { it.id == defaultId }) {
+        if (isSafeProfileId(defaultId) && profiles.any { it.id == defaultId }) {
             this
         } else {
             val id = newId()
             copy(profiles = listOf(Profile(id = id, createdAt = now())) + profiles, defaultId = id)
         }
-    return if (withDefault.profiles.any { it.id == withDefault.activeId }) {
+    return if (isSafeProfileId(withDefault.activeId) && withDefault.profiles.any { it.id == withDefault.activeId }) {
         withDefault
     } else {
         withDefault.copy(

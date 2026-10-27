@@ -8,12 +8,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.local.AppDatabase
+import io.github.aedev.flow.data.profile.StoreScope
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.subscriptionsDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "subscriptions")
+private val Context.subscriptionsDataStore: DataStore<Preferences> by safePreferencesDataStore(
+    name = "subscriptions",
+    scope = StoreScope.PROFILE_LIBRARY,
+)
 
 class SubscriptionRepository private constructor(
     private val context: Context,

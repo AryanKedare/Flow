@@ -84,6 +84,14 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `an active id that could leave its folder runs as Default`() {
+        write("""{"profiles":[{"id":"d"},{"id":"../d"}],"defaultId":"d","activeId":"../d"}""")
+
+        assertThat(ProfileRegistry.peek(file)).isNull()
+        assertThat(withRegistry { it.running() }).isEqualTo(RunningProfile(id = "d", isDefault = true))
+    }
+
+    @Test
     fun `a file from a newer version still reads`() {
         write(
             """{"profiles":[{"id":"d","avatar":{"kind":"hologram","frames":3},"pin":"x"}],""" +

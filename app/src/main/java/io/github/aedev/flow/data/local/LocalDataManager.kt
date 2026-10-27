@@ -10,6 +10,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.profile.StoreScope
 import io.github.aedev.flow.ui.theme.CustomTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
@@ -20,7 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
-val Context.dataStore: DataStore<Preferences> by safePreferencesDataStore(name = "flow_preferences")
+val Context.dataStore: DataStore<Preferences> by safePreferencesDataStore(name = "flow_preferences", scope = StoreScope.PROFILE_SETTINGS)
 
 class LocalDataManager
     @Inject

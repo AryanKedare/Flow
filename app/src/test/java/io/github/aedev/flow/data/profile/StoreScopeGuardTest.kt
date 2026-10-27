@@ -110,6 +110,28 @@ class StoreScopeGuardTest {
     }
 
     @Test
+    fun `every preferences store states the scope its row gives`() {
+        val call = NAMED_CALLS.single { it.kind == "prefs_datastore" }
+        val mismatches =
+            sources.flatMap { (source, text) ->
+                call.start
+                    .findAll(text)
+                    .mapNotNull { match ->
+                        val name = nameOf(call, text, match.range.last)
+                        val stated =
+                            arguments(text, match.range.last)
+                                .firstOrNull { it.startsWith("scope ") || it.startsWith("scope=") }
+                                ?.substringAfter('=')
+                                ?.trim()
+                        val row = rows.firstOrNull { it.kind == call.kind && it.source == source && it.name == name }
+                        val expected = row?.let { "StoreScope.${storeScopeOf(it)}" }
+                        "$source $name states $stated, its row says $expected".takeIf { stated != expected }
+                    }.toList()
+            }
+        assertWithMessage("safePreferencesDataStore scopes that disagree with store_inventory.tsv").that(mismatches).isEmpty()
+    }
+
+    @Test
     fun `every Room table has a row`() {
         val database = sources.getValue(APP_DATABASE)
         val entities =
@@ -142,6 +164,8 @@ class StoreScopeGuardTest {
         if (hit.kind == "datastore_file" && row.kind in DATASTORE_KINDS) return true
         return row.kind == hit.kind && (hit.name == null || hit.name == row.name)
     }
+
+    private fun storeScopeOf(row: Row): String = if (row.scope == "PROFILE") "PROFILE_${row.storeClass.uppercase()}" else row.scope
 
     private fun tableOf(entity: String): Pair<String, String> {
         val (source, text) =

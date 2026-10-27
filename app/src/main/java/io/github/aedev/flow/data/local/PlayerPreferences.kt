@@ -7,6 +7,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.playlist.PlaylistListOrder
+import io.github.aedev.flow.data.profile.StoreScope
 import io.github.aedev.flow.data.video.downloader.work.RetagResult
 import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
@@ -33,7 +34,10 @@ internal fun resolveMigratedHideWatchedPreference(
     legacyValue: Boolean?,
 ): Boolean = splitValue ?: legacyValue ?: false
 
-private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "player_preferences")
+private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePreferencesDataStore(
+    name = "player_preferences",
+    scope = StoreScope.PROFILE_SETTINGS,
+)
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
 private const val PLAYLIST_SORT_SEPARATOR = "|"
