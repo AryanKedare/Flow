@@ -14,6 +14,7 @@ class BackupRulesTest {
     private val settings =
         setOf(
             "file:datastore/player_preferences.preferences_pb",
+            "file:datastore/device_preferences.preferences_pb",
             "file:datastore/flow_preferences.preferences_pb",
             "file:datastore/app_font.preferences_pb",
             "file:datastore/app_ui_mode.preferences_pb",

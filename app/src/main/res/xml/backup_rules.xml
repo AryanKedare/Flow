@@ -5,6 +5,7 @@
 -->
 <full-backup-content>
     <include domain="file" path="datastore/player_preferences.preferences_pb" />
+    <include domain="file" path="datastore/device_preferences.preferences_pb" />
     <include domain="file" path="datastore/flow_preferences.preferences_pb" />
     <include domain="file" path="datastore/app_font.preferences_pb" />
     <include domain="file" path="datastore/app_ui_mode.preferences_pb" />

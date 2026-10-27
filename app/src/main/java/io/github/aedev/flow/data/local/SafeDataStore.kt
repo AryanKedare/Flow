@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.local
 
 import android.content.Context
 import android.util.Log
+import androidx.datastore.core.DataMigration
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -32,6 +33,7 @@ private const val READ_RETRY_DELAY_MS = 100L
 fun safePreferencesDataStore(
     name: String,
     scope: StoreScope,
+    produceMigrations: (Context) -> List<DataMigration<Preferences>> = { emptyList() },
 ): ReadOnlyProperty<Context, DataStore<Preferences>> {
     var wrapped: DataStore<Preferences>? = null
     return object : ReadOnlyProperty<Context, DataStore<Preferences>> {
@@ -40,7 +42,7 @@ fun safePreferencesDataStore(
             property: KProperty<*>,
         ): DataStore<Preferences> =
             wrapped ?: synchronized(this) {
-                wrapped ?: ReadSafeDataStore(name, create(thisRef.applicationContext, name, scope)).also { wrapped = it }
+                wrapped ?: ReadSafeDataStore(name, create(thisRef.applicationContext, name, scope, produceMigrations)).also { wrapped = it }
             }
     }
 }
@@ -49,6 +51,7 @@ private fun create(
     context: Context,
     name: String,
     scope: StoreScope,
+    produceMigrations: (Context) -> List<DataMigration<Preferences>>,
 ): DataStore<Preferences> =
     PreferenceDataStoreFactory.create(
         corruptionHandler =
@@ -56,6 +59,7 @@ private fun create(
                 Log.w(SAFE_DATA_STORE_TAG, "Resetting corrupted preferences DataStore: $name", corruption)
                 emptyPreferences()
             },
+        migrations = produceMigrations(context),
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
         produceFile = { ProfileFiles.preferences(context, scope, name) },
     )
