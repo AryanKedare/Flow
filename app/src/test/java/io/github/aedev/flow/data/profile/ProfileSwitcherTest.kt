@@ -45,6 +45,10 @@ class ProfileSwitcherTest {
             calls += "cancelProfileWork"
         }
 
+        override suspend fun clearCaches() {
+            calls += "clearCaches"
+        }
+
         override suspend fun persistActive(target: String) {
             calls += "persistActive:$target"
         }
@@ -71,6 +75,7 @@ class ProfileSwitcherTest {
                     "stopPlayback",
                     "awaitWrites",
                     "cancelProfileWork",
+                    "clearCaches",
                     "persistActive:b",
                     "restart",
                 ).inOrder()

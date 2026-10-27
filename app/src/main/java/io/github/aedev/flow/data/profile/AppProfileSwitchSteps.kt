@@ -18,8 +18,10 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.MusicResumeTracker
 import io.github.aedev.flow.player.PlaybackShutdown
 import io.github.aedev.flow.service.MusicServiceState
+import io.github.aedev.flow.utils.potoken.PoTokenGenerator
 import io.github.aedev.flow.widget.core.state.clearNowPlayingSnapshot
 import kotlinx.coroutines.flow.first
+import java.io.File
 import javax.inject.Inject
 
 /** The switch steps on a device. It only calls the release and save paths the app already has. */
@@ -75,6 +77,12 @@ class AppProfileSwitchSteps
             NotificationHelper.cancelProfileNotifications(context)
             // The Now Playing widgets would keep this profile's last track until the next one plays something.
             context.clearNowPlayingSnapshot()
+        }
+
+        override suspend fun clearCaches() {
+            // InnerTube's cache may hold search suggestions and visitor responses; the share folders, exports.
+            listOf("innertube_http_cache", "recap", "playlists").forEach { File(context.cacheDir, it).deleteRecursively() }
+            if (ProfileWebView.clearedAtSwitch) PoTokenGenerator.resetSession()
         }
 
         override suspend fun persistActive(target: String) {

@@ -33,6 +33,9 @@ interface ProfileSwitchSteps {
     /** Cancels what the running profile left scheduled or showing: its work, its alarms and its notifications. */
     suspend fun cancelProfileWork()
 
+    /** Deletes caches that hold what the running profile searched for or shared. */
+    suspend fun clearCaches()
+
     suspend fun persistActive(target: String)
 
     fun restart()
@@ -62,6 +65,7 @@ class ProfileSwitcher internal constructor(
             withTimeoutOrNull(writeTimeoutMs) { steps.awaitWrites() }
             // Cancelled before the new profile is persisted: WorkManager reruns interrupted work in the next process.
             steps.cancelProfileWork()
+            steps.clearCaches()
             steps.persistActive(target)
             steps.restart()
         } catch (e: Throwable) {

@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.data.profile.PostSwitchWork
+import io.github.aedev.flow.data.profile.ProfileWebView
 import io.github.aedev.flow.data.profile.ProfileWorkReconciler
 import io.github.aedev.flow.data.repository.NewPipeDownloader
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -97,6 +98,7 @@ class FlowApplication :
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate() {
+        ProfileWebView.applySuffix(this)
         super.onCreate()
         appContext = applicationContext
         YouTube.cacheDirectory = cacheDir.resolve("innertube_http_cache")
