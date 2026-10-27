@@ -52,6 +52,8 @@ data class ProfileRegistryState(
     val profiles: List<Profile> = emptyList(),
     val defaultId: String? = null,
     val activeId: String? = null,
+    /** Set by a switch, cleared by the first process of the profile switched to once it has caught up. */
+    val postSwitch: Boolean = false,
 )
 
 /** The profile a process runs as. [id] is blank only when the registry could not be read; Default's paths never use it. */
@@ -143,9 +145,19 @@ class ProfileRegistry internal constructor(
             val complete = stored.completed(newId, now)
             if (!isSafeProfileId(id) || complete.profiles.none { it.id == id }) return@updateData complete
             set = true
-            complete.copy(activeId = id)
+            complete.copy(activeId = id, postSwitch = true)
         }
         return set
+    }
+
+    /** True once, in the first process after a switch, which then redoes what a switch leaves stale. */
+    suspend fun finishPostSwitch(): Boolean {
+        var switched = false
+        store.updateData { stored ->
+            switched = stored.postSwitch
+            if (switched) stored.copy(postSwitch = false) else stored
+        }
+        return switched
     }
 
     /** After a restore: the app reopens in Default, whichever profile was active when the backup was made. */

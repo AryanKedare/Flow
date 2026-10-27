@@ -145,6 +145,27 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `a switch leaves a marker the next process clears once`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study"}],"defaultId":"d","activeId":"d"}""")
+
+        val results =
+            withRegistry { registry ->
+                registry.setActive("study")
+                listOf(registry.finishPostSwitch(), registry.finishPostSwitch())
+            }
+
+        assertThat(results).containsExactly(true, false).inOrder()
+        assertThat(ProfileRegistry.peek(file)).isEqualTo(RunningProfile(id = "study", isDefault = false))
+    }
+
+    @Test
+    fun `a start without a switch finds no marker`() {
+        write("""{"profiles":[{"id":"d"}],"defaultId":"d","activeId":"d"}""")
+
+        assertThat(withRegistry { it.finishPostSwitch() }).isFalse()
+    }
+
+    @Test
     fun `a file from a newer version still reads`() {
         write(
             """{"profiles":[{"id":"d","avatar":{"kind":"hologram","frames":3},"pin":"x"}],""" +

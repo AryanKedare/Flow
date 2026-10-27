@@ -17,6 +17,7 @@ import io.github.aedev.flow.notification.WellbeingAlarms
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.MusicResumeTracker
 import io.github.aedev.flow.player.PlaybackShutdown
+import io.github.aedev.flow.widget.core.state.clearNowPlayingSnapshot
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -64,6 +65,8 @@ class AppProfileSwitchSteps
             ProfileWork.cancelAll(context)
             WellbeingAlarms.cancel(context)
             NotificationHelper.cancelProfileNotifications(context)
+            // The Now Playing widgets would keep this profile's last track until the next one plays something.
+            context.clearNowPlayingSnapshot()
         }
 
         override suspend fun persistActive(target: String) {
