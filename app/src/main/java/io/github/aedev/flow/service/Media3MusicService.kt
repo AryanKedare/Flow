@@ -63,6 +63,7 @@ import io.github.aedev.flow.data.scrobble.ScrobbleRules
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
+import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MusicFailureStreak
 import io.github.aedev.flow.player.MusicLoadErrorPolicy
 import io.github.aedev.flow.player.MusicMutePause
@@ -221,6 +222,9 @@ class Media3MusicService : MediaLibraryService() {
 
     @Inject
     lateinit var downloadUtil: DownloadUtil
+
+    @Inject
+    lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
 
     @Inject
     lateinit var legacySongs: LegacySongDownloads
@@ -1369,7 +1373,9 @@ class Media3MusicService : MediaLibraryService() {
      */
     @OptIn(UnstableApi::class)
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val keepsPlaying = ::player.isInitialized && player.keepsPlayingOnTaskRemoved(isPlaybackOngoing())
+        val keepsPlaying =
+            ::player.isInitialized &&
+                player.keepsPlayingOnTaskRemoved(lifecyclePlaybackPreferences.settings.keepPlayingAfterSwipe, isPlaybackOngoing())
         PlayerDiagnostics.logInfo(TAG, "onTaskRemoved keepsPlaying=$keepsPlaying ${taskRemovalSnapshot()}")
         if (keepsPlaying) return
         pauseAllPlayersAndStopSelf()
