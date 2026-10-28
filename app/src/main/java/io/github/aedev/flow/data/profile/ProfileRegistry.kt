@@ -61,6 +61,8 @@ data class ProfileRegistryState(
     val activeId: String? = null,
     /** Set by a switch, cleared by the first process of the profile switched to once it has caught up. */
     val postSwitch: Boolean = false,
+    /** On a TV with two or more profiles, a cold start first asks who is watching. */
+    val askWhosWatching: Boolean = true,
 )
 
 /**
@@ -162,6 +164,10 @@ class ProfileRegistry internal constructor(
             if (complete.profiles.none { it.id == id && it.splashTone != tone }) return@updateData complete
             complete.copy(profiles = complete.profiles.map { if (it.id == id) it.copy(splashTone = tone) else it })
         }
+    }
+
+    suspend fun setAskWhosWatching(ask: Boolean) {
+        store.updateData { stored -> stored.completed(newId, now).copy(askWhosWatching = ask) }
     }
 
     /** Removes a profile from the registry. Default and the active profile are never removed. */

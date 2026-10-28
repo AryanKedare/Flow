@@ -73,6 +73,7 @@ fun TvNavRail(
     modifier: Modifier = Modifier,
     nowPlayingTitle: String? = null,
     onOpenNowPlaying: () -> Unit = {},
+    profile: (@Composable (expanded: Boolean) -> Unit)? = null,
 ) {
     val state = rememberWideNavigationRailState()
     var hasFocus by remember { mutableStateOf(false) }
@@ -100,7 +101,7 @@ fun TvNavRail(
                 }.focusGroup(),
         state = state,
         colors = WideNavigationRailDefaults.colors(containerColor = if (expanded) colors.surfaceContainer else colors.background),
-        header = { TvRailLogo() },
+        header = { profile?.invoke(expanded) ?: TvRailLogo() },
         arrangement = LastItemAtBottom,
     ) {
         tabs.forEach { tab ->

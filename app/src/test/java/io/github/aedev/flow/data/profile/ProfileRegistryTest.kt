@@ -164,6 +164,16 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `a TV asks who is watching until it is told not to`() {
+        write("""{"profiles":[{"id":"d"}],"defaultId":"d","activeId":"d"}""")
+
+        assertThat(withRegistry { it.state.first() }.askWhosWatching).isTrue()
+        withRegistry { it.setAskWhosWatching(false) }
+
+        assertThat(withRegistry { it.state.first() }.askWhosWatching).isFalse()
+    }
+
+    @Test
     fun `Default and the active profile are never removed`() {
         write("""{"profiles":[{"id":"d"},{"id":"study"},{"id":"music"}],"defaultId":"d","activeId":"study"}""")
 

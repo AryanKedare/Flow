@@ -59,6 +59,8 @@ class ProfileRepository
          * Removes an inactive profile and everything it kept on disk. Its files are closed: only the running
          * profile's are open in this process.
          */
+        suspend fun setAskWhosWatching(ask: Boolean) = registry.setAskWhosWatching(ask)
+
         suspend fun setSplashTone(
             id: String,
             tone: String,

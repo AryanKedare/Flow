@@ -34,6 +34,7 @@ import io.github.aedev.flow.ui.components.shared.card.ProvideVideoCardState
 import io.github.aedev.flow.ui.screens.crash.CrashReportScreen
 import io.github.aedev.flow.ui.theme.FlowFontFamily
 import io.github.aedev.flow.ui.tv.FlowTvApp
+import io.github.aedev.flow.ui.tv.screens.TvProfileGate
 import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.utils.FlowCrashHandler
 import kotlinx.coroutines.flow.StateFlow
@@ -127,11 +128,14 @@ internal fun FlowRoot(
                         ProvideChannelGroupLabels {
                             if (appUiRoot == AppUiRoot.TV) {
                                 SideEffect { splashController.contentReady = true }
-                                FlowTvApp(
-                                    deeplinkVideoId = deeplinkVideoId,
-                                    isShort = isDeeplinkShort,
-                                    onDeeplinkConsumed = links::consumeVideo,
-                                )
+                                TvProfileGate(hasLink = deeplinkVideoId != null) { startSettings ->
+                                    FlowTvApp(
+                                        deeplinkVideoId = deeplinkVideoId,
+                                        isShort = isDeeplinkShort,
+                                        onDeeplinkConsumed = links::consumeVideo,
+                                        startSettings = startSettings,
+                                    )
+                                }
                             } else {
                                 FlowApp(
                                     currentTheme = theme.themeMode,
