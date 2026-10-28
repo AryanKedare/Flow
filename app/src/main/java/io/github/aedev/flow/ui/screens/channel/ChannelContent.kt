@@ -335,7 +335,7 @@ internal fun ChannelContent(
                 tab.kind == ChannelTabKind.Home -> {
                     FeedShelfSections(
                         sections = tabStates[tab.kind]?.sections.orEmpty(),
-                        isLoading = tabStates[tab.kind]?.sections.isNullOrEmpty(),
+                        isLoading = tabStates[tab.kind]?.loaded != true,
                         listState = homeListState,
                         columnPreference = columnPreference,
                         contentPadding = listPadding,
