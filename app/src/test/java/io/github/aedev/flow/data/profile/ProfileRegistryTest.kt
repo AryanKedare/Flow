@@ -135,6 +135,59 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `a profile's colour and avatar change together, and only for a profile that exists`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study","name":"Study"}],"defaultId":"d","activeId":"d"}""")
+        val photo = ProfileAvatar(kind = ProfileAvatar.PHOTO, photoVersion = 7)
+
+        withRegistry { registry ->
+            assertThat(registry.setAppearance("study", "teal", photo)).isTrue()
+            assertThat(registry.setAppearance("missing", "teal", photo)).isFalse()
+        }
+
+        val study = withRegistry { it.state.first() }.profiles.single { it.id == "study" }
+        assertThat(study.colorKey).isEqualTo("teal")
+        assertThat(study.avatar).isEqualTo(photo)
+        assertThat(study.name).isEqualTo("Study")
+    }
+
+    @Test
+    fun `each profile keeps the splash tone it last showed`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study","name":"Study"}],"defaultId":"d","activeId":"d"}""")
+
+        withRegistry { registry ->
+            registry.setSplashTone("study", "LIGHT")
+            registry.setSplashTone("missing", "DARK")
+        }
+
+        val profiles = withRegistry { it.state.first() }.profiles
+        assertThat(profiles.map { it.splashTone }).containsExactly("", "LIGHT").inOrder()
+    }
+
+    @Test
+    fun `a TV asks who is watching until it is told not to`() {
+        write("""{"profiles":[{"id":"d"}],"defaultId":"d","activeId":"d"}""")
+
+        assertThat(withRegistry { it.state.first() }.askWhosWatching).isTrue()
+        withRegistry { it.setAskWhosWatching(false) }
+
+        assertThat(withRegistry { it.state.first() }.askWhosWatching).isFalse()
+    }
+
+    @Test
+    fun `a master restore adds the profiles this device lacks, under their own ids, and never past the limit`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study","name":"Study here"}],"defaultId":"d","activeId":"d"}""")
+
+        withRegistry { registry ->
+            assertThat(registry.addRestored(listOf(Profile("study", name = "Study there"), Profile("gaming", name = "Gaming")))).isTrue()
+            assertThat(registry.addRestored(listOf(Profile("a1"), Profile("a2"), Profile("a3")))).isFalse()
+        }
+
+        val profiles = withRegistry { it.state.first() }.profiles
+        assertThat(profiles.map { it.id }).containsExactly("d", "study", "gaming").inOrder()
+        assertThat(profiles.single { it.id == "study" }.name).isEqualTo("Study here")
+    }
+
+    @Test
     fun `Default and the active profile are never removed`() {
         write("""{"profiles":[{"id":"d"},{"id":"study"},{"id":"music"}],"defaultId":"d","activeId":"study"}""")
 
@@ -159,6 +212,15 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `the first process after a switch knows it`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study"}],"defaultId":"d","activeId":"d"}""")
+
+        withRegistry { it.setActive("study") }
+
+        assertThat(ProfileRegistry.peek(file)).isEqualTo(RunningProfile(id = "study", isDefault = false, afterSwitch = true))
+    }
+
+    @Test
     fun `a start without a switch finds no marker`() {
         write("""{"profiles":[{"id":"d"}],"defaultId":"d","activeId":"d"}""")
 
@@ -169,7 +231,7 @@ class ProfileRegistryTest {
     fun `a file from a newer version still reads`() {
         write(
             """{"profiles":[{"id":"d","avatar":{"kind":"hologram","frames":3},"pin":"x"}],""" +
-                """"defaultId":"d","activeId":"d","postSwitch":true}""",
+                """"defaultId":"d","activeId":"d","cloudLinked":true}""",
         )
 
         val state = withRegistry { it.state.first() }
