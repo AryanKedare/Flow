@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import io.github.aedev.flow.data.local.AppUiModePreferences
-import io.github.aedev.flow.data.profile.ProfilesFeature
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.data.repository.OriginalTitleRepository
@@ -155,19 +154,17 @@ internal fun FlowRoot(
                                 )
                             }
                         }
-                        if (ProfilesFeature.isVisible) {
-                            ProfileSwitchingOverlay(
-                                currentTone = splashTone.name,
-                                onSplashTone = { name ->
-                                    SplashTone.entries.firstOrNull { it.name == name }?.let {
-                                        splashController.rememberTheme(
-                                            it,
-                                            appIconController.activeSuffix(),
-                                        )
-                                    }
-                                },
-                            )
-                        }
+                        ProfileSwitchingOverlay(
+                            currentTone = splashTone.name,
+                            onSplashTone = { name ->
+                                SplashTone.entries.firstOrNull { it.name == name }?.let {
+                                    splashController.rememberTheme(
+                                        it,
+                                        appIconController.activeSuffix(),
+                                    )
+                                }
+                            },
+                        )
                     }
                 }
             }
