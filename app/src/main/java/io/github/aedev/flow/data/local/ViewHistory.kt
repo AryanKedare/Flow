@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.profile.StoreScope
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,10 @@ import kotlinx.coroutines.yield
  * Legacy DataStore kept only for one-time migration of existing user data.
  * After migration it is left empty (cleared).
  */
-private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "view_history")
+private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferencesDataStore(
+    name = "view_history",
+    scope = StoreScope.PROFILE_LIBRARY,
+)
 
 /**
  * Watch-history repository backed by Room SQLite.
@@ -37,7 +41,7 @@ private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferen
 class ViewHistory private constructor(
     private val context: Context,
 ) {
-    private val database = AppDatabase.getDatabase(context)
+    private val database = AppDatabase.profile(context)
     private val dao = database.watchHistoryDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
