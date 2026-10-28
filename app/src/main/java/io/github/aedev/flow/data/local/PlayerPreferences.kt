@@ -57,6 +57,9 @@ const val MAX_CONCURRENT_DOWNLOADS = 5
 /** On until turned off, matching NewPipe's default and the Background button (#1298). */
 const val DEFAULT_BACKGROUND_PLAY_ENABLED = true
 
+/** On until turned off: a swipe from recents has kept playback going since #1321. */
+const val DEFAULT_KEEP_PLAYING_AFTER_SWIPE = true
+
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6, 7)
 
 private const val MAX_UNPLAYABLE_VIDEO_IDS = 1_000
@@ -79,6 +82,7 @@ class PlayerPreferences(
 
     private object Keys {
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
+        val KEEP_PLAYING_AFTER_SWIPE = booleanPreferencesKey("keep_playing_after_swipe")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
         val QUEUE_AUTOPLAY_ENABLED = booleanPreferencesKey("queue_autoplay_enabled")
         val START_VIDEOS_PAUSED = booleanPreferencesKey("start_videos_paused")
@@ -1649,6 +1653,19 @@ class PlayerPreferences(
     suspend fun setBackgroundPlayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.BACKGROUND_PLAY_ENABLED] = enabled
+        }
+    }
+
+    /** Whether swiping Flow away from recent apps leaves a playing video or song going (#1468). */
+    val keepPlayingAfterSwipe: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.KEEP_PLAYING_AFTER_SWIPE] ?: DEFAULT_KEEP_PLAYING_AFTER_SWIPE
+            }
+
+    suspend fun setKeepPlayingAfterSwipe(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.KEEP_PLAYING_AFTER_SWIPE] = enabled
         }
     }
 

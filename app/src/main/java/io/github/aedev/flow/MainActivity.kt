@@ -150,6 +150,8 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
             window.isStatusBarContrastEnforced = false
+            // Some MIUI builds read force dark from the view rather than the theme (#1517).
+            window.decorView.isForceDarkAllowed = false
         }
 
         // Player setup reads DataStore and opens the media cache index, so it runs off the main
