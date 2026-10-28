@@ -18,7 +18,7 @@ sealed interface SwitchResult {
 interface ProfileSwitchSteps {
     suspend fun refusal(target: String): SwitchRefusal?
 
-    fun closeGate()
+    fun closeGate(target: String)
 
     fun reopenGate()
 
@@ -29,6 +29,9 @@ interface ProfileSwitchSteps {
     suspend fun stopPlayback()
 
     suspend fun awaitWrites()
+
+    /** Keeps the leaving profile's data for the master backup, which reads a closed profile from it. */
+    suspend fun writeSlice()
 
     /** Cancels what the running profile left scheduled or showing: its work, its alarms and its notifications. */
     suspend fun cancelProfileWork()
@@ -56,13 +59,15 @@ class ProfileSwitcher internal constructor(
 
     suspend fun switchTo(target: String): SwitchResult {
         steps.refusal(target)?.let { return SwitchResult.Refused(it) }
-        steps.closeGate()
+        steps.closeGate(target)
         try {
             steps.finishOpenSessions()
             steps.saveQueue()
             steps.stopPlayback()
             // A write that never finishes must not keep the user from switching; what landed is kept.
             withTimeoutOrNull(writeTimeoutMs) { steps.awaitWrites() }
+            // Bounded like the writes: a slow export leaves this profile out of the next master backup, never stuck.
+            withTimeoutOrNull(SLICE_TIMEOUT_MS) { steps.writeSlice() }
             // Cancelled before the new profile is persisted: WorkManager reruns interrupted work in the next process.
             steps.cancelProfileWork()
             steps.clearCaches()
@@ -79,3 +84,5 @@ class ProfileSwitcher internal constructor(
         const val WRITE_TIMEOUT_MS = 5_000L
     }
 }
+
+private const val SLICE_TIMEOUT_MS = 15_000L

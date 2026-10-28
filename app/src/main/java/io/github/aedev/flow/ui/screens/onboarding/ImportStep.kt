@@ -62,6 +62,7 @@ internal fun ImportStep(
     header: LazyListScope.() -> Unit,
     importOperation: BackupOperation,
     importedSources: Set<ImportSource>,
+    importProfileName: String?,
     onImport: (ImportKind) -> Unit,
     contentPadding: PaddingValues,
 ) {
@@ -113,6 +114,7 @@ internal fun ImportStep(
     openSource?.let { source ->
         ImportSourceSheet(
             source = source,
+            importProfileName = importProfileName,
             onImport = { kind ->
                 openSource = null
                 onImport(kind)

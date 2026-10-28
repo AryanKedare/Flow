@@ -23,6 +23,7 @@ import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.network.VpnStateMonitor
+import io.github.aedev.flow.notification.AutoBackupWorker
 import io.github.aedev.flow.notification.BackgroundCheckScheduler
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.player.PlaybackShutdown
@@ -166,6 +167,7 @@ class FlowApplication :
         }
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             launch { profileWorkReconciler.reconcile() }
+            launch { AutoBackupWorker.keepScheduled(this@FlowApplication) }
             launch { postSwitchWork.runIfSwitched() }
             BackgroundCheckScheduler.follow(this@FlowApplication, playerPreferences)
         }

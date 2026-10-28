@@ -94,5 +94,7 @@ class DiagnosticsViewModel
 
         fun deleteProfile(id: String) = write { profiles.delete(id) }
 
+        fun setRunningProfilePhoto(source: Uri) = write { profiles.setPhoto(runningProfileId, source) }
+
         fun switchProfile(id: String) = write { switcher.switchTo(id) }
     }
