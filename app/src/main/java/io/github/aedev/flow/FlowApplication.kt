@@ -11,7 +11,10 @@ import dagger.hilt.android.HiltAndroidApp
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.profile.ActiveProfile
+import io.github.aedev.flow.data.profile.PendingSlice
 import io.github.aedev.flow.data.profile.PostSwitchWork
+import io.github.aedev.flow.data.profile.ProfileFiles
+import io.github.aedev.flow.data.profile.ProfileSlices
 import io.github.aedev.flow.data.profile.ProfileWebView
 import io.github.aedev.flow.data.profile.ProfileWorkReconciler
 import io.github.aedev.flow.data.repository.NewPipeDownloader
@@ -20,6 +23,7 @@ import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.network.VpnStateMonitor
+import io.github.aedev.flow.notification.AutoBackupWorker
 import io.github.aedev.flow.notification.BackgroundCheckScheduler
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.player.PlaybackShutdown
@@ -82,6 +86,9 @@ class FlowApplication :
 
     @Inject
     lateinit var postSwitchWork: PostSwitchWork
+
+    @Inject
+    lateinit var profileSlices: dagger.Lazy<ProfileSlices>
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
@@ -155,8 +162,12 @@ class FlowApplication :
         }
          */
 
+        PendingSlice.start(ProfileFiles.noBackupRoot(this), CoroutineScope(SupervisorJob() + Dispatchers.IO)) { file ->
+            profileSlices.get().applyPending(file)
+        }
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             launch { profileWorkReconciler.reconcile() }
+            launch { AutoBackupWorker.keepScheduled(this@FlowApplication) }
             launch { postSwitchWork.runIfSwitched() }
             BackgroundCheckScheduler.follow(this@FlowApplication, playerPreferences)
         }
