@@ -535,7 +535,8 @@ class Media3MusicService : MediaLibraryService() {
                             }
                         }
 
-                        if (!versionSwap && !videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
+                        val wantsLyrics = !versionSwap && !videoId.isNullOrBlank() && !LocalMediaIds.isLocal(videoId)
+                        if (wantsLyrics && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
                             lifecycleScope.launch(Dispatchers.IO) {
                                 try {
                                     Log.d(TAG, "Pre-warming lyrics cache in background for: $videoId - \"$title\"")
