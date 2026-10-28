@@ -14,6 +14,7 @@ class ProfileFoldersTest {
     private val folders = ProfileFolders(filesDir, noBackupFilesDir, dataDir)
     private val study = "0b6f0d3c-2f1e-4b8a-9c5d-7e6f5a4b3c2d"
     private val music = "9a8b7c6d-0000-4000-8000-000000000001"
+    private val photoOnly = "5c4d3e2f-1111-4aaa-8bbb-000000000002"
 
     @After
     fun cleanUp() {
@@ -34,6 +35,7 @@ class ProfileFoldersTest {
             file("app_webview_$id/Default/Cookies"),
             file("shared_prefs/youtube_identity_$id.xml"),
             file("shared_prefs/music_home_cache_prefs_$id.xml"),
+            file("files/profile_avatars/$id.webp"),
         )
 
     private val defaultFiles
@@ -55,7 +57,7 @@ class ProfileFoldersTest {
 
         val removed = folders.delete(study)
 
-        assertThat(removed).hasSize(6)
+        assertThat(removed).hasSize(7)
         assertThat(folders.of(study).none(File::exists)).isTrue()
         (defaults + others).forEach { assertThat(it.exists()).isTrue() }
     }
@@ -65,8 +67,9 @@ class ProfileFoldersTest {
         defaultFiles
         profileFiles(study)
         file("shared_prefs/youtube_identity_$music.xml")
+        file("files/profile_avatars/$photoOnly.webp")
 
-        assertThat(folders.idsOnDisk()).containsExactly(study, music)
+        assertThat(folders.idsOnDisk()).containsExactly(study, music, photoOnly)
     }
 
     @Test
