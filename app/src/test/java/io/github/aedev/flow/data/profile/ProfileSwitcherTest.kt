@@ -41,6 +41,10 @@ class ProfileSwitcherTest {
             if (writesNeverFinish) awaitCancellation()
         }
 
+        override suspend fun writeSlice() {
+            calls += "writeSlice"
+        }
+
         override suspend fun cancelProfileWork() {
             calls += "cancelProfileWork"
         }
@@ -74,6 +78,7 @@ class ProfileSwitcherTest {
                     "saveQueue",
                     "stopPlayback",
                     "awaitWrites",
+                    "writeSlice",
                     "cancelProfileWork",
                     "clearCaches",
                     "persistActive:b",

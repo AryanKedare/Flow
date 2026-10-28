@@ -1952,6 +1952,17 @@
     <string name="onboarding_channels_results_header">Channels</string>
     <string name="onboarding_import_title">Import your data</string>
     <string name="onboarding_import_subtitle">Bring your subscriptions and history from other apps. Everything is optional.</string>
+    <string name="onboarding_import_subtitle_profile">Bring subscriptions and history into %1$s from other apps. Everything is optional.</string>
+    <string name="onboarding_import_master_profile">Restores every profile in the backup</string>
+    <string name="master_restore_confirm_title">Restore backup?</string>
+    <string name="auto_backup_type_all_profiles">With more than one profile, automatic backups are master backups, so every profile is included</string>
+    <string name="master_restore_confirm">Restore</string>
+    <string name="master_restore_old_into">This backup is from before profiles, so it holds one profile. It will be restored into %1$s.</string>
+    <plurals name="master_restore_waiting">
+        <item quantity="one">Master backup restored. %1$s is restored the next time you open it.</item>
+        <item quantity="other">Master backup restored. %1$s are restored the next time you open them.</item>
+    </plurals>
+    <string name="master_restore_too_many">This backup would make more than %1$d profiles. Delete a profile, then try again.</string>
     <string name="onboarding_backup_restore_section">Backup &amp; Restore</string>
     <string name="onboarding_topic_selected">Selected</string>
     <string name="onboarding_topic_not_selected">Not selected</string>
@@ -2897,6 +2908,7 @@
     <string name="profiles_add">Add profile</string>
     <string name="profiles_manage">Manage profiles</string>
     <string name="profiles_switching_to">Switching to %1$s</string>
+    <string name="master_backup_export_missing">Backup saved, without %1$s. Open each of them once, then back up again to include them.</string>
     <string name="profiles_ask_whos_watching">Ask who\'s watching</string>
     <string name="profiles_ask_whos_watching_summary">With two or more profiles, choose one when the app opens</string>
     <string name="profiles_whos_watching">Who\'s watching?</string>

@@ -40,6 +40,7 @@ class AppProfileSwitchSteps
         private val sync: dagger.Lazy<SyncManager>,
         private val backups: dagger.Lazy<BackupCoordinator>,
         private val discord: DiscordPresenceController,
+        private val slices: dagger.Lazy<ProfileSlices>,
     ) : ProfileSwitchSteps {
         private val registry: ProfileRegistry get() = ActiveProfile.registry(context)
 
@@ -89,6 +90,8 @@ class AppProfileSwitchSteps
             neuroEngine.awaitWrites()
             videoStats.awaitWrites()
         }
+
+        override suspend fun writeSlice() = slices.get().writeSwitchSlice()
 
         override suspend fun cancelProfileWork() {
             ProfileWork.cancelAll(context)
