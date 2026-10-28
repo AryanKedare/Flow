@@ -32,6 +32,9 @@ class ProfileSwitchViewModel
         val state: StateFlow<ProfileRegistryState?> = profiles.state.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
         val runningId: String = ActiveProfile.get(context).id
 
+        /** This is the first process after a switch: what a cold start would ask has been answered. */
+        val afterSwitch: Boolean = ActiveProfile.get(context).afterSwitch
+
         /** Why the last switch didn't happen; null while there is nothing to say. */
         private val _refused = MutableStateFlow<SwitchRefused?>(null)
         val refused: StateFlow<SwitchRefused?> = _refused.asStateFlow()

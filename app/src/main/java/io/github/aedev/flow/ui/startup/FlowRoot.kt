@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import io.github.aedev.flow.data.local.AppUiModePreferences
-import io.github.aedev.flow.data.profile.ProfilesFeature
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.data.repository.OriginalTitleRepository
@@ -34,6 +33,7 @@ import io.github.aedev.flow.ui.components.shared.card.ProvideVideoCardState
 import io.github.aedev.flow.ui.screens.crash.CrashReportScreen
 import io.github.aedev.flow.ui.theme.FlowFontFamily
 import io.github.aedev.flow.ui.tv.FlowTvApp
+import io.github.aedev.flow.ui.tv.screens.TvProfileGate
 import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.utils.FlowCrashHandler
 import kotlinx.coroutines.flow.StateFlow
@@ -127,11 +127,14 @@ internal fun FlowRoot(
                         ProvideChannelGroupLabels {
                             if (appUiRoot == AppUiRoot.TV) {
                                 SideEffect { splashController.contentReady = true }
-                                FlowTvApp(
-                                    deeplinkVideoId = deeplinkVideoId,
-                                    isShort = isDeeplinkShort,
-                                    onDeeplinkConsumed = links::consumeVideo,
-                                )
+                                TvProfileGate(hasLink = deeplinkVideoId != null) { startSettings ->
+                                    FlowTvApp(
+                                        deeplinkVideoId = deeplinkVideoId,
+                                        isShort = isDeeplinkShort,
+                                        onDeeplinkConsumed = links::consumeVideo,
+                                        startSettings = startSettings,
+                                    )
+                                }
                             } else {
                                 FlowApp(
                                     currentTheme = theme.themeMode,
@@ -151,19 +154,17 @@ internal fun FlowRoot(
                                 )
                             }
                         }
-                        if (ProfilesFeature.isVisible) {
-                            ProfileSwitchingOverlay(
-                                currentTone = splashTone.name,
-                                onSplashTone = { name ->
-                                    SplashTone.entries.firstOrNull { it.name == name }?.let {
-                                        splashController.rememberTheme(
-                                            it,
-                                            appIconController.activeSuffix(),
-                                        )
-                                    }
-                                },
-                            )
-                        }
+                        ProfileSwitchingOverlay(
+                            currentTone = splashTone.name,
+                            onSplashTone = { name ->
+                                SplashTone.entries.firstOrNull { it.name == name }?.let {
+                                    splashController.rememberTheme(
+                                        it,
+                                        appIconController.activeSuffix(),
+                                    )
+                                }
+                            },
+                        )
                     }
                 }
             }

@@ -7,7 +7,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.profile.ProfilesFeature
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsGroupScope
@@ -122,7 +121,7 @@ internal fun SettingsListScope.homeContent(
         page(SettingsDestination.INTEGRATIONS)
     }
     group(key = "home.data", header = R.string.settings_group_data) {
-        if (ProfilesFeature.isVisible) page(SettingsDestination.PROFILES)
+        page(SettingsDestination.PROFILES)
         page(SettingsDestination.BACKUP)
         page(SettingsDestination.SYNC)
         page(SettingsDestination.HISTORY)

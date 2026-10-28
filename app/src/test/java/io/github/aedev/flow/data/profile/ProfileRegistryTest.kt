@@ -164,6 +164,30 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `a TV asks who is watching until it is told not to`() {
+        write("""{"profiles":[{"id":"d"}],"defaultId":"d","activeId":"d"}""")
+
+        assertThat(withRegistry { it.state.first() }.askWhosWatching).isTrue()
+        withRegistry { it.setAskWhosWatching(false) }
+
+        assertThat(withRegistry { it.state.first() }.askWhosWatching).isFalse()
+    }
+
+    @Test
+    fun `a master restore adds the profiles this device lacks, under their own ids, and never past the limit`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study","name":"Study here"}],"defaultId":"d","activeId":"d"}""")
+
+        withRegistry { registry ->
+            assertThat(registry.addRestored(listOf(Profile("study", name = "Study there"), Profile("gaming", name = "Gaming")))).isTrue()
+            assertThat(registry.addRestored(listOf(Profile("a1"), Profile("a2"), Profile("a3")))).isFalse()
+        }
+
+        val profiles = withRegistry { it.state.first() }.profiles
+        assertThat(profiles.map { it.id }).containsExactly("d", "study", "gaming").inOrder()
+        assertThat(profiles.single { it.id == "study" }.name).isEqualTo("Study here")
+    }
+
+    @Test
     fun `Default and the active profile are never removed`() {
         write("""{"profiles":[{"id":"d"},{"id":"study"},{"id":"music"}],"defaultId":"d","activeId":"study"}""")
 

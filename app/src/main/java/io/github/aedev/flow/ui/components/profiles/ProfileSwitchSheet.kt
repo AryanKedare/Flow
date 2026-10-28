@@ -100,7 +100,7 @@ fun ProfileTopBarAction(
 }
 
 @Composable
-private fun ProfileSwitchSheet(
+internal fun ProfileSwitchSheet(
     profiles: List<Profile>,
     runningId: String,
     onSwitch: (String) -> Unit,

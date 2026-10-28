@@ -1896,7 +1896,7 @@ class BackupRepository(
         }
     }
 
-    private suspend fun writeToFolder(
+    internal suspend fun writeToFolder(
         folderUri: Uri,
         filename: String,
         mimeType: String,

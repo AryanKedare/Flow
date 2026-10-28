@@ -13,9 +13,19 @@ internal object ProfilesIndex {
             summary = R.string.profiles_add_summary,
             keywords = R.string.profiles_keywords,
             destination = SettingsDestination.PROFILES,
-            availability = SettingAvailability.Profiles,
+        )
+
+    /** TV only: a TV is where a profile list is most often shared. */
+    val askWhosWatching =
+        SettingEntry(
+            key = "profiles.ask_whos_watching",
+            title = R.string.profiles_ask_whos_watching,
+            summary = R.string.profiles_ask_whos_watching_summary,
+            keywords = R.string.profiles_keywords,
+            destination = SettingsDestination.PROFILES,
+            availability = SettingAvailability.TvOnly,
         )
 
     /** Only the list is searchable: the editor needs a profile to open. */
-    val all = listOf(add)
+    val all = listOf(add, askWhosWatching)
 }

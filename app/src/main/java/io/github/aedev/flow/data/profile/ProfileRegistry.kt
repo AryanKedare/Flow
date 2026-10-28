@@ -61,6 +61,8 @@ data class ProfileRegistryState(
     val activeId: String? = null,
     /** Set by a switch, cleared by the first process of the profile switched to once it has caught up. */
     val postSwitch: Boolean = false,
+    /** On a TV with two or more profiles, a cold start first asks who is watching. */
+    val askWhosWatching: Boolean = true,
 )
 
 /**
@@ -137,6 +139,22 @@ class ProfileRegistry internal constructor(
         return renamed
     }
 
+    /**
+     * Adds the profiles a master backup brings that this device doesn't have, under their own ids. Nothing is added
+     * when they wouldn't all fit under [MAX_PROFILES]; profiles already here keep how they look on this device.
+     */
+    suspend fun addRestored(incoming: List<Profile>): Boolean {
+        var added = false
+        store.updateData { stored ->
+            val complete = stored.completed(newId, now)
+            val missing = incoming.filter { profile -> isSafeProfileId(profile.id) && complete.profiles.none { it.id == profile.id } }
+            if (complete.profiles.size + missing.size > MAX_PROFILES) return@updateData complete
+            added = true
+            complete.copy(profiles = complete.profiles + missing)
+        }
+        return added
+    }
+
     /** Changes how a profile looks: its colour and its avatar. */
     suspend fun setAppearance(
         id: String,
@@ -162,6 +180,10 @@ class ProfileRegistry internal constructor(
             if (complete.profiles.none { it.id == id && it.splashTone != tone }) return@updateData complete
             complete.copy(profiles = complete.profiles.map { if (it.id == id) it.copy(splashTone = tone) else it })
         }
+    }
+
+    suspend fun setAskWhosWatching(ask: Boolean) {
+        store.updateData { stored -> stored.completed(newId, now).copy(askWhosWatching = ask) }
     }
 
     /** Removes a profile from the registry. Default and the active profile are never removed. */

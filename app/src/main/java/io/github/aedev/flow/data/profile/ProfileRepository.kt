@@ -25,6 +25,9 @@ class ProfileRepository
 
         val state: Flow<ProfileRegistryState> get() = registry.state
 
+        /** The profile this process runs as. */
+        fun running(): RunningProfile = ActiveProfile.get(context)
+
         /**
          * Registers a profile and, when [copy] names parts, writes them from the running profile as its seed. A seed
          * that can't be written takes the new entry with it, so a half-copied profile never appears.
@@ -59,6 +62,8 @@ class ProfileRepository
          * Removes an inactive profile and everything it kept on disk. Its files are closed: only the running
          * profile's are open in this process.
          */
+        suspend fun setAskWhosWatching(ask: Boolean) = registry.setAskWhosWatching(ask)
+
         suspend fun setSplashTone(
             id: String,
             tone: String,
