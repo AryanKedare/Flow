@@ -127,7 +127,7 @@ class SubscriptionRepository private constructor(
         }
 
         AppDatabase
-            .getDatabase(context)
+            .profile(context)
             .cacheDao()
             .deleteSubscriptionFeedForChannel(channelId)
         FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelUnsubscribed(channelId))

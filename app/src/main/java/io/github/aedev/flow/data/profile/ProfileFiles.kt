@@ -31,6 +31,43 @@ object ProfileFiles {
         return File(root(app.filesDir, app.noBackupFilesDir, ActiveProfile.get(app), scope), path)
     }
 
+    /**
+     * What Room opens for the database [name]: the bare name for Default, which Room keeps in `databases/`, or an
+     * absolute path in another profile's library folder.
+     */
+    fun database(
+        context: Context,
+        name: String,
+    ): String {
+        val app = context.applicationContext
+        return database(app.filesDir, app.noBackupFilesDir, ActiveProfile.get(app), name)?.apply { parentFile?.mkdirs() }?.absolutePath
+            ?: name
+    }
+
+    /** Null for Default, whose database stays where Room has always put it. */
+    internal fun database(
+        filesDir: File,
+        noBackupFilesDir: File,
+        profile: RunningProfile,
+        name: String,
+    ): File? =
+        if (profile.isDefault) null else File(root(filesDir, noBackupFilesDir, profile, StoreScope.PROFILE_LIBRARY), "databases/$name")
+
+    /** A SharedPreferences file for the running profile: Default keeps [name], another profile gets `name_<id>`. */
+    fun sharedPreferencesName(
+        context: Context,
+        name: String,
+    ): String = sharedPreferencesName(ActiveProfile.get(context.applicationContext), name)
+
+    internal fun sharedPreferencesName(
+        profile: RunningProfile,
+        name: String,
+    ): String {
+        if (profile.isDefault) return name
+        require(isSafeProfileId(profile.id)) { "Unsafe profile id" }
+        return "${name}_${profile.id}"
+    }
+
     /** Where the running profile keeps what Default keeps directly under `no_backup/`: private, never backed up. */
     fun noBackupRoot(context: Context): File {
         val app = context.applicationContext

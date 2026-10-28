@@ -67,6 +67,22 @@ class ProfileFilesTest {
     }
 
     @Test
+    fun `Default's database stays where Room has always kept it, another profile's sits in its library folder`() {
+        assertThat(ProfileFiles.database(filesDir, noBackupFilesDir, default, "flow_database")).isNull()
+        assertThat(ProfileFiles.database(filesDir, noBackupFilesDir, study, "flow_database")?.path)
+            .isEqualTo("/data/user/0/app/files/profile_library/${study.id}/databases/flow_database")
+    }
+
+    @Test
+    fun `Default keeps its SharedPreferences names, another profile gets its own`() {
+        assertThat(ProfileFiles.sharedPreferencesName(default, "youtube_identity")).isEqualTo("youtube_identity")
+        assertThat(ProfileFiles.sharedPreferencesName(study, "youtube_identity")).isEqualTo("youtube_identity_${study.id}")
+        assertThrows(IllegalArgumentException::class.java) {
+            ProfileFiles.sharedPreferencesName(RunningProfile(id = "../x", isDefault = false), "youtube_identity")
+        }
+    }
+
+    @Test
     fun `an id that could leave its folder is refused`() {
         listOf("../d", "a/b", "", ".").forEach { id ->
             assertThrows(IllegalArgumentException::class.java) {

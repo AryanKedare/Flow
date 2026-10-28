@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
@@ -43,7 +42,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -73,6 +71,7 @@ fun TvNavRail(
     modifier: Modifier = Modifier,
     nowPlayingTitle: String? = null,
     onOpenNowPlaying: () -> Unit = {},
+    profile: @Composable (expanded: Boolean) -> Unit,
 ) {
     val state = rememberWideNavigationRailState()
     var hasFocus by remember { mutableStateOf(false) }
@@ -100,7 +99,7 @@ fun TvNavRail(
                 }.focusGroup(),
         state = state,
         colors = WideNavigationRailDefaults.colors(containerColor = if (expanded) colors.surfaceContainer else colors.background),
-        header = { TvRailLogo() },
+        header = { profile(expanded) },
         arrangement = LastItemAtBottom,
     ) {
         tabs.forEach { tab ->
@@ -183,25 +182,6 @@ private fun TvRailItem(
                 )
             }
         }
-    }
-}
-
-/** The two-layer brand badge, tinted from the scheme so it follows every theme. */
-@Composable
-private fun TvRailLogo() {
-    Box(modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 8.dp)) {
-        Icon(
-            painter = painterResource(R.drawable.ic_flow_badge_shape),
-            contentDescription = stringResource(R.string.app_name),
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(width = 40.dp, height = 30.dp),
-        )
-        Icon(
-            painter = painterResource(R.drawable.ic_flow_badge_glyph),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(width = 40.dp, height = 30.dp),
-        )
     }
 }
 
