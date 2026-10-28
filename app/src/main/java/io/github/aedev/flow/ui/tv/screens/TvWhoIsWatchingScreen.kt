@@ -29,7 +29,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.profile.Profile
-import io.github.aedev.flow.data.profile.ProfilesFeature
 import io.github.aedev.flow.data.profile.displayName
 import io.github.aedev.flow.ui.components.profiles.ProfileAvatar
 import io.github.aedev.flow.ui.components.profiles.ProfileSwitchViewModel
@@ -64,7 +63,7 @@ fun TvProfileGate(
     hasLink: Boolean,
     content: @Composable (startSettings: SettingsTarget?) -> Unit,
 ) {
-    if (!ProfilesFeature.isVisible || WhoIsWatchingAnswer.answered) {
+    if (WhoIsWatchingAnswer.answered) {
         content(null)
         return
     }

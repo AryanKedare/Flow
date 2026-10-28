@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.components.settings
 
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
-import io.github.aedev.flow.data.profile.ProfilesFeature
 
 /**
  * One option in Settings, declared once. The row on its page is drawn from this entry and the
@@ -48,9 +47,6 @@ sealed interface SettingAvailability {
     /** Only on a TV, such as the remote's key guide. */
     data object TvOnly : SettingAvailability
 
-    /** Profiles, while they are hidden from users; see [ProfilesFeature]. */
-    data object Profiles : SettingAvailability
-
     fun isAvailable(
         githubFeatures: Boolean,
         sdk: Int,
@@ -62,7 +58,6 @@ sealed interface SettingAvailability {
             is MinSdk -> sdk >= this.sdk
             NotOnTv -> !tv
             TvOnly -> tv
-            Profiles -> ProfilesFeature.isVisible
         }
 
     /** Whether a page row for this option appears on a TV ([tv]) or elsewhere; the build checks stay with each page. */
@@ -70,7 +65,6 @@ sealed interface SettingAvailability {
         when (this) {
             NotOnTv -> !tv
             TvOnly -> tv
-            Profiles -> ProfilesFeature.isVisible
             else -> true
         }
 }
