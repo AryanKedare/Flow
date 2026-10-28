@@ -84,13 +84,23 @@ class StoreScopeGuardTest {
             .findAll(text)
             .mapNotNull { match ->
                 val arguments = arguments(text, match.range.last)
+                val call = match.groupValues[1]
                 val scope =
-                    if (match.groupValues[1] == "noBackupRoot") {
-                        "PROFILE_PRIVATE"
-                    } else {
-                        arguments.firstOrNull { it.startsWith("StoreScope.") }?.removePrefix("StoreScope.") ?: return@mapNotNull null
+                    when (call) {
+                        in UNSCOPED_CALLS -> {
+                            null
+                        }
+
+                        in IMPLICIT_SCOPES -> {
+                            IMPLICIT_SCOPES.getValue(call)
+                        }
+
+                        else -> {
+                            arguments.firstOrNull { it.startsWith("StoreScope.") }?.removePrefix("StoreScope.")
+                                ?: return@mapNotNull null
+                        }
                     }
-                val name = if (match.groupValues[1] == "noBackupRoot") null else resolved(arguments.last(), text)
+                val name = if (call == "noBackupRoot") null else resolved(arguments.last(), text)
                 Hit("profile_file", source, name, scope)
             }.toList()
 
@@ -180,6 +190,22 @@ class StoreScopeGuardTest {
             .isEqualTo(daos)
     }
 
+    @Test
+    fun `every DAO is provided from the database its row names`() {
+        val providers =
+            DAO_PROVIDER
+                .findAll(sources.getValue(DATABASE_MODULE))
+                .associate { it.groupValues[2].substringAfterLast('.') to it.groupValues[1] }
+        val daoRows = rows.filter { it.kind == "room_dao" }
+        val wrong =
+            daoRows.mapNotNull { row ->
+                val expected = if (row.scope == "DEVICE") "DeviceDb" else "ProfileDb"
+                "${row.name} comes from ${providers[row.name]}, its row says $expected".takeIf { providers[row.name] != expected }
+            }
+        assertThat(providers.keys).containsExactlyElementsIn(daoRows.map { it.name })
+        assertWithMessage("DAO providers on the wrong database").that(wrong).isEmpty()
+    }
+
     private fun covers(
         row: Row,
         hit: Hit,
@@ -216,16 +242,16 @@ class StoreScopeGuardTest {
         return Regex("""const\s+val\s+$trimmed\s*=\s*"([^"$]*)"""").find(text)?.groupValues?.get(1)
     }
 
-    /** The store name a call passes, with a same-file `const val` resolved; a computed name stays as written. */
+    /** The store name a call passes, with a same-file `const val` resolved; null when it is computed. */
     private fun nameOf(
         call: NamedCall,
         text: String,
         openParen: Int,
-    ): String {
+    ): String? {
         val arguments = arguments(text, openParen)
         val named = arguments.firstOrNull { it.startsWith("${call.parameter} ") || it.startsWith("${call.parameter}=") }
         val argument = (named?.substringAfter('=') ?: arguments.getOrElse(call.position) { "" }).trim()
-        return resolved(argument, text) ?: argument
+        return resolved(argument, text)
     }
 
     private fun arguments(
@@ -308,6 +334,8 @@ class StoreScopeGuardTest {
         val FLAVORS = listOf("main", "github", "foss")
         const val PACKAGE_PATH = "io/github/aedev/flow"
         const val APP_DATABASE = "main:data/local/AppDatabase.kt"
+        const val DATABASE_MODULE = "main:di/DatabaseModule.kt"
+        val DAO_PROVIDER = Regex("""fun\s+provide\w+Dao\(\s*@(\w+)\s+database:\s*AppDatabase\s*,?\s*\)\s*:\s*([\w.]+)""")
 
         val SCOPES = setOf("PROFILE", "DEVICE", "CACHE", "DEFAULT_ONLY")
         val PROFILE_CLASSES = setOf("settings", "library", "private", "identity")
@@ -340,7 +368,11 @@ class StoreScopeGuardTest {
                 "cache_dir" to "cacheDir",
             )
 
-        val PROFILE_FILE_CALL = Regex("""\bProfileFiles\.(preferences|dataStore|file|noBackupRoot)\(""")
+        val PROFILE_FILE_CALL = Regex("""\bProfileFiles\s*\.(preferences|dataStore|file|noBackupRoot|database|sharedPreferencesName)\(""")
+        val IMPLICIT_SCOPES = mapOf("noBackupRoot" to "PROFILE_PRIVATE", "database" to "PROFILE_LIBRARY")
+
+        /** Per-profile names whose rows give the scope themselves: an identity file and a cache. */
+        val UNSCOPED_CALLS = setOf("sharedPreferencesName")
         val FACTORY_KINDS = setOf("factory_datastore", "datastore_file")
 
         val SCANNED_KINDS = NAMED_CALLS.map { it.kind }.toSet() + UNNAMED_PATTERNS.keys + DIRECTORY_ROOTS.keys + "profile_file"

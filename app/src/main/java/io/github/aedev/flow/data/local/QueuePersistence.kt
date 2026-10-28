@@ -99,6 +99,11 @@ class QueuePersistence private constructor(
             }
     }
 
+    /** Drops a debounced save that an immediate save is about to supersede; it would write older state. */
+    fun cancelPendingSave() {
+        saveJob?.cancel()
+    }
+
     /**
      * Immediately save queue state (use for critical moments like app pause)
      */
