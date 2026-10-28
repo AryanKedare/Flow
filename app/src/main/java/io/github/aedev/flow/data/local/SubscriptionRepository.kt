@@ -11,6 +11,10 @@ import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.profile.StoreScope
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -158,6 +162,12 @@ class SubscriptionRepository private constructor(
             }
         }
 
+    /** The channels whose bell is on. */
+    fun notifyingChannelIds(): Flow<Set<String>> =
+        getAllSubscriptions()
+            .map(::notifyingIds)
+            .distinctUntilChanged()
+
     /**
      * Get all subscription IDs as a Set
      */
@@ -279,6 +289,7 @@ class SubscriptionRepository private constructor(
         channelId: String,
         enabled: Boolean,
     ) {
+        var turnedOn = false
         context.subscriptionsDataStore.edit { preferences ->
             val channelData = preferences[channelKey(channelId)]
             if (channelData != null) {
@@ -286,10 +297,19 @@ class SubscriptionRepository private constructor(
                 if (subscription != null) {
                     val updated = subscription.copy(isNotificationEnabled = enabled)
                     preferences[channelKey(channelId)] = serializeChannel(updated)
+                    turnedOn = enabled && !subscription.isNotificationEnabled
                 }
             }
         }
+        if (turnedOn) bellsTurnedOn.tryEmit(channelId)
     }
+
+    // Every bell in the app writes through updateNotificationState, so this is the one place that
+    // knows a viewer just asked for alerts. Nothing replays: with no shell listening, it is dropped.
+    private val bellsTurnedOn = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    /** A channel whose bell the viewer just turned on. */
+    val notificationsTurnedOn: SharedFlow<String> = bellsTurnedOn.asSharedFlow()
 
     /**
      * Record that the subscription feed has just fetched these channels.
@@ -351,3 +371,6 @@ data class ChannelSubscription(
     /** When the subscription feed last fetched this channel; 0 means never. */
     val lastFeedFetchAt: Long = 0L,
 )
+
+internal fun notifyingIds(subscriptions: List<ChannelSubscription>): Set<String> =
+    subscriptions.filter { it.isNotificationEnabled }.mapTo(HashSet()) { it.channelId }

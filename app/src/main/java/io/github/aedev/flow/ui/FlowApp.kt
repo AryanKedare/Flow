@@ -55,6 +55,7 @@ import io.github.aedev.flow.ui.components.musicplayer.sheet.rememberMusicPlayerS
 import io.github.aedev.flow.ui.components.shared.LocalMediaOpenOrigins
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.components.shared.MediaOpenOrigins
+import io.github.aedev.flow.ui.components.shared.SubscriptionBellAlerts
 import io.github.aedev.flow.ui.components.shared.mediaMiniBarBounds
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
@@ -507,6 +508,7 @@ fun FlowApp(
                                     LocalFlowSnackbarHostState provides snackbarHostState,
                                     LocalStatusBarHero provides statusBarHero,
                                 ) {
+                                    if (needsOnboarding == false) SubscriptionBellAlerts(snackbarHostState)
                                     NavHost(
                                         navController = navController,
                                         startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
