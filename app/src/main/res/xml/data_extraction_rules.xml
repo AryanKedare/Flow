@@ -17,6 +17,7 @@
         <include domain="sharedpref" path="flow_language_prefs.xml" />
         <include domain="file" path="datastore/profiles_registry.json" />
         <include domain="file" path="profile_settings" />
+        <include domain="file" path="profile_avatars" />
     </cloud-backup>
     <device-transfer>
         <include domain="file" path="datastore/player_preferences.preferences_pb" />
@@ -29,6 +30,7 @@
         <include domain="sharedpref" path="flow_language_prefs.xml" />
         <include domain="file" path="datastore/profiles_registry.json" />
         <include domain="file" path="profile_settings" />
+        <include domain="file" path="profile_avatars" />
         <include domain="database" path="flow_database" />
         <include domain="database" path="flow_database-wal" />
         <include domain="database" path="flow_database-shm" />
