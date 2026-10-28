@@ -6,7 +6,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.layout.Box
@@ -337,7 +336,6 @@ internal fun InlineLyricsPanel(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(backdropColor ?: MaterialTheme.colorScheme.background)
                     .fadingEdge(top = LYRICS_FADE_TOP_DP, bottom = LYRICS_FADE_BOTTOM_DP)
                     .clipToBounds()
                     .pointerInput(scrollClampMin, scrollClampMax, isInitialLayout) {

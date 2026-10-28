@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,10 +32,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -75,7 +78,17 @@ internal class LyricsLineLook(
     val lineSpacing: Float,
     val accent: Color,
     val align: TextAlign,
-)
+    val backdrop: Color?,
+) {
+    /**
+     * The accent at [alpha], blended onto the backdrop up front. Translucent text paints overlapping
+     * glyphs twice, which shows as bright seams in joined scripts such as Bengali (#1484).
+     */
+    fun ink(alpha: Float): Color {
+        val translucent = accent.copy(alpha = alpha)
+        return backdrop?.let { translucent.compositeOver(it) } ?: translucent
+    }
+}
 
 /**
  * An instrumental break: three dots that fill one after another with the break's progress and
@@ -207,7 +220,8 @@ internal fun LyricsLine(
                     } else {
                         null
                     }
-            }.combinedClickable(onClickLabel = if (isSynced) playFromHere else null, onClick = onClick)
+            }.clip(RoundedCornerShape(8.dp))
+            .combinedClickable(onClickLabel = if (isSynced) playFromHere else null, onClick = onClick)
             .padding(
                 start = 24.dp,
                 end = 24.dp,
@@ -304,7 +318,8 @@ private fun LyricBody(
             label = "lyricsLineAlpha",
         )
         val accent = look.accent
-        val lineColor = accent.copy(alpha = if (item.isBackground) focusedAlpha else animatedAlpha)
+        val lineAlpha = if (item.isBackground) focusedAlpha else animatedAlpha
+        val lineColor = look.ink(lineAlpha)
         val mainText = if (item.isBackground) item.text.removePrefix("(").removeSuffix(")") else item.text
         val translation = item.translation?.takeIf { showTranslation && it.isNotBlank() }
         val textSize =
@@ -341,7 +356,7 @@ private fun LyricBody(
                 words = words,
                 style = lyricStyle,
                 sungColor = accent,
-                unsungColor = if (isActiveLine) accent.copy(alpha = focusedAlpha) else lineColor,
+                unsungColor = if (isActiveLine) look.ink(focusedAlpha) else lineColor,
                 isCurrent = isActiveLine,
                 isPlaying = isPlaying,
                 isBackground = item.isBackground,
@@ -357,7 +372,7 @@ private fun LyricBody(
             )
         }
         val secondaryColor =
-            if (isActiveLine) accent.copy(alpha = 0.72f) else lineColor.copy(alpha = (lineColor.alpha * 0.78f).coerceIn(0.08f, 0.6f))
+            look.ink(if (isActiveLine) 0.72f else (lineAlpha * 0.78f).coerceIn(0.08f, 0.6f))
         val secondaryStyle =
             lyricStyle.copy(
                 fontSize = (textSize * 0.52f).coerceAtLeast(15f).sp,
