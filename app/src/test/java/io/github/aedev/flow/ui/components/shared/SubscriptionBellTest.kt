@@ -18,4 +18,20 @@ class SubscriptionBellTest {
         assertThat(ids).containsExactly("a", "c")
     }
 
+    @Test
+    fun `alerts that can arrive block nothing`() {
+        assertThat(bellAlertBlock(systemAllows = true, notificationsOn = true, newVideosOn = true)).isNull()
+    }
+
+    @Test
+    fun `the system block wins over the app switches`() {
+        assertThat(bellAlertBlock(systemAllows = false, notificationsOn = false, newVideosOn = false))
+            .isEqualTo(BellAlertBlock.System)
+    }
+
+    @Test
+    fun `either app switch off blocks the bell`() {
+        assertThat(bellAlertBlock(systemAllows = true, notificationsOn = false, newVideosOn = true)).isEqualTo(BellAlertBlock.App)
+        assertThat(bellAlertBlock(systemAllows = true, notificationsOn = true, newVideosOn = false)).isEqualTo(BellAlertBlock.App)
+    }
 }
