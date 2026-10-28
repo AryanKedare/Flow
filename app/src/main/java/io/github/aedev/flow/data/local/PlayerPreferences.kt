@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.video.downloader.work.RetagResult
 import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
+import io.github.aedev.flow.notification.UpcomingReminder
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleEdgeType
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
@@ -28,6 +29,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 internal fun resolveMigratedHideWatchedPreference(
     splitValue: Boolean?,
@@ -62,6 +66,8 @@ private const val MAX_UNPLAYABLE_VIDEO_IDS = 1_000
  * submission id, which is a private identity for the user's votes and segments.
  */
 private val BackupExcludedKeys = setOf("proxy_password", "sb_user_id")
+
+private val ReminderJson = Json { ignoreUnknownKeys = true }
 
 private fun String?.decodeUnplayableIds(): Set<String> =
     if (isNullOrBlank()) emptySet() else splitToSequence('\n').filter { it.isNotBlank() }.toCollection(LinkedHashSet())
@@ -309,6 +315,7 @@ class PlayerPreferences(
         val SUBSCRIPTION_SHOW_LIVE = booleanPreferencesKey("subscription_show_live")
         val SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS = stringSetPreferencesKey("subscription_shorts_excluded_channels")
         val UPCOMING_VIDEO_REMINDER_IDS = stringSetPreferencesKey("upcoming_video_reminder_ids")
+        val UPCOMING_VIDEO_REMINDERS = stringPreferencesKey("upcoming_video_reminders")
 
         // Newest-first, newline-delimited so the list can be trimmed to a bounded size.
         val HIDE_UNPLAYABLE_SUBSCRIPTIONS = booleanPreferencesKey("hide_unplayable_subscriptions")
@@ -2942,6 +2949,31 @@ class PlayerPreferences(
             val current = preferences[Keys.UPCOMING_VIDEO_REMINDER_IDS].orEmpty()
             preferences[Keys.UPCOMING_VIDEO_REMINDER_IDS] =
                 if (enabled) current + videoId else current - videoId
+            if (!enabled) preferences.writeReminders(preferences.readReminders().filterNot { it.videoId == videoId })
+        }
+    }
+
+    /** The premiere reminders this profile set, with what it takes to queue them again. */
+    val upcomingReminders: Flow<List<UpcomingReminder>> =
+        context.playerPreferencesDataStore.data.map { preferences -> preferences.readReminders() }
+
+    suspend fun saveUpcomingReminder(reminder: UpcomingReminder) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences.writeReminders(preferences.readReminders().filterNot { it.videoId == reminder.videoId } + reminder)
+        }
+    }
+
+    private fun Preferences.readReminders(): List<UpcomingReminder> =
+        this[Keys.UPCOMING_VIDEO_REMINDERS]
+            ?.let { runCatching { ReminderJson.decodeFromString<List<UpcomingReminder>>(it) }.getOrNull() }
+            .orEmpty()
+
+    private fun MutablePreferences.writeReminders(reminders: List<UpcomingReminder>) {
+        if (reminders.isEmpty()) {
+            remove(Keys.UPCOMING_VIDEO_REMINDERS)
+        } else {
+            this[Keys.UPCOMING_VIDEO_REMINDERS] =
+                ReminderJson.encodeToString(reminders)
         }
     }
 
@@ -3939,19 +3971,30 @@ class PlayerPreferences(
         return stillActive
     }
 
-    suspend fun getExportData(): SettingsBackup {
-        val stored =
-            context.playerPreferencesDataStore.data
-                .first()
-                .asMap() +
+    /** Without [includeDevice], only this profile's own settings, as a new profile copies them. */
+    suspend fun getExportData(includeDevice: Boolean = true): SettingsBackup {
+        val device =
+            if (includeDevice) {
                 context.devicePreferencesDataStore.data
                     .first()
                     .asMap()
+            } else {
+                emptyMap()
+            }
+        val stored =
+            exportedPreferences(
+                context.playerPreferencesDataStore.data
+                    .first()
+                    .asMap(),
+                device,
+                DeviceKeys.NAMES,
+            )
         val strings = mutableMapOf<String, String>()
         val booleans = mutableMapOf<String, Boolean>()
         val ints = mutableMapOf<String, Int>()
         val floats = mutableMapOf<String, Float>()
         val longs = mutableMapOf<String, Long>()
+        val stringSets = mutableMapOf<String, Set<String>>()
 
         stored.forEach { (key, value) ->
             if (key.name in BackupExcludedKeys) return@forEach
@@ -3961,9 +4004,10 @@ class PlayerPreferences(
                 is Int -> ints[key.name] = value
                 is Float -> floats[key.name] = value
                 is Long -> longs[key.name] = value
+                is Set<*> -> stringSets[key.name] = value.filterIsInstance<String>().toSet()
             }
         }
-        return SettingsBackup(strings, booleans, ints, floats, longs)
+        return SettingsBackup(strings, booleans, ints, floats, longs, stringSets)
     }
 
     suspend fun restoreData(backup: SettingsBackup) {
@@ -3978,6 +4022,16 @@ class PlayerPreferences(
     }
 }
 
+/**
+ * The settings a backup carries. Device keys were copied out of the profile store, not moved, so the profile store's
+ * own copies of them are stale and only the device store's count.
+ */
+internal fun exportedPreferences(
+    profile: Map<Preferences.Key<*>, Any>,
+    device: Map<Preferences.Key<*>, Any>,
+    deviceNames: Set<String>,
+): Map<Preferences.Key<*>, Any> = profile.filterKeys { it.name !in deviceNames } + device
+
 private fun SettingsBackup.splitBy(predicate: (String) -> Boolean): Pair<SettingsBackup, SettingsBackup> =
     SettingsBackup(
         strings.filterKeys(predicate),
@@ -3985,6 +4039,7 @@ private fun SettingsBackup.splitBy(predicate: (String) -> Boolean): Pair<Setting
         ints.filterKeys(predicate),
         floats.filterKeys(predicate),
         longs.filterKeys(predicate),
+        stringSets.filterKeys(predicate),
     ) to
         SettingsBackup(
             strings.filterKeys { !predicate(it) },
@@ -3992,6 +4047,7 @@ private fun SettingsBackup.splitBy(predicate: (String) -> Boolean): Pair<Setting
             ints.filterKeys { !predicate(it) },
             floats.filterKeys { !predicate(it) },
             longs.filterKeys { !predicate(it) },
+            stringSets.filterKeys { !predicate(it) },
         )
 
 private fun MutablePreferences.restore(backup: SettingsBackup) {
@@ -4004,6 +4060,7 @@ private fun MutablePreferences.restore(backup: SettingsBackup) {
     backup.ints.forEach { (k, v) -> this[intPreferencesKey(k)] = v }
     backup.floats.forEach { (k, v) -> this[floatPreferencesKey(k)] = v }
     backup.longs.forEach { (k, v) -> this[longPreferencesKey(k)] = v }
+    backup.stringSets.forEach { (k, v) -> this[stringSetPreferencesKey(k)] = v }
 }
 
 /** Action to take when a SponsorBlock segment is encountered. */

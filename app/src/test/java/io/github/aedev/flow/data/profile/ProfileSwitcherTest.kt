@@ -9,10 +9,19 @@ class ProfileSwitcherTest {
     private class RecordingSteps(
         private val refusal: SwitchRefusal? = null,
         private val writesNeverFinish: Boolean = false,
+        private val stopFails: Boolean = false,
     ) : ProfileSwitchSteps {
         val calls = mutableListOf<String>()
 
         override suspend fun refusal(target: String) = refusal.also { calls += "refusal" }
+
+        override fun closeGate(target: String) {
+            calls += "closeGate"
+        }
+
+        override fun reopenGate() {
+            calls += "reopenGate"
+        }
 
         override fun finishOpenSessions() {
             calls += "finishOpenSessions"
@@ -24,6 +33,7 @@ class ProfileSwitcherTest {
 
         override suspend fun stopPlayback() {
             calls += "stopPlayback"
+            if (stopFails) error("player failed to stop")
         }
 
         override suspend fun awaitWrites() {
@@ -31,17 +41,29 @@ class ProfileSwitcherTest {
             if (writesNeverFinish) awaitCancellation()
         }
 
+        override suspend fun writeSlice() {
+            calls += "writeSlice"
+        }
+
+        override suspend fun cancelProfileWork() {
+            calls += "cancelProfileWork"
+        }
+
+        override suspend fun clearCaches() {
+            calls += "clearCaches"
+        }
+
         override suspend fun persistActive(target: String) {
             calls += "persistActive:$target"
         }
 
-        override fun restart() {
+        override suspend fun restart() {
             calls += "restart"
         }
     }
 
     @Test
-    fun `a switch stops and saves A before persisting B, and restarts last`() =
+    fun `a switch stops, saves and cancels A's work before persisting B, and restarts last`() =
         runTest {
             val steps = RecordingSteps()
 
@@ -49,8 +71,19 @@ class ProfileSwitcherTest {
 
             assertThat(result).isEqualTo(SwitchResult.Restarting)
             assertThat(steps.calls)
-                .containsExactly("refusal", "finishOpenSessions", "saveQueue", "stopPlayback", "awaitWrites", "persistActive:b", "restart")
-                .inOrder()
+                .containsExactly(
+                    "refusal",
+                    "closeGate",
+                    "finishOpenSessions",
+                    "saveQueue",
+                    "stopPlayback",
+                    "awaitWrites",
+                    "writeSlice",
+                    "cancelProfileWork",
+                    "clearCaches",
+                    "persistActive:b",
+                    "restart",
+                ).inOrder()
         }
 
     @Test
@@ -62,6 +95,18 @@ class ProfileSwitcherTest {
 
             assertThat(result).isEqualTo(SwitchResult.Refused(SwitchRefusal.ALREADY_ACTIVE))
             assertThat(steps.calls).containsExactly("refusal")
+        }
+
+    @Test
+    fun `a switch that fails reopens the gate so music can play again`() =
+        runTest {
+            val steps = RecordingSteps(stopFails = true)
+
+            runCatching { ProfileSwitcher(steps, writeTimeoutMs = 1_000).switchTo("b") }
+
+            assertThat(
+                steps.calls,
+            ).containsExactly("refusal", "closeGate", "finishOpenSessions", "saveQueue", "stopPlayback", "reopenGate").inOrder()
         }
 
     @Test
