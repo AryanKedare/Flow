@@ -3971,19 +3971,30 @@ class PlayerPreferences(
         return stillActive
     }
 
-    suspend fun getExportData(): SettingsBackup {
-        val stored =
-            context.playerPreferencesDataStore.data
-                .first()
-                .asMap() +
+    /** Without [includeDevice], only this profile's own settings, as a new profile copies them. */
+    suspend fun getExportData(includeDevice: Boolean = true): SettingsBackup {
+        val device =
+            if (includeDevice) {
                 context.devicePreferencesDataStore.data
                     .first()
                     .asMap()
+            } else {
+                emptyMap()
+            }
+        val stored =
+            exportedPreferences(
+                context.playerPreferencesDataStore.data
+                    .first()
+                    .asMap(),
+                device,
+                DeviceKeys.NAMES,
+            )
         val strings = mutableMapOf<String, String>()
         val booleans = mutableMapOf<String, Boolean>()
         val ints = mutableMapOf<String, Int>()
         val floats = mutableMapOf<String, Float>()
         val longs = mutableMapOf<String, Long>()
+        val stringSets = mutableMapOf<String, Set<String>>()
 
         stored.forEach { (key, value) ->
             if (key.name in BackupExcludedKeys) return@forEach
@@ -3993,9 +4004,10 @@ class PlayerPreferences(
                 is Int -> ints[key.name] = value
                 is Float -> floats[key.name] = value
                 is Long -> longs[key.name] = value
+                is Set<*> -> stringSets[key.name] = value.filterIsInstance<String>().toSet()
             }
         }
-        return SettingsBackup(strings, booleans, ints, floats, longs)
+        return SettingsBackup(strings, booleans, ints, floats, longs, stringSets)
     }
 
     suspend fun restoreData(backup: SettingsBackup) {
@@ -4010,6 +4022,16 @@ class PlayerPreferences(
     }
 }
 
+/**
+ * The settings a backup carries. Device keys were copied out of the profile store, not moved, so the profile store's
+ * own copies of them are stale and only the device store's count.
+ */
+internal fun exportedPreferences(
+    profile: Map<Preferences.Key<*>, Any>,
+    device: Map<Preferences.Key<*>, Any>,
+    deviceNames: Set<String>,
+): Map<Preferences.Key<*>, Any> = profile.filterKeys { it.name !in deviceNames } + device
+
 private fun SettingsBackup.splitBy(predicate: (String) -> Boolean): Pair<SettingsBackup, SettingsBackup> =
     SettingsBackup(
         strings.filterKeys(predicate),
@@ -4017,6 +4039,7 @@ private fun SettingsBackup.splitBy(predicate: (String) -> Boolean): Pair<Setting
         ints.filterKeys(predicate),
         floats.filterKeys(predicate),
         longs.filterKeys(predicate),
+        stringSets.filterKeys(predicate),
     ) to
         SettingsBackup(
             strings.filterKeys { !predicate(it) },
@@ -4024,6 +4047,7 @@ private fun SettingsBackup.splitBy(predicate: (String) -> Boolean): Pair<Setting
             ints.filterKeys { !predicate(it) },
             floats.filterKeys { !predicate(it) },
             longs.filterKeys { !predicate(it) },
+            stringSets.filterKeys { !predicate(it) },
         )
 
 private fun MutablePreferences.restore(backup: SettingsBackup) {
@@ -4036,6 +4060,7 @@ private fun MutablePreferences.restore(backup: SettingsBackup) {
     backup.ints.forEach { (k, v) -> this[intPreferencesKey(k)] = v }
     backup.floats.forEach { (k, v) -> this[floatPreferencesKey(k)] = v }
     backup.longs.forEach { (k, v) -> this[longPreferencesKey(k)] = v }
+    backup.stringSets.forEach { (k, v) -> this[stringSetPreferencesKey(k)] = v }
 }
 
 /** Action to take when a SponsorBlock segment is encountered. */
