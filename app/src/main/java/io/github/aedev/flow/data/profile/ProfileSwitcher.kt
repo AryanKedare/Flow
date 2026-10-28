@@ -4,7 +4,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class SwitchRefusal { UNKNOWN_PROFILE, ALREADY_ACTIVE }
+enum class SwitchRefusal { UNKNOWN_PROFILE, ALREADY_ACTIVE, CAR_CONNECTED, SYNC_RUNNING, BACKUP_RUNNING }
 
 sealed interface SwitchResult {
     data object Restarting : SwitchResult
@@ -18,6 +18,10 @@ sealed interface SwitchResult {
 interface ProfileSwitchSteps {
     suspend fun refusal(target: String): SwitchRefusal?
 
+    fun closeGate(target: String)
+
+    fun reopenGate()
+
     fun finishOpenSessions()
 
     suspend fun saveQueue()
@@ -26,12 +30,18 @@ interface ProfileSwitchSteps {
 
     suspend fun awaitWrites()
 
+    /** Keeps the leaving profile's data for the master backup, which reads a closed profile from it. */
+    suspend fun writeSlice()
+
     /** Cancels what the running profile left scheduled or showing: its work, its alarms and its notifications. */
     suspend fun cancelProfileWork()
 
+    /** Deletes caches that hold what the running profile searched for or shared. */
+    suspend fun clearCaches()
+
     suspend fun persistActive(target: String)
 
-    fun restart()
+    suspend fun restart()
 }
 
 /**
@@ -49,15 +59,24 @@ class ProfileSwitcher internal constructor(
 
     suspend fun switchTo(target: String): SwitchResult {
         steps.refusal(target)?.let { return SwitchResult.Refused(it) }
-        steps.finishOpenSessions()
-        steps.saveQueue()
-        steps.stopPlayback()
-        // A write that never finishes must not keep the user from switching; what landed is kept.
-        withTimeoutOrNull(writeTimeoutMs) { steps.awaitWrites() }
-        // Cancelled before the new profile is persisted: WorkManager reruns interrupted work in the next process.
-        steps.cancelProfileWork()
-        steps.persistActive(target)
-        steps.restart()
+        steps.closeGate(target)
+        try {
+            steps.finishOpenSessions()
+            steps.saveQueue()
+            steps.stopPlayback()
+            // A write that never finishes must not keep the user from switching; what landed is kept.
+            withTimeoutOrNull(writeTimeoutMs) { steps.awaitWrites() }
+            // Bounded like the writes: a slow export leaves this profile out of the next master backup, never stuck.
+            withTimeoutOrNull(SLICE_TIMEOUT_MS) { steps.writeSlice() }
+            // Cancelled before the new profile is persisted: WorkManager reruns interrupted work in the next process.
+            steps.cancelProfileWork()
+            steps.clearCaches()
+            steps.persistActive(target)
+            steps.restart()
+        } catch (e: Throwable) {
+            steps.reopenGate()
+            throw e
+        }
         return SwitchResult.Restarting
     }
 
@@ -65,3 +84,5 @@ class ProfileSwitcher internal constructor(
         const val WRITE_TIMEOUT_MS = 5_000L
     }
 }
+
+private const val SLICE_TIMEOUT_MS = 15_000L
