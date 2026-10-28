@@ -23,6 +23,7 @@ class BackupRulesTest {
             "sharedpref:flow_language_prefs.xml",
             "file:datastore/profiles_registry.json",
             "file:profile_settings",
+            "file:profile_avatars",
         )
 
     private val library =
