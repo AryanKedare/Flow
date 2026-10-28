@@ -186,7 +186,11 @@ class BackupCoordinator
                         if (restored.waiting.isEmpty()) {
                             context.getString(R.string.import_master_backup_success)
                         } else {
-                            context.getString(R.string.master_restore_waiting, restored.waiting.joinToString())
+                            context.resources.getQuantityString(
+                                R.plurals.master_restore_waiting,
+                                restored.waiting.size,
+                                restored.waiting.joinToString(),
+                            )
                         }
                     BackupOperation.Succeeded(message)
                 },
