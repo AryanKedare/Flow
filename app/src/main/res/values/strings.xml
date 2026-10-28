@@ -2896,6 +2896,7 @@
     <string name="profiles_new_title">New profile</string>
     <string name="profiles_add">Add profile</string>
     <string name="profiles_manage">Manage profiles</string>
+    <string name="profiles_switching_to">Switching to %1$s</string>
     <string name="profiles_show_others">Show other profiles</string>
     <string name="profiles_hide_others">Hide other profiles</string>
     <string name="profiles_action_description">Profile: %1$s. Switch profile</string>

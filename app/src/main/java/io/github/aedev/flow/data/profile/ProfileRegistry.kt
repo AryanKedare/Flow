@@ -30,6 +30,8 @@ data class Profile(
     val colorKey: String = "",
     val avatar: ProfileAvatar = ProfileAvatar(),
     val createdAt: Long = 0L,
+    /** The tone this profile's theme last gave the splash, so a switch can open the next launch in it. */
+    val splashTone: String = "",
 )
 
 /** The name to show: Default's is blank until it is renamed, and shows the localized "Default". */
@@ -149,6 +151,17 @@ class ProfileRegistry internal constructor(
             complete.copy(profiles = complete.profiles.map { if (it.id == id) it.copy(colorKey = colorKey, avatar = avatar) else it })
         }
         return changed
+    }
+
+    suspend fun setSplashTone(
+        id: String,
+        tone: String,
+    ) {
+        store.updateData { stored ->
+            val complete = stored.completed(newId, now)
+            if (complete.profiles.none { it.id == id && it.splashTone != tone }) return@updateData complete
+            complete.copy(profiles = complete.profiles.map { if (it.id == id) it.copy(splashTone = tone) else it })
+        }
     }
 
     /** Removes a profile from the registry. Default and the active profile are never removed. */

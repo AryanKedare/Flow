@@ -18,7 +18,7 @@ sealed interface SwitchResult {
 interface ProfileSwitchSteps {
     suspend fun refusal(target: String): SwitchRefusal?
 
-    fun closeGate()
+    fun closeGate(target: String)
 
     fun reopenGate()
 
@@ -56,7 +56,7 @@ class ProfileSwitcher internal constructor(
 
     suspend fun switchTo(target: String): SwitchResult {
         steps.refusal(target)?.let { return SwitchResult.Refused(it) }
-        steps.closeGate()
+        steps.closeGate(target)
         try {
             steps.finishOpenSessions()
             steps.saveQueue()

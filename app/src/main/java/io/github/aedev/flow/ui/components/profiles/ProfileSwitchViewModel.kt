@@ -26,7 +26,7 @@ class ProfileSwitchViewModel
     @Inject
     constructor(
         @ApplicationContext context: Context,
-        profiles: ProfileRepository,
+        private val profiles: ProfileRepository,
         private val switcher: ProfileSwitcher,
     ) : ViewModel() {
         val state: StateFlow<ProfileRegistryState?> = profiles.state.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -53,6 +53,11 @@ class ProfileSwitchViewModel
                 if (result !is SwitchResult.Restarting) _refused.value = SwitchRefused((result as? SwitchResult.Refused)?.reason)
                 switching = false
             }
+        }
+
+        /** Keeps the running profile's splash tone in the registry, for a switch back to it. */
+        fun recordSplashTone(tone: String) {
+            viewModelScope.launch { profiles.setSplashTone(runningId, tone) }
         }
 
         fun consumeRefused() {

@@ -15,7 +15,7 @@ class ProfileSwitcherTest {
 
         override suspend fun refusal(target: String) = refusal.also { calls += "refusal" }
 
-        override fun closeGate() {
+        override fun closeGate(target: String) {
             calls += "closeGate"
         }
 

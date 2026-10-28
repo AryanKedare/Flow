@@ -151,6 +151,19 @@ class ProfileRegistryTest {
     }
 
     @Test
+    fun `each profile keeps the splash tone it last showed`() {
+        write("""{"profiles":[{"id":"d"},{"id":"study","name":"Study"}],"defaultId":"d","activeId":"d"}""")
+
+        withRegistry { registry ->
+            registry.setSplashTone("study", "LIGHT")
+            registry.setSplashTone("missing", "DARK")
+        }
+
+        val profiles = withRegistry { it.state.first() }.profiles
+        assertThat(profiles.map { it.splashTone }).containsExactly("", "LIGHT").inOrder()
+    }
+
+    @Test
     fun `Default and the active profile are never removed`() {
         write("""{"profiles":[{"id":"d"},{"id":"study"},{"id":"music"}],"defaultId":"d","activeId":"study"}""")
 
