@@ -9,7 +9,7 @@ import java.io.File
  * outside them.
  */
 internal class ProfileFolders(
-    filesDir: File,
+    private val filesDir: File,
     noBackupFilesDir: File,
     private val dataDir: File,
 ) {
@@ -22,6 +22,7 @@ internal class ProfileFolders(
         val profile = RunningProfile(id = id, isDefault = false)
         return roots.map { File(it, id) } +
             File(dataDir, "app_webview_$id") +
+            ProfileAvatarPhotos.fileIn(filesDir, id) +
             PER_PROFILE_PREFS.map { File(sharedPrefsDir, "${ProfileFiles.sharedPreferencesName(profile, it)}.xml") }
     }
 
@@ -37,7 +38,8 @@ internal class ProfileFolders(
                     file.name.removeSurrounding("${name}_", ".xml").takeIf { it != file.name }
                 }
             }
-        return (folders + prefs).filter(::isSafeProfileId).toSet()
+        val photos = File(filesDir, ProfileAvatarPhotos.DIR).listFiles().orEmpty().map { it.name.removeSuffix(".webp") }
+        return (folders + prefs + photos).filter(::isSafeProfileId).toSet()
     }
 
     companion object {

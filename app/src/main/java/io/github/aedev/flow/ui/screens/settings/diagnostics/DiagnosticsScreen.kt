@@ -163,6 +163,7 @@ internal fun DiagnosticsScreen(
                 runningId = viewModel.runningProfileId,
                 onAdd = { viewModel.addProfile(newProfileName) },
                 onAddCopy = { viewModel.addProfile(newProfileName, copy = SlicePart.entries.toSet()) },
+                onPhoto = viewModel::setRunningProfilePhoto,
                 onSwitch = viewModel::switchProfile,
                 onDelete = { profileToDelete = it },
             )
