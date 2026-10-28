@@ -89,6 +89,20 @@ class ChannelViewModel
                 .map { subscriptions -> subscriptions.map { it.channelId }.toSet() }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(GROUPS_SUBSCRIPTION_TIMEOUT_MS), emptySet())
 
+        val notifyingChannelIds: StateFlow<Set<String>> =
+            subscriptionRepository
+                .notifyingChannelIds()
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(GROUPS_SUBSCRIPTION_TIMEOUT_MS), emptySet())
+
+        fun setChannelNotifications(
+            channelId: String,
+            enabled: Boolean,
+        ) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                subscriptionRepository.updateNotificationState(channelId, enabled)
+            }
+        }
+
         fun setChannelSubscription(
             channel: io.github.aedev.flow.data.model.Channel,
             subscribed: Boolean,

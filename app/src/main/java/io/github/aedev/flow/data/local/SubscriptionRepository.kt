@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.profile.StoreScope
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -157,6 +158,12 @@ class SubscriptionRepository private constructor(
                 }
             }
         }
+
+    /** The channels whose bell is on. */
+    fun notifyingChannelIds(): Flow<Set<String>> =
+        getAllSubscriptions()
+            .map(::notifyingIds)
+            .distinctUntilChanged()
 
     /**
      * Get all subscription IDs as a Set
@@ -351,3 +358,6 @@ data class ChannelSubscription(
     /** When the subscription feed last fetched this channel; 0 means never. */
     val lastFeedFetchAt: Long = 0L,
 )
+
+internal fun notifyingIds(subscriptions: List<ChannelSubscription>): Set<String> =
+    subscriptions.filter { it.isNotificationEnabled }.mapTo(HashSet()) { it.channelId }

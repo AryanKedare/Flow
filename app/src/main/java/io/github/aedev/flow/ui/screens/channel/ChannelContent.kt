@@ -84,6 +84,8 @@ internal fun ChannelContent(
     showShortsTab: Boolean,
     onFilterSelected: (ChannelTabKind, Int, Int) -> Unit,
     subscribedChannelIds: Set<String>,
+    notifyingChannelIds: Set<String>,
+    onChannelNotificationChange: (String, Boolean) -> Unit,
     channelNote: String?,
     onEditNote: (() -> Unit)?,
     onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
@@ -382,6 +384,8 @@ internal fun ChannelContent(
                                         isSubscribed = isSubscribed,
                                         onSubscribeClick = { onSubscribeChannel(channel, true) },
                                         onUnsubscribeClick = { onSubscribeChannel(channel, false) },
+                                        isNotificationsEnabled = channel.id in notifyingChannelIds,
+                                        onNotificationChange = { onChannelNotificationChange(channel.id, it) },
                                     )
                                 },
                             ),
