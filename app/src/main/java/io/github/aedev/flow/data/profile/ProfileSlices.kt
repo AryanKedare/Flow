@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.recommendation.music.FavouriteArtistsStore
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.stats.RecapBackup
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
+import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -33,6 +34,7 @@ class ProfileSlices
         private val musicBrain: MusicBrainEngine,
         private val videoStats: VideoStatsRecorder,
         private val favouriteArtists: FavouriteArtistsStore,
+        private val syncLedger: SyncChangeLedgerStore,
     ) {
         /** The whole running profile. */
         suspend fun export(uri: Uri): Result<Unit> =
@@ -139,7 +141,93 @@ class ProfileSlices
         /** A seed or restore that waited for the running profile; see [PendingSlice]. */
         suspend fun applyPending(file: File) {
             measured("pending import") { import(Uri.fromFile(file)) }
+                .onSuccess { if (ActiveProfile.get(context).isDefault) syncLedger.reset() }
                 .onFailure { Log.e(TAG, "Could not apply the pending slice", it) }
+        }
+
+        /**
+         * The profile an old master backup, from before profiles, would restore into when there is more than one to
+         * choose from; null when the file holds every profile or there is only one, so it restores without asking.
+         */
+        suspend fun oldMasterTarget(uri: Uri): String? =
+            withContext(Dispatchers.IO) {
+                val registry = ActiveProfile.registry(context).state.first()
+                if (registry.profiles.size < 2) return@withContext null
+                withCopy(uri) { copy ->
+                    if (MasterBackupZip.readManifest(copy) != null) {
+                        null
+                    } else {
+                        registry.profiles.firstOrNull { it.id == ActiveProfile.get(context).id }?.displayName(context)
+                    }
+                }
+            }
+
+        /**
+         * Restores a master backup. The backup's Default lands in this device's Default and every other profile under
+         * its own id, added to the registry when missing; the running profile is restored now and the others wait
+         * until they are next opened. Refused before anything changes when the result would exceed the limit.
+         */
+        suspend fun restoreMaster(uri: Uri): Result<MasterRestored> =
+            withContext(Dispatchers.IO) {
+                withCopy(uri) { copy -> restoreMasterFrom(copy) }
+            }
+
+        private suspend fun restoreMasterFrom(copy: File): Result<MasterRestored> {
+            val running = ActiveProfile.get(context)
+            val manifest =
+                MasterBackupZip.readManifest(copy)
+                    ?: return import(Uri.fromFile(copy)).map { MasterRestored(restoredNow = true, waiting = emptyList()) }
+            val registry = ActiveProfile.registry(context)
+            val localDefault = registry.state.first().defaultId ?: running.id
+            val incoming = manifest.profiles.filter { it.id in manifest.included }
+            val targetOf = { profile: Profile -> if (profile.id == manifest.defaultId) localDefault else profile.id }
+            val others = incoming.filter { it.id != manifest.defaultId }
+            if (!registry.addRestored(others)) return Result.failure(TooManyProfiles())
+            var restoredNow = false
+            val waiting = mutableListOf<String>()
+            incoming.forEach { profile ->
+                val target = targetOf(profile)
+                val fromFolder = profile.id.takeUnless { it == manifest.defaultId }
+                val local = RunningProfile(target, isDefault = target == localDefault)
+                if (target != localDefault &&
+                    MasterBackupZip.extractAvatar(copy, profile.id, ProfileAvatarPhotos.fileFor(context, target))
+                ) {
+                    registry.setAppearance(target, profile.colorKey, profile.avatar)
+                }
+                if (target == running.id) {
+                    val now = File(context.cacheDir, "master_restore_now.zip")
+                    try {
+                        if (MasterBackupZip.extractSlice(copy, fromFolder, now)) {
+                            import(Uri.fromFile(now)).getOrElse { return Result.failure(it) }
+                            restoredNow = true
+                        }
+                    } finally {
+                        now.delete()
+                    }
+                } else if (MasterBackupZip.extractSlice(
+                        copy,
+                        fromFolder,
+                        PendingSlice.file(ProfileFiles.noBackupRoot(context.noBackupFilesDir, local)),
+                    )
+                ) {
+                    waiting += profile.displayName(context)
+                }
+            }
+            return Result.success(MasterRestored(restoredNow, waiting))
+        }
+
+        private suspend fun <T> withCopy(
+            uri: Uri,
+            read: suspend (File) -> T,
+        ): T {
+            val copy = File(context.cacheDir, "master_restore.zip")
+            try {
+                val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Could not read $uri")
+                input.use { source -> copy.outputStream().use { source.copyTo(it) } }
+                return read(copy)
+            } finally {
+                copy.delete()
+            }
         }
 
         private suspend fun musicBrainBytes(): ByteArray? =
@@ -174,3 +262,12 @@ class ProfileSlices
             const val MASTER_MIME_TYPE = "application/zip"
         }
     }
+
+/** What a master restore did: the running profile restored now, and the profiles that will be when next opened. */
+data class MasterRestored(
+    val restoredNow: Boolean,
+    val waiting: List<String>,
+)
+
+/** A master backup that would take this device past the profile limit. */
+class TooManyProfiles : IllegalStateException("A master backup can't add profiles past the limit")

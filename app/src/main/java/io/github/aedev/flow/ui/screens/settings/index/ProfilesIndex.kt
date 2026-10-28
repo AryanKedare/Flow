@@ -13,7 +13,6 @@ internal object ProfilesIndex {
             summary = R.string.profiles_add_summary,
             keywords = R.string.profiles_keywords,
             destination = SettingsDestination.PROFILES,
-            availability = SettingAvailability.Profiles,
         )
 
     /** TV only: a TV is where a profile list is most often shared. */

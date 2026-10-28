@@ -106,4 +106,38 @@ class MasterBackupZipTest {
         assertThat(manifest.profiles.map { it.id }).containsExactly("d", "study", "gaming").inOrder()
         assertThat(manifest.included).containsExactly("study")
     }
+
+    @Test
+    fun `each profile's slice comes back out on its own, Default's from the root`() {
+        val default = slice("d.zip", "app_data.json" to "default data")
+        val study = slice("s.zip", "app_data.json" to "study data")
+        val photo = File(dir, "study.webp").apply { writeText("webp") }
+        val file = File(dir, "master.zip")
+        file.outputStream().use { out ->
+            MasterBackupZip.write(
+                out,
+                MasterManifest(defaultId = "d", profiles = emptyList(), included = emptyList()),
+                default,
+                mapOf("study" to study),
+                mapOf("study" to photo),
+            )
+        }
+
+        val defaultOut = File(dir, "out/d.zip")
+        val studyOut = File(dir, "out/s.zip")
+        val photoOut = File(dir, "out/s.webp")
+
+        assertThat(MasterBackupZip.extractSlice(file, null, defaultOut)).isTrue()
+        assertThat(MasterBackupZip.extractSlice(file, "study", studyOut)).isTrue()
+        assertThat(MasterBackupZip.extractSlice(file, "gaming", File(dir, "out/g.zip"))).isFalse()
+        assertThat(MasterBackupZip.extractAvatar(file, "study", photoOut)).isTrue()
+        assertThat(read(defaultOut.readBytes())).containsExactly("app_data.json", "default data")
+        assertThat(read(studyOut.readBytes())).containsExactly("app_data.json", "study data")
+        assertThat(photoOut.readText()).isEqualTo("webp")
+    }
+
+    @Test
+    fun `a master backup from before profiles has no manifest`() {
+        assertThat(MasterBackupZip.readManifest(slice("old.zip", "app_data.json" to "old data"))).isNull()
+    }
 }
