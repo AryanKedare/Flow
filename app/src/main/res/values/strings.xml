@@ -1952,6 +1952,8 @@
     <string name="onboarding_channels_results_header">Channels</string>
     <string name="onboarding_import_title">Import your data</string>
     <string name="onboarding_import_subtitle">Bring your subscriptions and history from other apps. Everything is optional.</string>
+    <string name="onboarding_import_subtitle_profile">Bring subscriptions and history into %1$s from other apps. Everything is optional.</string>
+    <string name="onboarding_import_master_profile">Restores the backup into %1$s only</string>
     <string name="onboarding_backup_restore_section">Backup &amp; Restore</string>
     <string name="onboarding_topic_selected">Selected</string>
     <string name="onboarding_topic_not_selected">Not selected</string>
