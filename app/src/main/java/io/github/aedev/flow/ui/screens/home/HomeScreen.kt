@@ -45,7 +45,6 @@ import io.github.aedev.flow.data.local.HomeViewMode
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.profile.ProfilesFeature
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
@@ -159,7 +158,7 @@ fun HomeScreen(
                         )
                     }
                 },
-                trailingAction = if (ProfilesFeature.isVisible) ({ ProfileTopBarAction(onOpenSettings) }) else null,
+                trailingAction = { ProfileTopBarAction(onOpenSettings) },
             )
         },
     ) { padding ->

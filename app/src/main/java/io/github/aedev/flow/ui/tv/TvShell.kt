@@ -42,7 +42,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.data.profile.ProfilesFeature
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.layout.FlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
@@ -250,12 +249,7 @@ fun TvShell(
             onOtherEntry = { contentFocusRequester.requestFocus().also { taken -> railHoldsFocusForPage = !taken } },
             nowPlayingTitle = activeMusicTrack?.title,
             onOpenNowPlaying = onExpandMusic,
-            profile =
-                if (ProfilesFeature.isVisible) {
-                    { expanded -> TvRailProfile(expanded, onOpenSettings = { navController.navigate(TvRoutes.settingsPage(it)) }) }
-                } else {
-                    null
-                },
+            profile = { expanded -> TvRailProfile(expanded, onOpenSettings = { navController.navigate(TvRoutes.settingsPage(it)) }) },
             modifier =
                 Modifier
                     .align(Alignment.CenterStart)
