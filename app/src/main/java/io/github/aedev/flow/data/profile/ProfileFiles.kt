@@ -53,6 +53,21 @@ object ProfileFiles {
     ): File? =
         if (profile.isDefault) null else File(root(filesDir, noBackupFilesDir, profile, StoreScope.PROFILE_LIBRARY), "databases/$name")
 
+    /** A SharedPreferences file for the running profile: Default keeps [name], another profile gets `name_<id>`. */
+    fun sharedPreferencesName(
+        context: Context,
+        name: String,
+    ): String = sharedPreferencesName(ActiveProfile.get(context.applicationContext), name)
+
+    internal fun sharedPreferencesName(
+        profile: RunningProfile,
+        name: String,
+    ): String {
+        if (profile.isDefault) return name
+        require(isSafeProfileId(profile.id)) { "Unsafe profile id" }
+        return "${name}_${profile.id}"
+    }
+
     /** Where the running profile keeps what Default keeps directly under `no_backup/`: private, never backed up. */
     fun noBackupRoot(context: Context): File {
         val app = context.applicationContext

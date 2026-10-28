@@ -140,3 +140,15 @@ prefs_datastore	device_preferences	main:data/local/DevicePreferencesStore.kt	DEV
 profile_file	player_preferences	main:data/local/DevicePreferencesStore.kt	PROFILE	settings	Checked before the one-time copy of device keys, so an unreadable file is not taken as empty.
 profile_file	flow_preferences	main:data/local/DevicePreferencesStore.kt	PROFILE	settings	Checked before the one-time copy of device keys, so an unreadable file is not taken as empty.
 profile_file	flow_database	main:data/local/AppDatabase.kt	PROFILE	library	The running profile's database; Default keeps databases/flow_database, another profile opens profile_library/<id>/databases/flow_database.
+profile_file	youtube_identity	main:utils/potoken/VisitorIdentityStore.kt	PROFILE	identity	Default keeps youtube_identity; another profile gets youtube_identity_<id>.
+profile_file	music_home_cache_prefs	main:data/recommendation/MusicRecommendationAlgorithm.kt	CACHE	-	Follows its rows in each profile's database, so another profile gets music_home_cache_prefs_<id>.
+files_dir	profile_settings/<id>/, profile_library/<id>/	main:data/profile/ProfileFolders.kt	PROFILE	settings	Deletes a removed profile's folders, and lists ids on disk after a restore.
+no_backup_dir	profiles/<id>/	main:data/profile/ProfileFolders.kt	PROFILE	private	Deletes a removed profile's private folder.
+profile_file	youtube_identity_<id>, music_home_cache_prefs_<id>	main:data/profile/ProfileFolders.kt	PROFILE	identity	A removed profile's SharedPreferences files, named the way ProfileFiles names them.
+cache_dir	innertube_http_cache/, recap/, playlists/	main:data/profile/AppProfileSwitchSteps.kt	CACHE	-	Deleted at a switch: search suggestions, visitor responses and share exports of the old profile.
+profile_file	pending_restore.zip	main:FlowApplication.kt	PROFILE	private	A seed or restore waiting for the running profile, applied at start before the start destination is picked.
+profile_file	pending_restore.zip	main:data/profile/ProfileSlices.kt	PROFILE	private	The seed a new profile copies from the running one, written into the new profile's private folder.
+no_backup_dir	profiles/<id>/pending_restore.zip	main:data/profile/ProfileSlices.kt	PROFILE	private	A new profile's private folder, resolved by id before that profile ever runs.
+cache_dir	held_link/	main:data/profile/SwitchIntentQueue.kt	CACHE	-	A playlist file shared during a switch, kept for the next profile to open; replaced by the next one.
+files_dir	profile_avatars/	main:data/profile/ProfileAvatarPhotos.kt	DEVICE	-	Avatar photos of every profile, named by profile id, beside the registry that lists them; backed up with it and deleted with the profile.
+cache_dir	master_live_slice.zip	main:data/profile/ProfileSlices.kt	CACHE	-	The running profile exported while a master backup is put together; deleted once the backup is written.
