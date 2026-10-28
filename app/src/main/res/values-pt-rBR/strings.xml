@@ -4308,7 +4308,7 @@
     <string name="home_chip_empty_body">Deslize para baixo para visualizar novamente mais tarde.</string>
     <string name="home_mix_title">Mix - %1$s</string>
     <string name="settings_separate_playlists_summary">Mostre-os como duas entradas na Biblioteca</string>
-    <string name="discover_channels_summary">Pesquise canais e inscrições, como na configuração</string>
+    <string name="discover_channels_summary">Pesquise canais e inscreva-se, como na configuração</string>
     <string name="settings_auto_download_likes_title">Baixar músicas curtidas</string>
     <string name="settings_auto_download_likes_summary">As músicas que você curtiu foram salvas para ouvir offline</string>
     <string name="auto_download_queued">Salvando para uso offline</string>
@@ -4529,4 +4529,10 @@
     <string name="reminder_bedtime_body">É hora de relaxar baseado na sua agenda.</string>
     <string name="reminder_break_title">Faça uma pausa! ☕</string>
     <string name="reminder_break_body">Você já está assistindo há um tempo.</string>
+    <string name="description_streamed">Transmitido</string>
+    <string name="subscription_bell_alerts_off">Alertas de vídeos novos estão desligados</string>
+    <string name="subscription_bell_alerts_turn_on">Ligar</string>
+    <string name="player_settings_keep_playing_after_swipe">Continuar reproduzindo após fechar o Flow</string>
+    <string name="onboarding_import_subtitle_profile">Traga as inscrições e o histórico de outros aplicativos para %1$s. Tudo é opcional.</string>
+    <string name="profiles_copy_settings_summary">Tema, playback e preferências do aplicativo</string>
 </resources>
