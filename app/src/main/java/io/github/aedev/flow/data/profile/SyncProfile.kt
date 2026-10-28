@@ -15,8 +15,5 @@ object SyncProfile {
         state: ProfileRegistryState,
         context: Context,
     ): String =
-        state.profiles
-            .firstOrNull { it.id == state.defaultId }
-            ?.name
-            ?.takeIf { it.isNotBlank() } ?: context.getString(R.string.profile_default_name)
+        state.profiles.firstOrNull { it.id == state.defaultId }?.displayName(context) ?: context.getString(R.string.profile_default_name)
 }
