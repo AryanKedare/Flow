@@ -15,7 +15,7 @@ class ProfileSwitcherTest {
 
         override suspend fun refusal(target: String) = refusal.also { calls += "refusal" }
 
-        override fun closeGate() {
+        override fun closeGate(target: String) {
             calls += "closeGate"
         }
 
@@ -41,6 +41,10 @@ class ProfileSwitcherTest {
             if (writesNeverFinish) awaitCancellation()
         }
 
+        override suspend fun writeSlice() {
+            calls += "writeSlice"
+        }
+
         override suspend fun cancelProfileWork() {
             calls += "cancelProfileWork"
         }
@@ -53,7 +57,7 @@ class ProfileSwitcherTest {
             calls += "persistActive:$target"
         }
 
-        override fun restart() {
+        override suspend fun restart() {
             calls += "restart"
         }
     }
@@ -74,6 +78,7 @@ class ProfileSwitcherTest {
                     "saveQueue",
                     "stopPlayback",
                     "awaitWrites",
+                    "writeSlice",
                     "cancelProfileWork",
                     "clearCaches",
                     "persistActive:b",
