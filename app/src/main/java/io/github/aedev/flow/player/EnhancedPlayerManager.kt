@@ -2630,7 +2630,7 @@ class EnhancedPlayerManager private constructor() {
 
     fun getCastVideoStreams(): List<VideoStream> = availableVideoStreams
 
-    fun getCastAudioStreams(): List<AudioStream> = castAudioStreams
+    fun getCastAudioStreams(): List<AudioStream> = StreamProcessor.streamsOfTrack(castAudioStreams, currentAudioStream)
 
     fun getCurrentPosition(): Long = player?.currentPosition ?: 0L
 
