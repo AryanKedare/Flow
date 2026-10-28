@@ -191,6 +191,13 @@ class OnboardingViewModel
 
         fun dismissImport() = backup.dismiss()
 
+        fun confirmImport() = backup.confirm()
+
+        fun cancelImport() {
+            pendingSource = null
+            backup.cancelConfirmation()
+        }
+
         /** Seeds the engine once; a second tap while it runs does nothing. */
         fun complete() {
             if (completion != null) return

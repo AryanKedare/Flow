@@ -31,6 +31,7 @@ import io.github.aedev.flow.data.local.LocalDataManager.AutoBackupFrequency
 import io.github.aedev.flow.data.local.LocalDataManager.AutoBackupType
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTabs
+import io.github.aedev.flow.ui.components.shared.FlowConfirmDialog
 import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowProgressBanner
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
@@ -65,6 +66,16 @@ internal fun BackupScreen(
     val scope = rememberCoroutineScope()
     val busy = stringResource(R.string.backup_busy)
     val start: (Boolean) -> Unit = { started -> if (!started) scope.launch { snackbarHostState.showSnackbar(busy) } }
+
+    (operation as? BackupOperation.Confirming)?.let { confirming ->
+        FlowConfirmDialog(
+            title = stringResource(R.string.master_restore_confirm_title),
+            text = confirming.message,
+            confirmLabel = stringResource(R.string.master_restore_confirm),
+            onConfirm = viewModel.coordinator::confirm,
+            onDismiss = viewModel.coordinator::cancelConfirmation,
+        )
+    }
 
     LaunchedEffect(operation) {
         val message =

@@ -46,10 +46,10 @@ internal fun ImportSourceSheet(
             source.kinds.forEachIndexed { index, kind ->
                 FlowNavRow(
                     title = stringResource(kind.titleRes),
-                    // Until a master backup restores every profile, it restores into this one only.
+                    // Outside Default, say that a master backup reaches every profile it holds, not just this one.
                     supportingText =
                         if (kind == ImportKind.MASTER && importProfileName != null) {
-                            stringResource(R.string.onboarding_import_master_profile, importProfileName)
+                            stringResource(R.string.onboarding_import_master_profile)
                         } else {
                             stringResource(kind.descriptionRes)
                         },
