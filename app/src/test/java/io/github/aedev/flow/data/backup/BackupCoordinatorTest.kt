@@ -102,7 +102,7 @@ class BackupCoordinatorTest {
         }
 
     @Test
-    fun `the master backup carries the picked artists and restores them`() =
+    fun `a profile's backup carries the picked artists and the master restore puts them back`() =
         runBlocking {
             val picks = "[]".toByteArray()
             coEvery { favourites.export() } returns picks
@@ -114,9 +114,7 @@ class BackupCoordinatorTest {
             }
             val coordinator = coordinator()
 
-            coordinator.exportMaster(first)
-            withTimeout(2_000) { coordinator.operation.first { it is BackupOperation.Succeeded } }
-            coordinator.dismiss()
+            ProfileSlices(context, repository, mockk(relaxed = true), mockk(relaxed = true), favourites).export(first)
             coordinator.importMaster(second)
             withTimeout(2_000) { coordinator.operation.first { it is BackupOperation.Succeeded } }
 

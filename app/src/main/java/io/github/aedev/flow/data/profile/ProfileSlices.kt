@@ -10,8 +10,13 @@ import io.github.aedev.flow.data.recommendation.music.FavouriteArtistsStore
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.stats.RecapBackup
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
+import java.io.OutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,10 +40,75 @@ class ProfileSlices
 
         suspend fun export(file: File): Result<Unit> = export(Uri.fromFile(file)).also { logSize(file) }
 
-        suspend fun exportToFolder(folder: Uri): Result<Unit> =
-            measured("folder export") {
-                repository.exportMasterToFolder(folder, musicBrainBytes(), recapBytes(), favouriteArtists.export())
+        /**
+         * Every profile: the running one exported now, the others from the slice each wrote when it was left. Returns
+         * the names of profiles that have no slice yet, which the backup can't hold.
+         */
+        suspend fun exportMaster(uri: Uri): Result<List<String>> =
+            withMaster { write ->
+                val out =
+                    context.contentResolver.openOutputStream(uri, "wt")
+                        ?: return@withMaster Result.failure(IOException("Could not open $uri"))
+                out.use(write)
+                Result.success(Unit)
             }
+
+        suspend fun exportMasterToFolder(folder: Uri): Result<List<String>> =
+            withMaster { write -> repository.writeToFolder(folder, MASTER_FILE_NAME, MASTER_MIME_TYPE, write) }
+
+        /** Keeps the running profile's data for the master backup while it is closed: a closed profile can't change. */
+        suspend fun writeSwitchSlice() {
+            val target = sliceFile(ActiveProfile.get(context))
+            val partial = File(target.parentFile, "$SLICE_NAME.partial")
+            target.parentFile?.mkdirs()
+            export(partial)
+                .onSuccess { if (!partial.renameTo(target)) partial.delete() }
+                .onFailure {
+                    partial.delete()
+                    Log.e(TAG, "Could not keep this profile's slice for the master backup", it)
+                }
+        }
+
+        private suspend fun withMaster(save: suspend ((OutputStream) -> Unit) -> Result<Unit>): Result<List<String>> =
+            withContext(Dispatchers.IO) {
+                val running = ActiveProfile.get(context)
+                val registry = ActiveProfile.registry(context).state.first()
+                val defaultId = registry.defaultId ?: running.id
+                val live = File(context.cacheDir, "master_live_slice.zip")
+                try {
+                    export(live).getOrElse { return@withContext Result.failure(it) }
+                    val slices =
+                        registry.profiles
+                            .mapNotNull { profile ->
+                                val file =
+                                    if (profile.id ==
+                                        running.id
+                                    ) {
+                                        live
+                                    } else {
+                                        sliceFile(RunningProfile(profile.id, profile.id == defaultId))
+                                    }
+                                file.takeIf(File::isFile)?.let { profile.id to it }
+                            }.toMap()
+                    val avatars =
+                        registry.profiles
+                            .filter { it.avatar.kind == ProfileAvatar.PHOTO }
+                            .mapNotNull { profile ->
+                                ProfileAvatarPhotos.fileFor(context, profile.id).takeIf(File::isFile)?.let {
+                                    profile.id to
+                                        it
+                                }
+                            }.toMap()
+                    val manifest = MasterManifest(defaultId = defaultId, profiles = registry.profiles, included = slices.keys.toList())
+                    measured("master") {
+                        save { out -> MasterBackupZip.write(out, manifest, slices[defaultId], slices - defaultId, avatars) }
+                    }.map { registry.profiles.filterNot { it.id in slices }.map { it.displayName(context) } }
+                } finally {
+                    live.delete()
+                }
+            }
+
+        private fun sliceFile(profile: RunningProfile) = File(ProfileFiles.noBackupRoot(context.noBackupFilesDir, profile), SLICE_NAME)
 
         /** Writes [parts] of the running profile as [profileId]'s seed, applied when that profile first opens. */
         suspend fun writeSeed(
@@ -99,5 +169,8 @@ class ProfileSlices
 
         private companion object {
             const val TAG = "ProfileSlices"
+            const val SLICE_NAME = "slice.zip"
+            const val MASTER_FILE_NAME = "flow_master_backup.zip"
+            const val MASTER_MIME_TYPE = "application/zip"
         }
     }

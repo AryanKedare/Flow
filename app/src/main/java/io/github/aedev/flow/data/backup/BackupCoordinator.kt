@@ -106,8 +106,7 @@ class BackupCoordinator
                 writeStream(uri) { out -> musicBrain.exportBrainToStream(out).let { true } }
             }
 
-        fun exportMaster(uri: Uri) =
-            exportTo(uri, R.string.master_backup_export_success, R.string.master_backup_export_failed) { slices.export(uri) }
+        fun exportMaster(uri: Uri) = exportTo(uri, R.string.master_backup_export_failed) { slices.exportMaster(uri).map(::masterMessage) }
 
         /** Writes the automatic backup now, into the chosen folder, and records when it ran. */
         fun backUpNow(
@@ -125,7 +124,7 @@ class BackupCoordinator
                     }
 
                     LocalDataManager.AutoBackupType.MASTER -> {
-                        slices.exportToFolder(folder)
+                        slices.exportMasterToFolder(folder)
                     }
                 }
             if (result.isSuccess) {
@@ -317,6 +316,14 @@ class BackupCoordinator
             if (!started) scope.launch(Dispatchers.IO) { discard(uri) }
             return started
         }
+
+        /** A profile without a slice yet has never been left since this build, so its data isn't in the file. */
+        private fun masterMessage(missing: List<String>): String =
+            if (missing.isEmpty()) {
+                context.getString(R.string.master_backup_export_success)
+            } else {
+                context.getString(R.string.master_backup_export_missing, missing.joinToString())
+            }
 
         private fun discard(uri: Uri) {
             runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }

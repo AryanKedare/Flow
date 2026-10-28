@@ -2899,6 +2899,7 @@
     <string name="profiles_add">Add profile</string>
     <string name="profiles_manage">Manage profiles</string>
     <string name="profiles_switching_to">Switching to %1$s</string>
+    <string name="master_backup_export_missing">Backup saved, without %1$s. Open each of them once, then back up again to include them.</string>
     <string name="profiles_ask_whos_watching">Ask who\'s watching</string>
     <string name="profiles_ask_whos_watching_summary">With two or more profiles, choose one when the app opens</string>
     <string name="profiles_whos_watching">Who\'s watching?</string>
