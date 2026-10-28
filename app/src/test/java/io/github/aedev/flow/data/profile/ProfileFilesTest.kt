@@ -52,6 +52,37 @@ class ProfileFilesTest {
     }
 
     @Test
+    fun `Default keeps its no_backup files where they are, another profile in its private folder`() {
+        assertThat(ProfileFiles.noBackupRoot(noBackupFilesDir, default).path).isEqualTo("/data/user/0/app/no_backup")
+        assertThat(ProfileFiles.noBackupRoot(noBackupFilesDir, study).path).isEqualTo("/data/user/0/app/no_backup/profiles/${study.id}")
+    }
+
+    @Test
+    fun `a legacy file only Default has is never looked for in Default's place from another profile`() {
+        val defaults = File(ProfileFiles.root(filesDir, noBackupFilesDir, default, StoreScope.DEFAULT_ONLY), "user_neuro_brain.json")
+        val other = File(ProfileFiles.root(filesDir, noBackupFilesDir, study, StoreScope.DEFAULT_ONLY), "user_neuro_brain.json")
+
+        assertThat(defaults.path).isEqualTo("/data/user/0/app/files/user_neuro_brain.json")
+        assertThat(other.path).startsWith("/data/user/0/app/no_backup/profiles/${study.id}/")
+    }
+
+    @Test
+    fun `Default's database stays where Room has always kept it, another profile's sits in its library folder`() {
+        assertThat(ProfileFiles.database(filesDir, noBackupFilesDir, default, "flow_database")).isNull()
+        assertThat(ProfileFiles.database(filesDir, noBackupFilesDir, study, "flow_database")?.path)
+            .isEqualTo("/data/user/0/app/files/profile_library/${study.id}/databases/flow_database")
+    }
+
+    @Test
+    fun `Default keeps its SharedPreferences names, another profile gets its own`() {
+        assertThat(ProfileFiles.sharedPreferencesName(default, "youtube_identity")).isEqualTo("youtube_identity")
+        assertThat(ProfileFiles.sharedPreferencesName(study, "youtube_identity")).isEqualTo("youtube_identity_${study.id}")
+        assertThrows(IllegalArgumentException::class.java) {
+            ProfileFiles.sharedPreferencesName(RunningProfile(id = "../x", isDefault = false), "youtube_identity")
+        }
+    }
+
+    @Test
     fun `an id that could leave its folder is refused`() {
         listOf("../d", "a/b", "", ".").forEach { id ->
             assertThrows(IllegalArgumentException::class.java) {

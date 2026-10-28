@@ -82,6 +82,16 @@ class LocalDataManager
             val AUTO_BACKUP_LAST_RUN =
                 androidx.datastore.preferences.core
                     .longPreferencesKey("auto_backup_last_run")
+
+            /** Keys kept in the device store and shared by every profile; see DevicePreferencesStore.kt. */
+            internal val DEVICE_KEY_NAMES =
+                setOf(
+                    LAST_UPDATE_CHECK.name,
+                    UPDATE_SKIPPED_VERSION.name,
+                    UPDATE_PROMPTED_VERSION.name,
+                    UPDATE_NOTIFIED_VERSION.name,
+                    AUTO_BACKUP_LAST_RUN.name,
+                )
         }
 
         enum class AutoBackupFrequency { NONE, DAILY, WEEKLY, MONTHLY }
@@ -90,32 +100,32 @@ class LocalDataManager
 
         // Update Settings
         val lastUpdateCheck: Flow<Long> =
-            context.dataStore.data.map { prefs ->
+            context.devicePreferencesDataStore.data.map { prefs ->
                 prefs[LAST_UPDATE_CHECK]?.toLongOrNull() ?: 0L
             }
 
         suspend fun setLastUpdateCheck(timestamp: Long) {
-            context.dataStore.edit { prefs ->
+            context.devicePreferencesDataStore.edit { prefs ->
                 prefs[LAST_UPDATE_CHECK] = timestamp.toString()
             }
         }
 
-        val skippedUpdateVersion: Flow<String?> = context.dataStore.data.map { it[UPDATE_SKIPPED_VERSION] }
+        val skippedUpdateVersion: Flow<String?> = context.devicePreferencesDataStore.data.map { it[UPDATE_SKIPPED_VERSION] }
 
         suspend fun setSkippedUpdateVersion(version: String) {
-            context.dataStore.edit { it[UPDATE_SKIPPED_VERSION] = version }
+            context.devicePreferencesDataStore.edit { it[UPDATE_SKIPPED_VERSION] = version }
         }
 
-        val promptedUpdateVersion: Flow<String?> = context.dataStore.data.map { it[UPDATE_PROMPTED_VERSION] }
+        val promptedUpdateVersion: Flow<String?> = context.devicePreferencesDataStore.data.map { it[UPDATE_PROMPTED_VERSION] }
 
         suspend fun setPromptedUpdateVersion(version: String) {
-            context.dataStore.edit { it[UPDATE_PROMPTED_VERSION] = version }
+            context.devicePreferencesDataStore.edit { it[UPDATE_PROMPTED_VERSION] = version }
         }
 
-        val notifiedUpdateVersion: Flow<String?> = context.dataStore.data.map { it[UPDATE_NOTIFIED_VERSION] }
+        val notifiedUpdateVersion: Flow<String?> = context.devicePreferencesDataStore.data.map { it[UPDATE_NOTIFIED_VERSION] }
 
         suspend fun setNotifiedUpdateVersion(version: String) {
-            context.dataStore.edit { it[UPDATE_NOTIFIED_VERSION] = version }
+            context.devicePreferencesDataStore.edit { it[UPDATE_NOTIFIED_VERSION] = version }
         }
 
         // Theme Settings
@@ -619,12 +629,12 @@ class LocalDataManager
         }
 
         val autoBackupLastRun: Flow<Long> =
-            context.dataStore.data.map { prefs ->
+            context.devicePreferencesDataStore.data.map { prefs ->
                 prefs[AUTO_BACKUP_LAST_RUN] ?: 0L
             }
 
         suspend fun setAutoBackupLastRun(timestamp: Long) {
-            context.dataStore.edit { prefs ->
+            context.devicePreferencesDataStore.edit { prefs ->
                 prefs[AUTO_BACKUP_LAST_RUN] = timestamp
             }
         }
