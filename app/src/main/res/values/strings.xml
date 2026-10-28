@@ -287,6 +287,8 @@
     <string name="dislikes">Dislikes</string>
     <string name="channel_id">Channel ID</string>
     <string name="uploaded">Uploaded</string>
+    <string name="description_premiered">Premiered</string>
+    <string name="description_streamed">Streamed</string>
     <string name="itag">iTag</string>
     <string name="mime_type">Mime Type</string>
     <!-- Video Status & Metadata -->
