@@ -207,8 +207,7 @@ internal fun LyricsLine(
                     } else {
                         null
                     }
-            }
-            .combinedClickable(onClickLabel = if (isSynced) playFromHere else null, onClick = onClick)
+            }.combinedClickable(onClickLabel = if (isSynced) playFromHere else null, onClick = onClick)
             .padding(
                 start = 24.dp,
                 end = 24.dp,
