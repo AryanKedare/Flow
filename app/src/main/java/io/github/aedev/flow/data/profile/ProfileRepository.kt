@@ -17,13 +17,16 @@ class ProfileRepository
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
-        private val slices: ProfileSlices,
+        private val slices: dagger.Lazy<ProfileSlices>,
         private val collections: dagger.Lazy<DownloadedCollections>,
         private val photos: ProfileAvatarPhotos,
     ) {
         private val registry: ProfileRegistry get() = ActiveProfile.registry(context)
 
         val state: Flow<ProfileRegistryState> get() = registry.state
+
+        /** The profile this process runs as. */
+        fun running(): RunningProfile = ActiveProfile.get(context)
 
         /**
          * Registers a profile and, when [copy] names parts, writes them from the running profile as its seed. A seed
@@ -38,7 +41,7 @@ class ProfileRepository
             require(name.isNotBlank()) { "A new profile needs a name" }
             val profile = registry.add(name.trim(), colorKey, avatar) ?: return CreateResult.LimitReached
             if (copy.isEmpty()) return CreateResult.Created(profile)
-            return slices.writeSeed(profile.id, copy).fold(
+            return slices.get().writeSeed(profile.id, copy).fold(
                 onSuccess = { CreateResult.Created(profile) },
                 onFailure = { cause ->
                     withContext(Dispatchers.IO) {
@@ -59,6 +62,13 @@ class ProfileRepository
          * Removes an inactive profile and everything it kept on disk. Its files are closed: only the running
          * profile's are open in this process.
          */
+        suspend fun setAskWhosWatching(ask: Boolean) = registry.setAskWhosWatching(ask)
+
+        suspend fun setSplashTone(
+            id: String,
+            tone: String,
+        ) = registry.setSplashTone(id, tone)
+
         suspend fun setAppearance(
             id: String,
             colorKey: String,

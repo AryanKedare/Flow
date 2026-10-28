@@ -9,7 +9,9 @@ import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.local.NO_LIKES
 import io.github.aedev.flow.data.profile.ActiveProfile
+import io.github.aedev.flow.data.profile.ProfileRegistry
 import io.github.aedev.flow.data.profile.ProfileSlices
+import io.github.aedev.flow.data.profile.TooManyProfiles
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.notification.NotificationHelper
@@ -48,6 +50,11 @@ sealed interface BackupOperation {
     data class Failed(
         val message: String,
     ) : BackupOperation
+
+    /** Waiting for a yes before going on: [message] says what will happen. */
+    data class Confirming(
+        val message: String,
+    ) : BackupOperation
 }
 
 /**
@@ -72,6 +79,8 @@ class BackupCoordinator
         val operation: StateFlow<BackupOperation> = _operation.asStateFlow()
 
         val isRunning: Boolean get() = _operation.value is BackupOperation.Running
+
+        private var confirmed: (() -> Boolean)? = null
 
         fun dismiss() {
             if (!isRunning) _operation.value = BackupOperation.Idle
@@ -106,8 +115,7 @@ class BackupCoordinator
                 writeStream(uri) { out -> musicBrain.exportBrainToStream(out).let { true } }
             }
 
-        fun exportMaster(uri: Uri) =
-            exportTo(uri, R.string.master_backup_export_success, R.string.master_backup_export_failed) { slices.export(uri) }
+        fun exportMaster(uri: Uri) = exportTo(uri, R.string.master_backup_export_failed) { slices.exportMaster(uri).map(::masterMessage) }
 
         /** Writes the automatic backup now, into the chosen folder, and records when it ran. */
         fun backUpNow(
@@ -125,7 +133,7 @@ class BackupCoordinator
                     }
 
                     LocalDataManager.AutoBackupType.MASTER -> {
-                        slices.exportToFolder(folder)
+                        slices.exportMasterToFolder(folder)
                     }
                 }
             if (result.isSuccess) {
@@ -146,15 +154,54 @@ class BackupCoordinator
                 )
             }
 
+        /** A backup from before profiles is confirmed first when there is more than one profile it could go into. */
         fun importMaster(uri: Uri) =
             run(context.getString(R.string.master_backup_title)) {
-                val result = slices.import(uri)
-                if (result.isSuccess) resetSyncLedgers()
-                result.fold(
-                    onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_master_backup_success)) },
-                    onFailure = { failed(R.string.import_failed_template, it) },
-                )
+                val target = slices.oldMasterTarget(uri)
+                if (target == null) {
+                    restoreMaster(uri)
+                } else {
+                    confirmed = { run(context.getString(R.string.master_backup_title)) { restoreMaster(uri) } }
+                    BackupOperation.Confirming(context.getString(R.string.master_restore_old_into, target))
+                }
             }
+
+        fun confirm() {
+            val action = confirmed ?: return
+            confirmed = null
+            _operation.value = BackupOperation.Idle
+            action()
+        }
+
+        fun cancelConfirmation() {
+            confirmed = null
+            if (_operation.value is BackupOperation.Confirming) _operation.value = BackupOperation.Idle
+        }
+
+        private suspend fun restoreMaster(uri: Uri): BackupOperation =
+            slices.restoreMaster(uri).fold(
+                onSuccess = { restored ->
+                    if (restored.restoredNow) resetSyncLedgers()
+                    val message =
+                        if (restored.waiting.isEmpty()) {
+                            context.getString(R.string.import_master_backup_success)
+                        } else {
+                            context.resources.getQuantityString(
+                                R.plurals.master_restore_waiting,
+                                restored.waiting.size,
+                                restored.waiting.joinToString(),
+                            )
+                        }
+                    BackupOperation.Succeeded(message)
+                },
+                onFailure = {
+                    if (it is TooManyProfiles) {
+                        BackupOperation.Failed(context.getString(R.string.master_restore_too_many, ProfileRegistry.MAX_PROFILES))
+                    } else {
+                        failed(R.string.import_failed_template, it)
+                    }
+                },
+            )
 
         fun importEngine(uri: Uri) =
             run(context.getString(R.string.import_engine_data)) {
@@ -317,6 +364,14 @@ class BackupCoordinator
             if (!started) scope.launch(Dispatchers.IO) { discard(uri) }
             return started
         }
+
+        /** A profile without a slice yet has never been left since this build, so its data isn't in the file. */
+        private fun masterMessage(missing: List<String>): String =
+            if (missing.isEmpty()) {
+                context.getString(R.string.master_backup_export_success)
+            } else {
+                context.getString(R.string.master_backup_export_missing, missing.joinToString())
+            }
 
         private fun discard(uri: Uri) {
             runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
