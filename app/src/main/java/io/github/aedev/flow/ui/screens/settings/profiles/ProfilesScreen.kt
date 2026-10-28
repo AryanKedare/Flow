@@ -35,6 +35,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.notice
+import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.screens.settings.index.ProfilesIndex
 
 private sealed interface ProfileAction {
@@ -98,6 +99,11 @@ internal fun ProfilesScreen(
                 enabled = !atLimit && !busy,
                 valueText = { if (atLimit) stringResource(R.string.profiles_limit, ProfileRegistry.MAX_PROFILES) else null },
                 onClick = { onNavigate(SettingsTarget(SettingsDestination.PROFILE_EDIT)) },
+            )
+            switch(
+                ProfilesIndex.askWhosWatching,
+                checked = state?.askWhosWatching ?: true,
+                onCheckedChange = viewModel::setAskWhosWatching,
             )
         }
         if (profiles.isNotEmpty()) {

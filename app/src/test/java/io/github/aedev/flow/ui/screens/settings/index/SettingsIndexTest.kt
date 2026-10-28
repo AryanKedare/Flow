@@ -75,9 +75,9 @@ class SettingsIndexTest {
     }
 
     @Test
-    fun `a phone reaches every option but the remote guide`() {
+    fun `a phone reaches every option but the TV-only ones`() {
         val unreachable = all.filterNot { DestinationIndex.isReachable(it, tv = false) }
-        assertEquals(listOf(DestinationIndex.entry(SettingsDestination.REMOTE_GUIDE)), unreachable)
+        assertEquals(listOf(DestinationIndex.entry(SettingsDestination.REMOTE_GUIDE), ProfilesIndex.askWhosWatching), unreachable)
     }
 
     @Test

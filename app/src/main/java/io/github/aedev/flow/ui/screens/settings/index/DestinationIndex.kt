@@ -28,7 +28,6 @@ internal object DestinationIndex {
                 when (destination) {
                     in notOnTv -> SettingAvailability.NotOnTv
                     SettingsDestination.REMOTE_GUIDE -> SettingAvailability.TvOnly
-                    SettingsDestination.PROFILES, SettingsDestination.PROFILE_EDIT -> SettingAvailability.Profiles
                     else -> SettingAvailability.Always
                 },
         )

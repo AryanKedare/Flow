@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.profile.ProfileRegistry
-import io.github.aedev.flow.data.profile.SwitchRefusal
+import io.github.aedev.flow.ui.components.profiles.switchRefusalText
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 @Composable
@@ -99,7 +99,7 @@ internal fun ProfilesMessageEffect(
             ProfilesMessage.LimitReached -> stringResource(R.string.profiles_limit_reached, ProfileRegistry.MAX_PROFILES)
             ProfilesMessage.CopyFailed -> stringResource(R.string.profiles_copy_failed)
             ProfilesMessage.PhotoFailed -> stringResource(R.string.profiles_photo_failed)
-            is ProfilesMessage.SwitchRefused -> stringResource(refusalText(message.reason))
+            is ProfilesMessage.SwitchRefused -> stringResource(switchRefusalText(message.reason))
             null -> null
         }
     LaunchedEffect(message) {
@@ -111,11 +111,3 @@ internal fun ProfilesMessageEffect(
         }
     }
 }
-
-private fun refusalText(reason: SwitchRefusal?): Int =
-    when (reason) {
-        SwitchRefusal.CAR_CONNECTED -> R.string.profiles_switch_refused_car
-        SwitchRefusal.SYNC_RUNNING -> R.string.profiles_switch_refused_sync
-        SwitchRefusal.BACKUP_RUNNING -> R.string.profiles_switch_refused_backup
-        SwitchRefusal.UNKNOWN_PROFILE, SwitchRefusal.ALREADY_ACTIVE, null -> R.string.profiles_switch_failed
-    }

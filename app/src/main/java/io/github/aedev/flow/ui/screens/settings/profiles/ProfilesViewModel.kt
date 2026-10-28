@@ -63,6 +63,10 @@ internal class ProfilesViewModel
 
         fun switchTo(id: String) = work { switch(id) }
 
+        fun setAskWhosWatching(ask: Boolean) {
+            viewModelScope.launch { profiles.setAskWhosWatching(ask) }
+        }
+
         fun rename(
             id: String,
             name: String,
