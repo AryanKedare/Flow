@@ -4848,4 +4848,10 @@
         <item quantity="other">تم حذف %1$d تنزيل</item>
     </plurals>
     <string name="settings_keywords_tilt_fullscreen">تدوير، قفل التدوير، التدوير التلقائي، الوضع الأفقي، جانبي</string>
+    <string name="description_premiered">عُرض لأول مرة</string>
+    <string name="description_streamed">تم البثّ</string>
+    <string name="subscription_bell_alerts_off">‍تنبيهات الفيديوهات الجديدة متوقفة</string>
+    <string name="subscription_bell_alerts_turn_on">تفعيل</string>
+    <string name="player_settings_keep_playing_after_swipe">مواصلة التشغيل بعد إغلاق Flow</string>
+    <string name="player_settings_keep_playing_after_swipe_subtitle">يستمر التشغيل عند سحب Flow بعيدًا عن التطبيقات الحديثة</string>
 </resources>
