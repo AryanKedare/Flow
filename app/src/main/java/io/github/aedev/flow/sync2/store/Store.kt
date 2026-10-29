@@ -43,6 +43,14 @@ sealed interface Appended {
     ) : Appended
 }
 
+/** A device asking to join with the admin token, by the name it gave. */
+@Serializable
+data class JoinRequest(
+    val id: String,
+    val name: String,
+    val expires: Long,
+)
+
 @Serializable
 data class ChangedObject(
     val path: String,

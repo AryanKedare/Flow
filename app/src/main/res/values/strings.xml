@@ -2630,6 +2630,15 @@
     <string name="linked_create_lan_title">Create a group on this network</string>
     <string name="linked_create_lan_body">No server: your devices sync with each other when they share a Wi-Fi network</string>
     <string name="linked_server_lan">This network, no server</string>
+    <string name="linked_join_admin_title">Join with the server address</string>
+    <string name="linked_join_admin_body">No camera? Type the server address and admin token, then accept on a linked device</string>
+    <string name="linked_join_admin_ask">Ask to join</string>
+    <string name="linked_asked">Waiting for a linked device to accept…</string>
+    <string name="linked_join_request">%1$s wants to join</string>
+    <string name="linked_accept">Accept</string>
+    <string name="linked_decline">Decline</string>
+    <string name="linked_join_notification_title">A device wants to join</string>
+    <string name="linked_join_notification_text">%1$s asked to join your linked devices. Open Linked devices to accept or decline.</string>
     <string name="linked_join_title">Join a group</string>
     <string name="linked_join_body">Scan or paste the code another linked device shows</string>
     <string name="linked_restore_title">Restore with recovery words</string>

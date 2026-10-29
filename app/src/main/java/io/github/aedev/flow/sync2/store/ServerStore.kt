@@ -198,15 +198,60 @@ class ServerStore private constructor(
                 put("entry", entryJson(genesis))
                 put("wraps", wrapsJson(wraps))
             }
-        val request =
-            Request
-                .Builder()
-                .url(
-                    url("v1/claim"),
-                ).header("Authorization", "Bearer $adminToken")
-                .post(body.toString().toRequestBody(JSON))
-                .build()
-        send(request).use { if (it.code == 409) throw LinkedException.ServerHasGroup() else check(it) }
+        send(admin(adminToken, "v1/claim").post(body.toString().toRequestBody(JSON)).build()).use {
+            if (it.code == 409) throw LinkedException.ServerHasGroup() else check(it)
+        }
+    }
+
+    private fun admin(
+        adminToken: String,
+        path: String,
+    ): Request.Builder = Request.Builder().url(url(path)).header("Authorization", "Bearer $adminToken")
+
+    /** Asks to join with the admin token (spec/protocol.md, Joining with the admin token). */
+    suspend fun requestJoin(
+        adminToken: String,
+        id: String,
+        name: String,
+    ) {
+        val body =
+            buildJsonObject {
+                put("id", id)
+                put("name", name)
+            }
+        check(send(admin(adminToken, "v1/join").post(body.toString().toRequestBody(JSON)).build())).close()
+    }
+
+    /** The code a member answered a join request with, or null until one does. */
+    suspend fun joinAnswer(
+        adminToken: String,
+        id: String,
+    ): String? {
+        val response = send(admin(adminToken, "v1/join/$id").build())
+        if (response.code == 404) return null.also { response.close() }
+        return decode(response)["code"]?.jsonPrimitive?.contentOrNull ?: throw StoreException.Malformed()
+    }
+
+    /** Join requests no member has answered yet. */
+    suspend fun joinRequests(): List<JoinRequest> =
+        try {
+            Json.decodeFromJsonElement(
+                ListSerializer(JoinRequest.serializer()),
+                decode(authorized("GET", "v1/join"))["requests"] ?: throw StoreException.Malformed(),
+            )
+        } catch (_: SerializationException) {
+            throw StoreException.Malformed()
+        }
+
+    suspend fun answerJoin(
+        id: String,
+        code: String,
+    ) {
+        check(authorized("PUT", "v1/join/$id", buildJsonObject { put("code", code) }.toString().toRequestBody(JSON))).close()
+    }
+
+    suspend fun declineJoin(id: String) {
+        authorized("DELETE", "v1/join/$id").use { if (it.code != 404) check(it) }
     }
 
     override suspend fun rosterAfter(after: Long): List<Entry> =

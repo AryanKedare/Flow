@@ -11,9 +11,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.service.LinkPhase
 import io.github.aedev.flow.ui.screens.sync.SyncActionRow
 import io.github.aedev.flow.ui.screens.sync.SyncScanContent
+import kotlinx.coroutines.delay
+
+private const val REQUEST_POLL_MS = 3_000L
 
 /** Linked devices, below the one-time sync choices on the Sync screen. */
 @Composable
@@ -24,6 +28,13 @@ internal fun LinkedDevicesSection(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val link by viewModel.link.collectAsStateWithLifecycle()
     LaunchedEffect(state.linked) { if (state.linked) viewModel.refreshDevices() }
+    // Devices asking to join with the admin token show up while this screen is open.
+    LaunchedEffect(state.linked, state.storeUrl) {
+        while (state.linked && state.storeUrl != LAN_STORE) {
+            viewModel.refreshRequests()
+            delay(REQUEST_POLL_MS)
+        }
+    }
 
     HorizontalDivider()
     val words = state.words
@@ -54,6 +65,8 @@ internal fun LinkedDevicesSection(
                 onRename = viewModel::rename,
                 onRemove = viewModel::remove,
                 onForget = viewModel::forget,
+                onAccept = viewModel::accept,
+                onDecline = viewModel::decline,
             )
         }
 
@@ -64,6 +77,7 @@ internal fun LinkedDevicesSection(
                 viewModel::create,
                 viewModel::createOnNetwork,
                 viewModel::enterCode,
+                viewModel::joinWithAdmin,
                 viewModel::showCode,
                 viewModel::restore,
             )

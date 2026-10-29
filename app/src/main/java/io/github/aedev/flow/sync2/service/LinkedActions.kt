@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.di.ApplicationScope
 import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync.identity.DeviceIdentity
+import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.data.GroupRecord
 import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.LinkedDatabase
@@ -19,6 +20,7 @@ import io.github.aedev.flow.sync2.linking.StoreLocation
 import io.github.aedev.flow.sync2.linking.addDevice
 import io.github.aedev.flow.sync2.linking.addScanned
 import io.github.aedev.flow.sync2.linking.answerShown
+import io.github.aedev.flow.sync2.linking.askToJoin
 import io.github.aedev.flow.sync2.linking.createGroup
 import io.github.aedev.flow.sync2.linking.createLanGroup
 import io.github.aedev.flow.sync2.linking.deviceNames
@@ -30,6 +32,7 @@ import io.github.aedev.flow.sync2.linking.removeDevice
 import io.github.aedev.flow.sync2.linking.renameDevice
 import io.github.aedev.flow.sync2.linking.restoreGroup
 import io.github.aedev.flow.sync2.roster.Role
+import io.github.aedev.flow.sync2.store.JoinRequest
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
 import kotlinx.coroutines.CancellationException
@@ -59,6 +62,9 @@ sealed interface LinkPhase {
     data class Confirm(
         val sas: String,
     ) : LinkPhase
+
+    /** This device asked to join with the admin token and waits for a linked device to accept. */
+    data object Asked : LinkPhase
 
     data object Linking : LinkPhase
 
@@ -189,10 +195,7 @@ class LinkedActions
                 val device = keys.load()
                 when (val code = readCode(text)) {
                     is Code.Member -> {
-                        ensureUnlinked()
-                        val server = code.storeUrl?.let { ServerStore.connect(it, device, null, null) }
-                        join(db, local, server, server, code, device, meta(), ::confirm)
-                        linkedNow()
+                        joinMember(code, device)
                     }
 
                     is Code.New -> {
@@ -201,6 +204,51 @@ class LinkedActions
                     }
                 }
             }
+
+        private suspend fun joinMember(
+            code: Code.Member,
+            device: MemberSecrets,
+        ) {
+            ensureUnlinked()
+            val server = code.storeUrl?.let { ServerStore.connect(it, device, null, null) }
+            join(db, local, server, server, code, device, meta(), ::confirm)
+            linkedNow()
+        }
+
+        /** Asks to join a group on [url] with its admin token, then pairs with the member that accepts. */
+        fun joinWithAdmin(
+            url: String,
+            adminToken: String,
+        ) = start {
+            ensureUnlinked()
+            val device = keys.load()
+            phase.value = LinkPhase.Asked
+            val code = askToJoin(ServerStore.connect(url.trim(), device, null, null), adminToken.trim(), meta().name)
+            phase.value = LinkPhase.Waiting(null)
+            joinMember(code, device)
+        }
+
+        /** Devices asking to join this device's server group. */
+        suspend fun joinRequests(): List<JoinRequest> {
+            val record = db.groups().group() ?: return emptyList()
+            return sync.server(record, keys.load())?.joinRequests().orEmpty()
+        }
+
+        /** Answers a join request with this device's code, then pairs as if that device had scanned it. */
+        fun accept(id: String) =
+            start {
+                val record = linked()
+                val device = keys.load()
+                val server = sync.server(record, device) ?: throw LinkedException.Unexpected()
+                val offer = newOffer(StoreLocation("server", record.storeUrl), meta().name, null)
+                server.answerJoin(id, offer.qr)
+                addDevice(sync.open(record, device), server, offer, device, ::confirm)
+            }
+
+        suspend fun decline(id: String) {
+            val record = linked()
+            sync.server(record, keys.load())?.declineJoin(id)
+        }
 
         /** Shows a new device's code, for a member on the same network to scan: how a TV joins. */
         fun showCode() =

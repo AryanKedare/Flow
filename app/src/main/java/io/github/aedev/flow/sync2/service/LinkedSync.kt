@@ -5,6 +5,7 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.data.profile.SyncProfile
+import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.sync.apply.PeerInfo
 import io.github.aedev.flow.sync.apply.SyncApplier
 import io.github.aedev.flow.sync.crypto.SyncBytes
@@ -134,6 +135,11 @@ class LinkedSync
             if (offline != null) throw offline
             session.collectGarbage()
             db.groups().setUploaded(store.upload(me, db.groups().group()?.uploaded ?: 0))
+            // The sync is done; a failed look for devices asking to join only waits for the next one.
+            try {
+                server(record, device)?.joinRequests()?.firstOrNull()?.let { NotificationHelper.showJoinRequest(context, it.name) }
+            } catch (_: StoreException) {
+            }
         }
 
         private companion object {
