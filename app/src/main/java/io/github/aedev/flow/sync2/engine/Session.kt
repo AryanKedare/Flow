@@ -22,9 +22,11 @@ import io.github.aedev.flow.sync2.data.GroupRecord
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.data.StreamRow
 import io.github.aedev.flow.sync2.data.addEntries
+import io.github.aedev.flow.sync2.data.replaceRoster
 import io.github.aedev.flow.sync2.roster.Entry
 import io.github.aedev.flow.sync2.roster.RosterState
 import io.github.aedev.flow.sync2.roster.applyEntry
+import io.github.aedev.flow.sync2.roster.entryHash
 import io.github.aedev.flow.sync2.roster.parseEntry
 import io.github.aedev.flow.sync2.roster.replayRoster
 import io.github.aedev.flow.sync2.store.Header
@@ -116,10 +118,18 @@ class Session private constructor(
             val record = groups.group() ?: throw LinkedException.NotLinked()
             val entries = groups.roster().map { parseEntry(Json.parseToJsonElement(it.entry)) }.toMutableList()
             var state = replayRoster(entries)
-            val fresh = store.rosterAfter(state.seq)
-            for (entry in fresh) state = applyEntry(state, entry)
-            groups.addEntries(fresh)
-            entries += fresh
+            val chain = store.rosterAfter(-1)
+            // A store that resolved a fork the other way holds a chain this device's copy isn't a prefix of: take the winner.
+            if (chain.size >= entries.size && chain.take(entries.size).map(::entryHash) != entries.map(::entryHash)) {
+                groups.replaceRoster(chain)
+                entries.clear()
+                state = replayRoster(chain).also { entries += chain }
+            } else {
+                val fresh = chain.drop(entries.size)
+                for (entry in fresh) state = applyEntry(state, entry)
+                groups.addEntries(fresh)
+                entries += fresh
+            }
             if (SyncBytes.toHex(device.did) !in state.members) throw LinkedException.Removed()
             return Session(db, store, device, record, SyncBytes.fromHex(record.groupId), state, entries).apply { unwrapCurrent() }
         }

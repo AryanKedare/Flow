@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync2.lan
 import io.github.aedev.flow.sync.protocol.SyncSerialization
 import io.github.aedev.flow.sync2.crypto.ProtocolException
 import io.github.aedev.flow.sync2.engine.Session
+import io.github.aedev.flow.sync2.roster.entryHash
 import io.github.aedev.flow.sync2.roster.entryJson
 import io.github.aedev.flow.sync2.roster.parseEntry
 import io.github.aedev.flow.sync2.store.LocalStore
@@ -110,8 +111,18 @@ class LanPeer(
             runCatching {
                 when (op) {
                     "roster" -> {
-                        val after = header["after"]?.jsonPrimitive?.long ?: -1
-                        ok(mapOf("entries" to JsonArray(local.entries(after).map(::entryJson))))
+                        // An asker on a head this device doesn't hold is on another fork: it gets everything to choose from.
+                        val head = header.text("head")
+                        val held = local.entries()
+                        val after =
+                            if (head != null &&
+                                held.none { entryHash(it) == head }
+                            ) {
+                                -1
+                            } else {
+                                header["after"]?.jsonPrimitive?.long ?: -1
+                            }
+                        ok(mapOf("entries" to JsonArray(held.filter { it.seq > after }.map(::entryJson))))
                     }
 
                     "key" -> {
@@ -174,8 +185,9 @@ class LanPeer(
      * entries after its head, the wraps and chain boxes it lacks, then the objects above its version vector.
      */
     suspend fun pull() {
-        val head = local.entries().lastOrNull()?.seq ?: -1
-        request("roster", mapOf("after" to JsonPrimitive(head)))?.let { answer ->
+        val head = local.rosterAfter(-1).lastOrNull()
+        val asked = mapOf("after" to JsonPrimitive(head?.seq ?: -1)) + listOfNotNull(head?.let { "head" to JsonPrimitive(entryHash(it)) })
+        request("roster", asked)?.let { answer ->
             local.addEntries(
                 answer.header["entries"]
                     ?.jsonArray

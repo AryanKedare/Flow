@@ -18,6 +18,10 @@ import io.github.aedev.flow.sync2.lan.LanPeer
 import io.github.aedev.flow.sync2.lan.SESSION_PATH
 import io.github.aedev.flow.sync2.lan.acceptLink
 import io.github.aedev.flow.sync2.lan.connectLink
+import io.github.aedev.flow.sync2.linking.DeviceMeta
+import io.github.aedev.flow.sync2.linking.renameDevice
+import io.github.aedev.flow.sync2.roster.entryHash
+import io.github.aedev.flow.sync2.roster.forkWinner
 import io.github.aedev.flow.sync2.store.GroupStore
 import io.github.aedev.flow.sync2.store.LocalStore
 import kotlinx.coroutines.CompletableDeferred
@@ -28,6 +32,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -118,5 +123,25 @@ class LanSyncTest {
                     runCatching { meet(client = outsider, server = b) }.exceptionOrNull()
                 }
             assertTrue("$error", error is ProtocolException || error is LinkedException)
+        }
+
+    @Test
+    fun members_that_appended_at_the_same_seq_both_end_on_the_fork_winner() =
+        runTest {
+            val g = LinkedGroup(this).apply { create() }
+            val a = member(g, g.a)
+            val b = member(g, g.b)
+            renameDevice(a.session(), g.a, SyncBytes.toHex(g.a.did), DeviceMeta("app-a", "Phone", "android"))
+            renameDevice(b.session(), g.b, SyncBytes.toHex(g.b.did), DeviceMeta("app-b", "TV", "android"))
+            val forks = listOf(a, b).map { it.local.rosterAfter(-1).last() }
+            assertEquals(forks[0].seq, forks[1].seq)
+
+            meet(client = a, server = b)
+
+            val winner = entryHash(checkNotNull(forkWinner(forks)))
+            for (member in listOf(a, b)) {
+                assertEquals(winner, entryHash(member.local.rosterAfter(-1).last()))
+                assertEquals(winner, member.session().state.head)
+            }
         }
 }
