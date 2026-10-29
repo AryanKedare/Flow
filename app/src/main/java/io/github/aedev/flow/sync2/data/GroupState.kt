@@ -83,6 +83,16 @@ interface GroupDao {
     @Upsert
     suspend fun addRoster(rows: List<RosterRow>)
 
+    @Query("DELETE FROM roster")
+    suspend fun clearRoster()
+
+    /** Takes the fork winner's chain in place of the one this device had. */
+    @Transaction
+    suspend fun replaceRoster(rows: List<RosterRow>) {
+        clearRoster()
+        addRoster(rows)
+    }
+
     @Query("SELECT * FROM streams")
     suspend fun streams(): List<StreamRow>
 
@@ -103,4 +113,8 @@ interface GroupDao {
     }
 }
 
-suspend fun GroupDao.addEntries(entries: List<Entry>) = addRoster(entries.map { RosterRow(it.seq, canonicalEntry(it)) })
+private fun rows(entries: List<Entry>) = entries.map { RosterRow(it.seq, canonicalEntry(it)) }
+
+suspend fun GroupDao.addEntries(entries: List<Entry>) = addRoster(rows(entries))
+
+suspend fun GroupDao.replaceRoster(entries: List<Entry>) = replaceRoster(rows(entries))

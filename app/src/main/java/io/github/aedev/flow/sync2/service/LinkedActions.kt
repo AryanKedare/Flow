@@ -12,6 +12,7 @@ import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
+import io.github.aedev.flow.sync2.lan.LanSync
 import io.github.aedev.flow.sync2.linking.Code
 import io.github.aedev.flow.sync2.linking.DeviceMeta
 import io.github.aedev.flow.sync2.linking.StoreLocation
@@ -88,6 +89,7 @@ class LinkedActions
         private val sync: LinkedSync,
         private val identity: DeviceIdentity,
         private val local: LocalStore,
+        lan: LanSync,
         @ApplicationScope private val scope: CoroutineScope,
     ) {
         private val phase = MutableStateFlow<LinkPhase>(LinkPhase.Idle)
@@ -97,6 +99,7 @@ class LinkedActions
         val group: Flow<GroupRecord?> = db.groups().observeGroup()
         val lastSync: StateFlow<LastSync?> = sync.lastSync
         val link: StateFlow<LinkPhase> = phase.asStateFlow()
+        val nearby: StateFlow<Set<String>> = lan.nearby
 
         private suspend fun meta() = DeviceMeta(identity.deviceId(), identity.deviceName(), PLATFORM)
 

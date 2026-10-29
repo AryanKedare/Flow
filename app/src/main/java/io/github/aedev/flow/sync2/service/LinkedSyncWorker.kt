@@ -17,12 +17,16 @@ import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.data.profile.ProfileWork
 import io.github.aedev.flow.data.profile.SyncProfile
 import io.github.aedev.flow.sync2.data.LinkedDatabase
+import io.github.aedev.flow.sync2.lan.LanSync
 import java.util.concurrent.TimeUnit
 
 /** Opening the app syncs at most this often; the periodic run doesn't wait for it. */
 private const val OPEN_INTERVAL_MS = 5 * 60 * 1000L
 
-/** Syncs linked devices on app open and every hour, only with a network, and keeps itself scheduled while linked. */
+/**
+ * Syncs linked devices on app open and every hour, only with a network, looks for them on the same
+ * Wi-Fi every hour, and keeps itself scheduled while linked.
+ */
 class LinkedSyncWorker(
     context: Context,
     params: WorkerParameters,
@@ -33,16 +37,22 @@ class LinkedSyncWorker(
         fun linkedSync(): LinkedSync
 
         fun linkedDatabase(): LinkedDatabase
+
+        fun lanSync(): LanSync
     }
 
     override suspend fun doWork(): Result {
         if (!ProfileWork.belongsHere(this)) return Result.success()
         val dependencies = EntryPointAccessors.fromApplication(applicationContext, Dependencies::class.java)
         if (dependencies.linkedDatabase().groups().group() == null) {
-            WorkManager.getInstance(applicationContext).cancelUniqueWork(PERIODIC_NAME)
+            cancel(applicationContext)
             return Result.success()
         }
         schedule(applicationContext)
+        if (tags.contains(LAN_TAG)) {
+            dependencies.lanSync().attempt()
+            return Result.success()
+        }
         val sync = dependencies.linkedSync()
         if (tags.contains(OPEN_TAG) && sync.lastSync.value.let { it != null && System.currentTimeMillis() - it.atMs < OPEN_INTERVAL_MS }) {
             return Result.success()
@@ -54,6 +64,8 @@ class LinkedSyncWorker(
         private const val PERIODIC_NAME = "linked_sync"
         private const val OPEN_NAME = "linked_sync_open"
         private const val OPEN_TAG = "linked_sync_open"
+        private const val LAN_NAME = "linked_sync_lan"
+        private const val LAN_TAG = "linked_sync_lan"
 
         private val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
@@ -64,7 +76,18 @@ class LinkedSyncWorker(
                     .setInputData(ProfileWork.data(context))
                     .addTag(ProfileWork.tag(context))
                     .build()
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, work)
+            // A short look for linked devices on the same network, only on Wi-Fi or another unmetered network.
+            val lan =
+                PeriodicWorkRequestBuilder<LinkedSyncWorker>(1, TimeUnit.HOURS)
+                    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED).build())
+                    .setInputData(ProfileWork.data(context))
+                    .addTag(ProfileWork.tag(context))
+                    .addTag(LAN_TAG)
+                    .build()
+            WorkManager.getInstance(context).run {
+                enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, work)
+                enqueueUniquePeriodicWork(LAN_NAME, ExistingPeriodicWorkPolicy.KEEP, lan)
+            }
         }
 
         /** On app open, in the profile that syncs; the worker does nothing when this device isn't linked. */
@@ -84,6 +107,7 @@ class LinkedSyncWorker(
             WorkManager.getInstance(context).run {
                 cancelUniqueWork(PERIODIC_NAME)
                 cancelUniqueWork(OPEN_NAME)
+                cancelUniqueWork(LAN_NAME)
             }
         }
     }
