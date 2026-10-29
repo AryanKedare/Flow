@@ -11,7 +11,7 @@ import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.crypto.ProtocolException
 import io.github.aedev.flow.sync2.crypto.sealChain
 import io.github.aedev.flow.sync2.data.LinkedDatabase
-import io.github.aedev.flow.sync2.engine.RemovedException
+import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.roster.Op
 import io.github.aedev.flow.sync2.roster.Role
@@ -81,7 +81,7 @@ class SessionTest {
     @Test
     fun two_devices_exchange_changes_and_acknowledgements() =
         runTest {
-            val g = LinkedGroup().apply { create() }
+            val g = LinkedGroup(this).apply { create() }
             val (dbA, dbB) = g.deviceDb() to g.deviceDb()
             val (appA, appB) = App().apply { watch("aaaaaaaaaaa") } to App().apply { watch("bbbbbbbbbbb") }
             assertEquals(0, sync(dbA, g.store, g.a, appA))
@@ -98,7 +98,7 @@ class SessionTest {
     @Test
     fun a_tampered_object_is_refused() =
         runTest {
-            val g = LinkedGroup().apply { create() }
+            val g = LinkedGroup(this).apply { create() }
             val (dbA, dbB) = g.deviceDb() to g.deviceDb()
             sync(dbA, g.store, g.a, App().apply { watch("aaaaaaaaaaa") })
             val path = StorePaths.log(SyncBytes.toHex(g.a.did), 1)
@@ -113,7 +113,7 @@ class SessionTest {
     @Test
     fun a_missing_object_stalls_reading_until_it_arrives() =
         runTest {
-            val g = LinkedGroup().apply { create() }
+            val g = LinkedGroup(this).apply { create() }
             val (dbA, dbB) = g.deviceDb() to g.deviceDb()
             val appA = App().apply { watch("aaaaaaaaaaa") }
             sync(dbA, g.store, g.a, appA)
@@ -131,7 +131,7 @@ class SessionTest {
     @Test
     fun a_removed_device_stops_and_a_new_device_reads_the_old_epoch() =
         runTest {
-            val g = LinkedGroup().apply { create() }
+            val g = LinkedGroup(this).apply { create() }
             val dbA = g.deviceDb()
             sync(dbA, g.store, g.a, App().apply { watch("aaaaaaaaaaa") })
             val dbB = g.deviceDb()
@@ -154,11 +154,17 @@ class SessionTest {
                     chain,
                 ),
             )
-            assertTrue(runCatching { Session.open(dbB, g.store, g.b) }.exceptionOrNull() is RemovedException)
+            assertTrue(runCatching { Session.open(dbB, g.store, g.b) }.exceptionOrNull() is LinkedException.Removed)
 
             val c = newMember()
             state = g.store.head()
-            val add = buildEntry(g.group, state, draft(Op.ADD, g.a).copy(add = listOf(memberSubject(c, Role.DEVICE))), listOf(g.a, c))
+            val add =
+                buildEntry(
+                    g.group,
+                    state,
+                    draft(Op.ADD, g.a).copy(add = listOf(memberSubject(c.sigPublic, c.kemPublic, Role.DEVICE))),
+                    listOf(g.a, c),
+                )
             assertEquals(Appended.Done, g.store.appendRoster(state.head, add, wraps(g.group, 1, nextKey, listOf(c)), null))
             val appC = App()
             sync(g.deviceDb(), g.store, c, appC)

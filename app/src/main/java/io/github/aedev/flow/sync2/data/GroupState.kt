@@ -6,6 +6,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import io.github.aedev.flow.sync2.roster.Entry
+import io.github.aedev.flow.sync2.roster.canonicalEntry
 
 /** The group this device belongs to, where its store is, and how far it has written and read. */
 @Entity(tableName = "group_record")
@@ -68,3 +70,5 @@ interface GroupDao {
         saveCursor(cursor)
     }
 }
+
+suspend fun GroupDao.addEntries(entries: List<Entry>) = addRoster(entries.map { RosterRow(it.seq, canonicalEntry(it)) })

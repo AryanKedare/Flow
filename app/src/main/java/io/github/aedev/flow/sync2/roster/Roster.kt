@@ -100,7 +100,7 @@ private val json = Json { explicitNulls = false }
 
 fun entryJson(entry: Entry): JsonElement = json.encodeToJsonElement(Entry.serializer(), entry)
 
-private fun canonical(entry: Entry): ByteArray = SyncSerialization.canonicalJson(entryJson(entry)).toByteArray()
+fun canonicalEntry(entry: Entry): String = SyncSerialization.canonicalJson(entryJson(entry))
 
 private fun isHex(
     value: String,
@@ -154,7 +154,7 @@ fun parseEntry(value: JsonElement): Entry {
         } catch (_: IllegalArgumentException) {
             reject(ProtocolError.ROSTER_FORMAT)
         }
-    if (!wellFormed(entry) || SyncSerialization.canonicalJson(entryJson(entry)) != SyncSerialization.canonicalJson(value)) {
+    if (!wellFormed(entry) || canonicalEntry(entry) != SyncSerialization.canonicalJson(value)) {
         reject(ProtocolError.ROSTER_FORMAT)
     }
     return entry
@@ -163,7 +163,7 @@ fun parseEntry(value: JsonElement): Entry {
 fun signingBytes(entry: Entry): ByteArray =
     tag("roster") + SyncSerialization.canonicalJson(JsonObject(entryJson(entry) as JsonObject - "sigs")).toByteArray()
 
-fun entryHash(entry: Entry): String = SyncBytes.toHex(sha256(canonical(entry)))
+fun entryHash(entry: Entry): String = SyncBytes.toHex(sha256(canonicalEntry(entry).toByteArray()))
 
 private fun strictlySorted(values: List<String>): Boolean = values.zipWithNext().all { (a, b) -> a < b }
 

@@ -4,32 +4,37 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync.crypto.SyncCrypto
-import io.github.aedev.flow.sync.protocol.SyncSerialization
 import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.crypto.wrapEpochKey
 import io.github.aedev.flow.sync2.data.GroupRecord
 import io.github.aedev.flow.sync2.data.LinkedDatabase
-import io.github.aedev.flow.sync2.data.RosterRow
+import io.github.aedev.flow.sync2.data.addEntries
 import io.github.aedev.flow.sync2.roster.Draft
 import io.github.aedev.flow.sync2.roster.Entry
 import io.github.aedev.flow.sync2.roster.Op
 import io.github.aedev.flow.sync2.roster.Role
 import io.github.aedev.flow.sync2.roster.RosterState
 import io.github.aedev.flow.sync2.roster.buildEntry
-import io.github.aedev.flow.sync2.roster.entryJson
 import io.github.aedev.flow.sync2.roster.epochDraft
 import io.github.aedev.flow.sync2.roster.memberSubject
 import io.github.aedev.flow.sync2.roster.replayRoster
 import io.github.aedev.flow.sync2.store.Appended
 import io.github.aedev.flow.sync2.store.ChangedObject
+import io.github.aedev.flow.sync2.store.Mailbox
 import io.github.aedev.flow.sync2.store.Store
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 
 const val LINK = "default-link"
 
 fun newMember() = MemberSecrets(SyncCrypto.randomBytes(32), SyncCrypto.randomBytes(32))
 
-/** The server's rules in memory: linear roster appends, immutable objects, one change cursor. */
-class MemoryStore : Store {
+/** The server's rules in memory: linear roster appends, immutable objects, one change cursor, a pairing mailbox. */
+class MemoryStore :
+    Store,
+    Mailbox {
+    private val slots = HashMap<String, HashMap<String, ByteArray>>()
+
     val roster = ArrayList<Entry>()
     val keys = HashMap<Pair<Int, String>, ByteArray>()
     val objects = LinkedHashMap<String, Pair<Long, ByteArray>>()
@@ -79,6 +84,27 @@ class MemoryStore : Store {
         objects.remove(path)
     }
 
+    override suspend fun openSlot(slot: String) {
+        slots[slot] = HashMap()
+    }
+
+    override suspend fun putMessage(
+        slot: String,
+        name: String,
+        bytes: ByteArray,
+    ) {
+        checkNotNull(slots[slot])[name] = bytes
+    }
+
+    override suspend fun getMessage(
+        slot: String,
+        name: String,
+    ) = slots[slot]?.get(name)
+
+    override suspend fun closeSlot(slot: String) {
+        slots.remove(slot)
+    }
+
     override suspend fun changes(cursor: Long): Pair<List<ChangedObject>, Long> {
         val fresh = objects.entries.filter { it.value.first > cursor }.sortedBy { it.value.first }
         return fresh.map {
@@ -105,7 +131,9 @@ fun draft(
 ) = Draft(op, SyncBytes.toHex(signer.did))
 
 /** A group of devices A and B, as A's genesis and A adding B. */
-class LinkedGroup {
+class LinkedGroup(
+    private val scope: TestScope,
+) {
     val store = MemoryStore()
     val group: ByteArray = SyncCrypto.randomBytes(16)
     val epochKey: ByteArray = SyncCrypto.randomBytes(32)
@@ -116,23 +144,37 @@ class LinkedGroup {
     suspend fun create() {
         val genesis =
             draft(Op.GENESIS, a).copy(
-                add = listOf(memberSubject(a, Role.DEVICE), memberSubject(recovery, Role.RECOVERY)),
+                add =
+                    listOf(
+                        memberSubject(a.sigPublic, a.kemPublic, Role.DEVICE),
+                        memberSubject(recovery.sigPublic, recovery.kemPublic, Role.RECOVERY),
+                    ),
                 epoch = epochDraft(epochKey, group, 0, listOf(a, recovery).map { SyncBytes.toHex(it.did) }),
             )
         store.roster += buildEntry(group, null, genesis, listOf(a, recovery))
         wraps(group, 0, epochKey, listOf(a, recovery)).forEach { (did, wrap) -> store.keys[0 to did] = SyncBytes.b64urlDecode(wrap) }
         val state = store.head()
-        val add = buildEntry(group, state, draft(Op.ADD, a).copy(add = listOf(memberSubject(b, Role.DEVICE))), listOf(a, b))
+        val add =
+            buildEntry(
+                group,
+                state,
+                draft(Op.ADD, a).copy(add = listOf(memberSubject(b.sigPublic, b.kemPublic, Role.DEVICE))),
+                listOf(a, b),
+            )
         check(store.appendRoster(state.head, add, wraps(group, 0, epochKey, listOf(b)), null) == Appended.Done)
     }
 
     /** A device database that has joined this group with the roster as far as it is now. */
     suspend fun deviceDb(): LinkedDatabase =
-        emptyDb().also { db ->
+        scope.emptyDb().also { db ->
             db.groups().saveGroup(GroupRecord(SyncBytes.toHex(group), "memory", null, LINK))
-            db.groups().addRoster(store.roster.map { RosterRow(it.seq, SyncSerialization.canonicalJson(entryJson(it))) })
+            db.groups().addEntries(store.roster)
         }
 }
 
-fun emptyDb(): LinkedDatabase =
-    Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LinkedDatabase::class.java).build()
+// Queries run on the test's scheduler, so its virtual clock never races real database work.
+fun TestScope.emptyDb(): LinkedDatabase =
+    Room
+        .inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LinkedDatabase::class.java)
+        .setQueryCoroutineContext(StandardTestDispatcher(testScheduler))
+        .build()

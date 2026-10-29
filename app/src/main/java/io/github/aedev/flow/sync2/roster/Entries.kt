@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync2.roster
 import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.crypto.epochCommitment
+import io.github.aedev.flow.sync2.crypto.memberId
 import io.github.aedev.flow.sync2.crypto.sign
 
 /** What an entry says, before the chain fields and signatures are added. */
@@ -16,9 +17,11 @@ data class Draft(
 )
 
 fun memberSubject(
-    member: MemberSecrets,
+    sigPublic: ByteArray,
+    kemPublic: ByteArray,
     role: Role,
-): Subject = Subject(SyncBytes.toHex(member.did), SyncBytes.b64urlEncode(member.sigPublic), SyncBytes.b64urlEncode(member.kemPublic), role)
+): Subject =
+    Subject(SyncBytes.toHex(memberId(sigPublic, kemPublic)), SyncBytes.b64urlEncode(sigPublic), SyncBytes.b64urlEncode(kemPublic), role)
 
 fun epochDraft(
     epochKey: ByteArray,
