@@ -20,6 +20,7 @@ enum class LinkedError(
     REMOVED,
     DECLINED,
     TIMED_OUT,
+    JOIN_DECLINED,
     WRONG_WORDS,
     RECOVERY_USED,
     ALREADY_LINKED,
@@ -49,6 +50,8 @@ fun Throwable.linkedError(): LinkedError =
         is LinkedException.Declined -> LinkedError.DECLINED
 
         is LinkedException.TimedOut -> LinkedError.TIMED_OUT
+
+        is LinkedException.JoinDeclined -> LinkedError.JOIN_DECLINED
 
         is LinkedException.WrongWords -> LinkedError.WRONG_WORDS
 

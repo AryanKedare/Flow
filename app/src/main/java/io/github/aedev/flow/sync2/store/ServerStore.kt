@@ -229,13 +229,14 @@ class ServerStore private constructor(
         check(send(admin(adminToken, "v1/join").post(body.toString().toRequestBody(JSON)).build())).close()
     }
 
-    /** The code a member answered a join request with, or null until one does. */
+    /** The code a member answered a join request with, or null until one does; a declined request throws. */
     suspend fun joinAnswer(
         adminToken: String,
         id: String,
     ): String? {
         val response = send(admin(adminToken, "v1/join/$id").build())
         if (response.code == 404) return null.also { response.close() }
+        if (response.code == 410) throw LinkedException.JoinDeclined().also { response.close() }
         return decode(response)["code"]?.jsonPrimitive?.contentOrNull ?: throw StoreException.Malformed()
     }
 
@@ -287,7 +288,8 @@ class ServerStore private constructor(
     }
 
     suspend fun declineJoin(id: String) {
-        authorized("DELETE", "v1/join/$id").use { if (it.code != 404) check(it) }
+        // 404: it expired; 409: another member answered or declined it first.
+        authorized("DELETE", "v1/join/$id").use { if (it.code != 404 && it.code != 409) check(it) }
     }
 
     override suspend fun rosterAfter(after: Long): List<Entry> =

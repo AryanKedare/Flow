@@ -2706,6 +2706,7 @@
     <string name="linked_error_not_linked">This device isn\'t in a group.</string>
     <string name="linked_error_removed">This device was removed from the group.</string>
     <string name="linked_error_declined">The verification codes weren\'t confirmed.</string>
+    <string name="linked_error_join_declined">A linked device declined the request to join.</string>
     <string name="linked_error_timed_out">The other device didn\'t answer in time.</string>
     <string name="linked_error_wrong_words">These aren\'t 24 valid recovery words.</string>
     <string name="linked_error_recovery_used">These recovery words were already used. Use the newer words that were shown then.</string>
