@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync2.service
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
@@ -64,7 +65,13 @@ class LinkedSyncWorker(
         if (tags.contains(OPEN_TAG) && sync.lastSync.value.let { it != null && System.currentTimeMillis() - it.atMs < OPEN_INTERVAL_MS }) {
             return Result.success()
         }
-        return if (sync.syncNow().error?.retryable == true) Result.retry() else Result.success()
+        return if (sync.syncNow(announce = inputData.getBoolean(ANNOUNCE, false)).error?.retryable ==
+            true
+        ) {
+            Result.retry()
+        } else {
+            Result.success()
+        }
     }
 
     companion object {
@@ -74,6 +81,7 @@ class LinkedSyncWorker(
         private const val LAN_NAME = "linked_sync_lan"
         private const val LAN_TAG = "linked_sync_lan"
         private const val SOON_NAME = "linked_sync_soon"
+        private const val ANNOUNCE = "announce"
 
         private val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
@@ -111,15 +119,26 @@ class LinkedSyncWorker(
             WorkManager.getInstance(context).enqueueUniqueWork(OPEN_NAME, ExistingWorkPolicy.KEEP, work)
         }
 
-        /** Sync now and leaving the app: starts at once and outlives the screen that asked for it. */
-        fun syncSoon(context: Context) {
+        /**
+         * Sync now and leaving the app: starts at once and outlives the screen that asked for it.
+         * [announce] for Sync now, which says what arrived.
+         */
+        fun syncSoon(
+            context: Context,
+            announce: Boolean = false,
+        ) {
             if (!SyncProfile.syncsHere(context)) return
             val work =
                 OneTimeWorkRequestBuilder<LinkedSyncWorker>()
                     .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .setConstraints(constraints)
-                    .setInputData(ProfileWork.data(context))
-                    .addTag(ProfileWork.tag(context))
+                    .setInputData(
+                        Data
+                            .Builder()
+                            .putAll(ProfileWork.data(context))
+                            .putBoolean(ANNOUNCE, announce)
+                            .build(),
+                    ).addTag(ProfileWork.tag(context))
                     .build()
             WorkManager.getInstance(context).enqueueUniqueWork(SOON_NAME, ExistingWorkPolicy.KEEP, work)
         }
