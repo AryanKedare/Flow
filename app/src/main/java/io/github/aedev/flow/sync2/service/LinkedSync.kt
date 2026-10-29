@@ -123,7 +123,7 @@ class LinkedSync
             for ((sender, batches) in pulled.batches) {
                 val meta = names[sender]
                 applyBatches(db.sent(), batches, System.currentTimeMillis()) { received ->
-                    applier.applyPayload(PeerInfo(sender, meta?.name.orEmpty(), meta?.platform.orEmpty()), received, hlc)
+                    applier.applyPayload(PeerInfo(sender, meta?.name.orEmpty(), meta?.platform.orEmpty()), received, hlc, onceEach = false)
                 }
             }
             session.finish(pulled)

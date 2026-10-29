@@ -138,6 +138,11 @@ class LocalStore(
         return rows.map { ChangedObject(it.path, it.size) } to (rows.lastOrNull()?.cursor ?: cursor)
     }
 
+    /** Forgets everything held, when this device leaves its group; the index goes with the database's tables. */
+    suspend fun clear() {
+        withContext(Dispatchers.IO) { root.deleteRecursively() }
+    }
+
     /** What a LAN peer asked for with [vv]: the log objects held above it, and the blobs held. */
     suspend fun list(vv: Map<String, Long>): Pair<List<String>, List<String>> {
         val paths = held.paths()

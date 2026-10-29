@@ -35,14 +35,12 @@ import io.github.aedev.flow.sync2.store.ServerStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -90,6 +88,7 @@ class LinkedActions
         private val identity: DeviceIdentity,
         private val local: LocalStore,
         lan: LanSync,
+        private val reset: LinkedReset,
         @ApplicationScope private val scope: CoroutineScope,
     ) {
         private val phase = MutableStateFlow<LinkPhase>(LinkPhase.Idle)
@@ -169,10 +168,7 @@ class LinkedActions
         }
 
         /** Leaves the group on this device only: its state goes, its keys stay. */
-        suspend fun forget() {
-            LinkedSyncWorker.cancel(context)
-            withContext(Dispatchers.IO) { db.clearAllTables() }
-        }
+        suspend fun forget() = reset.forget()
 
         suspend fun syncNow(): LastSync = sync.syncNow()
 
