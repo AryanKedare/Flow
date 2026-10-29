@@ -51,7 +51,9 @@ internal sealed interface Content {
         val manifest: Manifest,
     ) : Content
 
-    data object Ack : Content
+    class Ack(
+        val vv: Map<String, Long>,
+    ) : Content
 }
 
 private class ReadObject(
@@ -68,6 +70,9 @@ class Pulled internal constructor(
     internal val consumed: Int,
     /** An object is missing, so reading stopped before the end of the logs. */
     internal val stalled: Boolean,
+    internal val acks: Map<String, Map<String, Long>>,
+    internal val manifests: List<Logged>,
+    internal val links: Set<String?>,
 )
 
 /**
@@ -196,6 +201,9 @@ class Session private constructor(
         var cursor = record.cursor
         var consumed = 0
         var stalled = false
+        val acks = HashMap<String, Map<String, Long>>()
+        val manifests = ArrayList<Logged>()
+        val links = HashSet<String?>()
         if (positions.isEmpty() && cursor == 0L) {
             bootstrap()?.let { start ->
                 if (link == null || start.manifest.link == link) batches[start.writer] = start.batches.toMutableList()
@@ -218,10 +226,22 @@ class Session private constructor(
                     waiting.filter { (did, seq, path) ->
                         val read = readObject(path, did, seq, positions[did]) ?: return@filter true
                         positions[did] = read.position
-                        if (read.content != Content.Ack) consumed++
-                        (read.content as? Content.Batch)?.batch?.takeIf { link == null || it.link == link }?.let {
-                            batches.getOrPut(did) { ArrayList() } += it
+                        when (val content = read.content) {
+                            is Content.Ack -> {
+                                acks[did] = content.vv
+                            }
+
+                            is Content.Snapshot -> {
+                                manifests += Logged(did, seq, content.manifest)
+                                links += content.manifest.link
+                            }
+
+                            is Content.Batch -> {
+                                links += content.batch.link
+                                if (link == null || content.batch.link == link) batches.getOrPut(did) { ArrayList() } += content.batch
+                            }
                         }
+                        if (read.content !is Content.Ack) consumed++
                         false
                     }
                 if (still.size == waiting.size) break
@@ -234,7 +254,7 @@ class Session private constructor(
             }
             cursor = next
         }
-        return Pulled(batches, positions, cursor, consumed, stalled)
+        return Pulled(batches, positions, cursor, consumed, stalled, acks, manifests, links)
     }
 
     /** One log object, checked in the order of spec/store.md; `null` while an earlier one of this sender is missing. */
@@ -273,7 +293,7 @@ class Session private constructor(
         return when (parsed.header.type) {
             ObjectType.CHANGES -> Content.Batch(parseBatch(content))
             ObjectType.SNAPSHOT -> Content.Snapshot(parseManifest(content))
-            ObjectType.ACK -> Content.Ack
+            ObjectType.ACK -> Content.Ack(parseAck(content))
             ObjectType.LIVE -> reject(ProtocolError.SUITE)
         }
     }
@@ -282,6 +302,7 @@ class Session private constructor(
     suspend fun finish(pulled: Pulled) {
         db.groups().saveStreams(pulled.positions.map { (did, p) -> StreamRow(did, p.seq, SyncBytes.toHex(p.hash)) }, pulled.cursor)
         record = record.copy(cursor = pulled.cursor)
+        recordCollection(pulled)
         if (pulled.consumed > 0) {
             val vv = JsonObject(pulled.positions.toSortedMap().mapValues { (_, p) -> JsonPrimitive(p.seq) })
             write(ObjectType.ACK, SyncSerialization.canonicalJson(JsonObject(mapOf("vv" to vv))).toByteArray())

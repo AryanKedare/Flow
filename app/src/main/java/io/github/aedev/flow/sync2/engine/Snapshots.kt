@@ -90,5 +90,6 @@ suspend fun Session.writeSnapshot(exported: Map<String, CollectionWire>) {
     val vv = db.groups().streams().associate { it.did to Tip(it.hash, it.seq) } + (me to Tip(record.ownPrev, record.ownSeq))
     val manifest = Manifest(state.head, link, parts, vv.toSortedMap())
     write(ObjectType.SNAPSHOT, SyncSerialization.canonicalJson(Json.encodeToJsonElement(Manifest.serializer(), manifest)).toByteArray())
+    recordManifests(listOf(Logged(me, record.ownSeq, manifest)))
     db.snapshots().written(link, System.currentTimeMillis())
 }
