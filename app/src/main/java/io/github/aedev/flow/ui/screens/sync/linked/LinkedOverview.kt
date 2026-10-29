@@ -19,6 +19,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -49,6 +50,7 @@ internal fun LinkedOverview(
     onRename: (id: String, name: String) -> Unit,
     onRemove: (id: String) -> Unit,
     onForget: () -> Unit,
+    onUpdateLogin: (user: String, password: String) -> Unit,
     onAccept: (id: String) -> Unit,
     onDecline: (id: String) -> Unit,
 ) {
@@ -100,6 +102,7 @@ internal fun LinkedOverview(
             Text(error.message(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onErrorContainer)
         }
     }
+    if (state.error == LinkedError.LOGIN_REFUSED) LoginAgain(state.busy, onUpdateLogin)
     if (!state.recoverySaved) SyncInfoRow(icon = Icons.Outlined.Warning, text = stringResource(R.string.linked_recovery_unsaved))
 
     state.requests.forEach { request ->
@@ -247,5 +250,22 @@ private fun DeviceDialog(
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.linked_cancel)) } },
+    )
+}
+
+/** The WebDAV login the server refused, entered again; nothing is sent to the server until then. */
+@Composable
+private fun LoginAgain(
+    busy: Boolean,
+    onSave: (user: String, password: String) -> Unit,
+) {
+    var user by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    Text(stringResource(R.string.linked_login_again), Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
+    WebDavLoginFields(user, { user = it }, password, { password = it })
+    SyncActionRow(
+        confirmLabel = stringResource(R.string.linked_save),
+        onConfirm = { onSave(user.trim(), password) },
+        confirmEnabled = !busy && user.isNotBlank() && password.isNotEmpty(),
     )
 }
