@@ -41,9 +41,10 @@ class GroupStore(
 
     override suspend fun getObject(path: String): ByteArray? = local.getObject(path)
 
+    // The server first: a delete it refuses leaves the object held, so a later collection tries again.
     override suspend fun deleteObject(path: String) {
-        local.deleteObject(path)
         server?.deleteObject(path)
+        local.deleteObject(path)
     }
 
     override suspend fun changes(cursor: Long): Pair<List<ChangedObject>, Long> = local.changes(cursor)

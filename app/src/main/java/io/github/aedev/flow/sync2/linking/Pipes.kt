@@ -110,7 +110,8 @@ internal class LanPipe(
 
     override suspend fun receive(): ByteArray =
         try {
-            withTimeout(SLOT_LIFETIME_MS) { connection.receive() } ?: throw LinkedException.Unexpected()
+            // A closed connection: the other device gave up, often on an error of its own.
+            withTimeout(SLOT_LIFETIME_MS) { connection.receive() } ?: throw LinkedException.Stopped()
         } catch (_: TimeoutCancellationException) {
             throw LinkedException.TimedOut()
         }
