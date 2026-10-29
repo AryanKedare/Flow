@@ -35,6 +35,7 @@ import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.player.PipQueueNavigation
+import io.github.aedev.flow.sync2.service.LinkedSyncWorker
 import io.github.aedev.flow.ui.IncomingIntents
 import io.github.aedev.flow.ui.IncomingLinks
 import io.github.aedev.flow.ui.startup.FlowRoot
@@ -200,6 +201,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         DiscordPresenceRuntime.setAppForeground(true)
+        LinkedSyncWorker.syncOnOpen(this)
     }
 
     override fun onDestroy() {
