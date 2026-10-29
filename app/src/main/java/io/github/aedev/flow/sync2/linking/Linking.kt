@@ -17,6 +17,7 @@ import io.github.aedev.flow.sync2.crypto.seal
 import io.github.aedev.flow.sync2.crypto.sign
 import io.github.aedev.flow.sync2.crypto.wrapEpochKey
 import io.github.aedev.flow.sync2.data.GroupRecord
+import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.data.addEntries
 import io.github.aedev.flow.sync2.engine.LinkedException
@@ -32,6 +33,7 @@ import io.github.aedev.flow.sync2.roster.replayRoster
 import io.github.aedev.flow.sync2.roster.sealDeviceMeta
 import io.github.aedev.flow.sync2.roster.signingBytes
 import io.github.aedev.flow.sync2.store.Appended
+import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.Mailbox
 import io.github.aedev.flow.sync2.store.Store
 import kotlinx.coroutines.async
@@ -98,24 +100,24 @@ internal fun metaJson(meta: DeviceMeta): ByteArray = canonical(DeviceMeta.serial
  */
 suspend fun addDevice(
     session: Session,
-    mailbox: Mailbox,
+    mailbox: Mailbox?,
     offer: Offer,
     device: MemberSecrets,
     confirm: suspend (String) -> Boolean,
 ): String {
     val slot = SyncBytes.toHex(pairingSlot(offer.token))
-    mailbox.openSlot(slot)
+    mailbox?.openSlot(slot)
     try {
         val (pipe, key) =
             coroutineScope {
-                val mailboxPipe = MailboxPipe(mailbox, slot, shower = true)
-                val viaMailbox = async { mailboxPipe to mailboxPipe.receiveKey() }
+                val viaMailbox = mailbox?.let { MailboxPipe(it, slot, shower = true) }?.let { pipe -> async { pipe to pipe.receiveKey() } }
                 val viaLan = offer.listening?.let { listening -> async { listening.accept() } }
+                if (viaMailbox == null && viaLan == null) throw LinkedException.LanUnreachable()
                 select<Pair<Pipe, ByteArray>> {
-                    viaMailbox.onAwait { it }
+                    if (viaMailbox != null) viaMailbox.onAwait { it }
                     if (viaLan != null) viaLan.onAwait { it }
                 }.also {
-                    viaMailbox.cancel()
+                    viaMailbox?.cancel()
                     viaLan?.cancel()
                 }
             }
@@ -124,7 +126,7 @@ suspend fun addDevice(
     } finally {
         offer.listening?.stop()
         // The slot expires on its own if this fails.
-        runCatching { mailbox.closeSlot(slot) }
+        runCatching { mailbox?.closeSlot(slot) }
     }
 }
 
@@ -175,15 +177,27 @@ private suspend fun memberSide(
     }
 
     val record = session.record
-    channel.send(
-        Message.Welcome(
-            record.groupId,
-            after.head,
-            after.seq,
-            record.link,
-            WelcomeStore("server", record.storeUrl, record.instance.orEmpty()),
-        ),
-    )
+    val welcome =
+        if (record.storeUrl == LAN_STORE) {
+            Message.Welcome(
+                record.groupId,
+                after.head,
+                after.seq,
+                record.link,
+                WelcomeStore("lan"),
+                session.store.rosterAfter(-1),
+                SyncBytes.b64urlEncode(wrap),
+            )
+        } else {
+            Message.Welcome(
+                record.groupId,
+                after.head,
+                after.seq,
+                record.link,
+                WelcomeStore("server", record.storeUrl, record.instance.orEmpty()),
+            )
+        }
+    channel.send(welcome)
     if (channel.receive() != Message.Done) throw LinkedException.Unexpected()
     return didHex
 }
@@ -194,26 +208,37 @@ class Welcomed internal constructor(
     private val me: Subject,
     internal val welcome: Message.Welcome,
     /** Closes the LAN connection or server the welcome came through. */
-    private val close: () -> Unit,
+    private val close: suspend () -> Unit,
 ) {
-    val storeUrl: String get() = welcome.store.u
-    val instance: String get() = welcome.store.i
+    /** The Flow server to verify the roster on, or null for a LAN group, whose roster came with the welcome. */
+    val storeUrl: String? get() = welcome.store.u
+    val instance: String? get() = welcome.store.i
     val group: String get() = welcome.group
 
-    /** Saves the group once the roster on [store] verifies up to the head the member named. */
+    /**
+     * Saves the group once the roster verifies up to the head the member named: the one on [server],
+     * or, for a LAN group, the one the welcome carried, which [local] then holds with this device's wrap.
+     */
     suspend fun finish(
         db: LinkedDatabase,
-        store: Store,
+        local: LocalStore,
+        server: Store?,
     ) {
-        val roster = store.rosterAfter(-1)
+        val roster = if (server != null) server.rosterAfter(-1) else welcome.entries ?: throw LinkedException.Unexpected()
         val end = roster.indexOfFirst { it.seq == welcome.seq }
         if (end < 0 || replayRoster(roster.take(end + 1)).head != welcome.head || me.did !in replayRoster(roster).members) {
             reject(ProtocolError.ROSTER_CHAIN)
         }
         try {
+            if (server == null) {
+                local.addEntries(roster)
+                local.putKey(replayRoster(roster).epoch, me.did, SyncBytes.b64urlDecode(welcome.wrap ?: throw LinkedException.Unexpected()))
+            }
             db.groups().addEntries(roster)
             // A joined device never had recovery words to confirm; the device that created or restored the group did.
-            db.groups().saveGroup(GroupRecord(welcome.group, welcome.store.u, welcome.store.i, welcome.link, recoverySaved = true))
+            db.groups().saveGroup(
+                GroupRecord(welcome.group, welcome.store.u ?: LAN_STORE, welcome.store.i, welcome.link, recoverySaved = true),
+            )
             channel.send(Message.Done)
         } finally {
             close()
@@ -227,7 +252,7 @@ private suspend fun newSide(
     device: MemberSecrets,
     meta: DeviceMeta,
     confirm: suspend (String) -> Boolean,
-    close: () -> Unit,
+    close: suspend () -> Unit,
 ): Welcomed {
     channel.send(Message.Join(SyncBytes.b64urlEncode(device.sigPublic), SyncBytes.b64urlEncode(device.kemPublic), meta))
     if (!confirm(sas)) throw LinkedException.Declined()
@@ -238,7 +263,7 @@ private suspend fun newSide(
     channel.send(Message.Accept(SyncBytes.b64urlEncode(sign(device.sigSeed, signingBytes(entry)))))
 
     val welcome = channel.receive() as? Message.Welcome ?: throw LinkedException.Unexpected()
-    if (welcome.group != entry.group || welcome.store.k != "server") throw LinkedException.Unexpected()
+    if (welcome.group != entry.group || welcome.store.k !in setOf("server", "lan")) throw LinkedException.Unexpected()
     return Welcomed(channel, me, welcome, close)
 }
 
@@ -248,15 +273,18 @@ private suspend fun newSide(
  */
 suspend fun join(
     db: LinkedDatabase,
-    store: Store,
-    mailbox: Mailbox,
+    local: LocalStore,
+    server: Store?,
+    mailbox: Mailbox?,
     code: Code.Member,
     device: MemberSecrets,
     meta: DeviceMeta,
     confirm: suspend (String) -> Boolean,
 ) {
-    val pipe = dial(code.lan) ?: MailboxPipe(mailbox, SyncBytes.toHex(pairingSlot(code.token)), shower = false)
-    val close = { (pipe as? LanPipe)?.close() ?: Unit }
+    val pipe =
+        dial(code.lan) ?: mailbox?.let { MailboxPipe(it, SyncBytes.toHex(pairingSlot(code.token)), shower = false) }
+            ?: throw LinkedException.LanUnreachable()
+    val close: suspend () -> Unit = { (pipe as? LanPipe)?.close() }
     val welcomed =
         try {
             val (channel, sas) = Channel.scanner(pipe, code)
@@ -266,7 +294,7 @@ suspend fun join(
             close()
             throw e
         }
-    welcomed.finish(db, store)
+    welcomed.finish(db, local, server)
 }
 
 /** The new device's side, on the code it shows: waits on the LAN for a member to scan it. */
@@ -280,7 +308,10 @@ suspend fun answerShown(
     try {
         val (pipe, key) = listening.accept()
         val (channel, sas) = Channel.shower(pipe, offer, key)
-        return newSide(channel, sas, device, meta, confirm, listening::stop)
+        return newSide(channel, sas, device, meta, confirm) {
+            pipe.awaitClosed()
+            listening.stop()
+        }
     } catch (e: Exception) {
         listening.stop()
         throw e

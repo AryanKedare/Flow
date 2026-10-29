@@ -14,6 +14,7 @@ import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync2.changes.applyBatches
 import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.data.GroupRecord
+import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.engine.Session
@@ -58,10 +59,18 @@ class LinkedSync
 
         val lastSync: StateFlow<LastSync?> = last.asStateFlow()
 
+        /** The group's Flow server, or null for a group that lives on its devices alone. */
         fun server(
             record: GroupRecord,
             device: MemberSecrets,
-        ): ServerStore = ServerStore.connect(record.storeUrl, device, record.instance, record.groupId)
+        ): ServerStore? =
+            if (record.storeUrl ==
+                LAN_STORE
+            ) {
+                null
+            } else {
+                ServerStore.connect(record.storeUrl, device, record.instance, record.groupId)
+            }
 
         fun groupStore(
             record: GroupRecord,

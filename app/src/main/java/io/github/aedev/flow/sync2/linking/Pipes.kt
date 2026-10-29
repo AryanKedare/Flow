@@ -17,6 +17,7 @@ import java.util.Locale
 
 private const val PAIR_PATH = "/flow-sync/2/pair"
 private const val CONNECT_TIMEOUT_MS = 3_000L
+private const val CLOSE_WAIT_MS = 5_000L
 private const val POLL_INTERVAL_MS = 2_000L
 internal const val SLOT_LIFETIME_MS = 180_000L
 
@@ -119,6 +120,11 @@ internal class LanPipe(
     override suspend fun receiveKey(): ByteArray = receive().takeIf { it.size == KEY_SIZE } ?: throw LinkedException.Unexpected()
 
     fun close() = connection.close()
+
+    /** Waits for the other side to close, so a last message isn't lost when this side stops serving. */
+    suspend fun awaitClosed() {
+        withTimeoutOrNull(CLOSE_WAIT_MS) { while (connection.receive() != null) Unit }
+    }
 }
 
 /** Where this device listens while it shows a code. */

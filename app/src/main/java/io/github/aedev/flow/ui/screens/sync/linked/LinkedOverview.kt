@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.service.LinkedDevice
 import io.github.aedev.flow.sync2.service.LinkedError
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
@@ -65,8 +66,14 @@ internal fun LinkedOverview(
         state.lastSync?.let { DateUtils.getRelativeTimeSpanString(it.atMs).toString() } ?: stringResource(R.string.linked_last_sync_never)
     SyncRowGroup(count = 2) { index, shape ->
         if (index == 0) {
-            FlowNavRow(stringResource(R.string.linked_server), {
-            }, supportingText = state.storeUrl, leadingIcon = Icons.Outlined.Cloud, showChevron = false, shape = shape)
+            FlowNavRow(
+                title = stringResource(R.string.linked_server),
+                onClick = {},
+                supportingText = if (state.storeUrl == LAN_STORE) stringResource(R.string.linked_server_lan) else state.storeUrl,
+                leadingIcon = Icons.Outlined.Cloud,
+                showChevron = false,
+                shape = shape,
+            )
         } else {
             FlowNavRow(
                 title = stringResource(if (state.busy) R.string.linked_syncing else R.string.linked_sync_now),

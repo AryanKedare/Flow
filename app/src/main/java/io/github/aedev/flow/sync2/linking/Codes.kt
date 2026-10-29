@@ -16,10 +16,10 @@ sealed class Code(
     val qr: QrCode,
     val lan: List<LanEndpoint>,
 ) {
-    /** A member's code, which a new device answers: its Flow server, and LAN addresses to try first. */
+    /** A member's code, which a new device answers: its Flow server (null for a LAN group), and LAN addresses to try first. */
     class Member(
         qr: QrCode,
-        val storeUrl: String,
+        val storeUrl: String?,
         lan: List<LanEndpoint>,
     ) : Code(qr, lan)
 
@@ -48,7 +48,8 @@ fun readCode(text: String): Code {
     val lan = qr.l.orEmpty()
     val store = qr.s
     return when {
-        qr.v == 2 && qr.r == "m" && store?.k == "server" -> Code.Member(qr, store.u, lan)
+        qr.v == 2 && qr.r == "m" && store?.k == "server" && store.u != null -> Code.Member(qr, store.u, lan)
+        qr.v == 2 && qr.r == "m" && store?.k == "lan" && lan.isNotEmpty() -> Code.Member(qr, null, lan)
         qr.v == 2 && qr.r == "n" && store == null && lan.isNotEmpty() -> Code.New(qr, lan)
         else -> throw LinkedException.Unexpected()
     }
@@ -63,9 +64,9 @@ class Offer internal constructor(
     internal val listening: Listening?,
 )
 
-/** A member's code ([storeUrl] set) or a new device's ([storeUrl] null, so it must listen). */
+/** A member's code ([store] set) or a new device's ([store] null, so it must listen). */
 fun newOffer(
-    storeUrl: String?,
+    store: StoreLocation?,
     deviceName: String,
     listening: Listening?,
 ): Offer {
@@ -77,9 +78,9 @@ fun newOffer(
             v = 2,
             t = SyncBytes.b64urlEncode(token),
             e = SyncBytes.b64urlEncode(public),
-            r = if (storeUrl != null) "m" else "n",
+            r = if (store != null) "m" else "n",
             d = deviceName.take(NAME_LIMIT),
-            s = storeUrl?.let { StoreLocation("server", it) },
+            s = store,
             l = listening?.addresses,
         )
     return Offer(canonical(QrCode.serializer(), code), token, secret, public, listening)

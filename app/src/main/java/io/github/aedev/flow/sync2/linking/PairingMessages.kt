@@ -18,7 +18,7 @@ internal fun <T> canonical(
 @Serializable
 data class StoreLocation(
     val k: String,
-    val u: String,
+    val u: String? = null,
 )
 
 /** What the QR code carries: no long-term secret, only a one-time token and an ephemeral key. */
@@ -43,8 +43,8 @@ data class DeviceMeta(
 @Serializable
 data class WelcomeStore(
     val k: String,
-    val u: String,
-    val i: String,
+    val u: String? = null,
+    val i: String? = null,
 )
 
 @Serializable
@@ -77,6 +77,9 @@ internal sealed interface Message {
         val seq: Long,
         val link: String,
         val store: WelcomeStore,
+        /** A LAN group has no store to read: the roster up to [head], and the new device's wrap of the current epoch. */
+        val entries: List<Entry>? = null,
+        val wrap: String? = null,
     ) : Message
 
     @Serializable

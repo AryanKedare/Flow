@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ internal fun LinkedSetup(
     hostOnly: Boolean,
     busy: Boolean,
     onCreate: (url: String, adminToken: String) -> Unit,
+    onCreateOnNetwork: () -> Unit,
     onEnterCode: (code: String) -> Unit,
     onShowCode: () -> Unit,
     onRestore: (url: String, words: String) -> Unit,
@@ -59,6 +61,13 @@ internal fun LinkedSetup(
                         stringResource(R.string.linked_create_body),
                     ) {
                         setup = Setup.CREATE
+                    },
+                    SyncOption(
+                        Icons.Outlined.Wifi,
+                        stringResource(R.string.linked_create_lan_title),
+                        stringResource(R.string.linked_create_lan_body),
+                    ) {
+                        if (!busy) onCreateOnNetwork()
                     },
                     SyncOption(
                         Icons.Outlined.QrCodeScanner,

@@ -11,6 +11,7 @@ import io.github.aedev.flow.sync2.linking.Code
 import io.github.aedev.flow.sync2.linking.DeviceMeta
 import io.github.aedev.flow.sync2.linking.LanEndpoint
 import io.github.aedev.flow.sync2.linking.Listening
+import io.github.aedev.flow.sync2.linking.StoreLocation
 import io.github.aedev.flow.sync2.linking.addDevice
 import io.github.aedev.flow.sync2.linking.addScanned
 import io.github.aedev.flow.sync2.linking.answerShown
@@ -53,7 +54,7 @@ class LanPairingTest {
             val added =
                 withContext(Dispatchers.Default) {
                     coroutineScope {
-                        val shown = async { answerShown(offer, tv, meta) { true }.finish(db, g.store) }
+                        val shown = async { answerShown(offer, tv, meta) { true }.finish(db, heldStore(db), g.store) }
                         addScanned(session, code as Code.New, g.a) { true }.also { shown.await() }
                     }
                 }
@@ -70,14 +71,14 @@ class LanPairingTest {
             val session = Session.open(g.deviceDb(), g.store, g.a)
             val phone = newMember()
             val db = emptyDb()
-            val offer = newOffer("memory", "Desktop A", loopback())
+            val offer = newOffer(StoreLocation("server", "memory"), "Desktop A", loopback())
             val code = readCode(offer.qr) as Code.Member
             assertEquals(1, code.lan.size)
             val added =
                 withContext(Dispatchers.Default) {
                     coroutineScope {
                         val added = async { addDevice(session, g.store, offer, g.a) { true } }
-                        join(db, g.store, g.store, code, phone, meta) { true }
+                        join(db, heldStore(db), g.store, g.store, code, phone, meta) { true }
                         added.await()
                     }
                 }
