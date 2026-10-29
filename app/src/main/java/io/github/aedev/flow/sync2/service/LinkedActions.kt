@@ -29,7 +29,6 @@ import io.github.aedev.flow.sync2.linking.createLanGroup
 import io.github.aedev.flow.sync2.linking.createWebDavGroup
 import io.github.aedev.flow.sync2.linking.deviceNames
 import io.github.aedev.flow.sync2.linking.join
-import io.github.aedev.flow.sync2.linking.leaveGroup
 import io.github.aedev.flow.sync2.linking.listen
 import io.github.aedev.flow.sync2.linking.newOffer
 import io.github.aedev.flow.sync2.linking.readCode
@@ -228,20 +227,8 @@ class LinkedActions
             db.snapshots().snapshotSoon()
         }
 
-        /**
-         * Leaves the group (spec/protocol.md, Leaving): appends `leave` while other devices remain, so
-         * they start an epoch without this one, then forgets the group with this device's keys. The
-         * last device only forgets it.
-         */
-        suspend fun leave() {
-            val session = session()
-            if (session.state.members.values
-                    .count { it.role == Role.DEVICE } > 1
-            ) {
-                leaveGroup(session, keys.load())
-            }
-            reset.forget()
-        }
+        /** Leaves the group, telling the others ([LinkedReset.leave]). */
+        suspend fun leave() = reset.leave()
 
         /** Forgets the group and this device's keys without telling the others, as after being removed. */
         suspend fun forget() = reset.forget()
