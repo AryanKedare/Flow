@@ -215,7 +215,7 @@ class ServerStore private constructor(
     override suspend fun key(
         epoch: Int,
         name: String,
-    ): ByteArray? = getBytes("v1/keys/${epoch.toUInt().toString(16).padStart(8, '0')}/$name.k")
+    ): ByteArray? = getBytes("v1/keys/${epochName(epoch)}/$name.k")
 
     override suspend fun putObject(
         path: String,

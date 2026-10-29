@@ -1,0 +1,25 @@
+package io.github.aedev.flow.sync2.store
+
+private fun hex(
+    value: Long,
+    width: Int,
+): String = value.toULong().toString(16).padStart(width, '0')
+
+/** Store paths (spec/store.md, Layout). */
+object StorePaths {
+    fun log(
+        did: String,
+        seq: Long,
+    ): String = "dev/$did/log/${hex(seq ushr 10, 16)}/${hex(seq, 16)}.o"
+
+    private val LOG = Regex("dev/([0-9a-f]{32})/log/[0-9a-f]{16}/([0-9a-f]{16})\\.o")
+
+    /** The sender and sequence of a log object path, or `null` for any other path. */
+    fun parseLog(path: String): Pair<String, Long>? {
+        val (did, seq) = LOG.matchEntire(path)?.destructured ?: return null
+        return (did to seq.toULong(16).toLong()).takeIf { log(it.first, it.second) == path }
+    }
+}
+
+/** The name an epoch's wraps and chain box live under. */
+fun epochName(epoch: Int): String = hex(epoch.toLong() and 0xffff_ffffL, 8)
