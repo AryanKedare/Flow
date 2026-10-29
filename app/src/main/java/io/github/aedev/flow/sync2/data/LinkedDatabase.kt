@@ -1,5 +1,6 @@
 package io.github.aedev.flow.sync2.data
 
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -38,8 +39,9 @@ interface SentDao {
         LinkRow::class,
         CollectedRow::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
 )
 abstract class LinkedDatabase : RoomDatabase() {
     abstract fun sent(): SentDao
