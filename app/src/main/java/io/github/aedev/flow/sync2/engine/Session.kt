@@ -53,6 +53,8 @@ class Pulled internal constructor(
     internal val cursor: Long,
     /** Batches and snapshot manifests read; acks alone don't call for an ack. */
     internal val consumed: Int,
+    /** An object is missing, so reading stopped before the end of the logs. */
+    internal val stalled: Boolean,
 )
 
 /**
@@ -152,11 +154,35 @@ class Session private constructor(
      * Reads other devices' new objects in stream order, checking each one. Nothing is applied: the
      * caller applies [Pulled.batches] and then calls [finish].
      */
-    suspend fun pull(): Pulled {
+    suspend fun pull(): Pulled = read(record.link)
+
+    /**
+     * Links a restored device's profile (spec/protocol.md, Recovery): to the link other devices'
+     * batches name, or to [own] when they name none. False while the logs can't be read to the end
+     * yet; nothing may be pushed or pulled until this returns true.
+     */
+    suspend fun adoptLink(own: String): Boolean {
+        if (record.link.isNotEmpty()) return true
+        val read = read(link = null)
+        if (read.stalled) return false
+        record =
+            record.copy(
+                link =
+                    read.batches.values
+                        .flatten()
+                        .firstNotNullOfOrNull { it.link } ?: own,
+            )
+        db.groups().saveGroup(record)
+        return true
+    }
+
+    /** Batches of [link] only, or every batch when [link] is null. */
+    private suspend fun read(link: String?): Pulled {
         val positions = db.groups().streams().associateTo(HashMap()) { it.did to StreamPosition(it.seq, SyncBytes.fromHex(it.hash)) }
         val batches = LinkedHashMap<String, MutableList<IncomingBatch>>()
         var cursor = record.cursor
         var consumed = 0
+        var stalled = false
         while (true) {
             val (changes, next) = store.changes(cursor)
             if (changes.isEmpty()) break
@@ -174,17 +200,20 @@ class Session private constructor(
                         val read = readObject(path, did, seq, positions[did]) ?: return@filter true
                         positions[did] = read.position
                         if (read.type != ObjectType.ACK) consumed++
-                        read.batch?.takeIf { it.link == record.link }?.let { batches.getOrPut(did) { ArrayList() } += it }
+                        read.batch?.takeIf { link == null || it.link == link }?.let { batches.getOrPut(did) { ArrayList() } += it }
                         false
                     }
                 if (still.size == waiting.size) break
                 waiting = still
             }
             // A missing object means the store hasn't caught up: read this page again next time.
-            if (waiting.isNotEmpty()) break
+            if (waiting.isNotEmpty()) {
+                stalled = true
+                break
+            }
             cursor = next
         }
-        return Pulled(batches, positions, cursor, consumed)
+        return Pulled(batches, positions, cursor, consumed, stalled)
     }
 
     /** One log object, checked in the order of spec/store.md; `null` while an earlier one of this sender is missing. */
