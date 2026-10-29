@@ -161,4 +161,18 @@ class SyncChangeTrackerTest {
 
             assertTrue("a clock an hour behind still stamps after the peer", Hlc.decode(edited.hlc).physicalMs > later)
         }
+
+    @Test
+    fun a_channel_removed_from_a_group_goes_out_as_a_member_tombstone() =
+        runBlocking {
+            coEvery { data.readSubscriptions("") } returns
+                listOf(CanonicalSubscriptionGroup(name = "Tech", channelIds = listOf("c1", "c2")))
+            tracker.groups(node)
+            coEvery { data.readSubscriptions("") } returns listOf(CanonicalSubscriptionGroup(name = "Tech", channelIds = listOf("c1")))
+
+            val group = tracker.groups(node).single()
+
+            assertEquals(listOf("c1"), group.channelIds)
+            assertEquals(listOf("c1" to false, "c2" to true), group.members.map { it.channelId to it.deleted })
+        }
 }
