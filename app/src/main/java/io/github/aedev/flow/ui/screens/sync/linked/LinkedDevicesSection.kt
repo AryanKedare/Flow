@@ -65,6 +65,7 @@ internal fun LinkedDevicesSection(
                 onScanNewDevice = if (hostOnly) null else ({ scanning = true }),
                 onRename = viewModel::rename,
                 onRemove = viewModel::remove,
+                onLeave = viewModel::leave,
                 onForget = viewModel::forget,
                 onAccept = viewModel::accept,
                 onDecline = viewModel::decline,

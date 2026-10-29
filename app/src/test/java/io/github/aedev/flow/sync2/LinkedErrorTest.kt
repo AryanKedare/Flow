@@ -19,6 +19,7 @@ class LinkedErrorTest {
         assertEquals(LinkedError.UNREACHABLE, StoreException.Network(IOException()).linkedError())
         assertEquals(LinkedError.PROTOCOL, ProtocolException(ProtocolError.SIGNATURE).linkedError())
         assertEquals(LinkedError.REMOVED, LinkedException.Removed().linkedError())
+        assertEquals(LinkedError.REMOVED, StoreException.SignInRefused().linkedError())
         assertEquals(LinkedError.LOCAL, DamagedKeysException().linkedError())
         assertEquals(LinkedError.BUSY, StoreException.Refused(429, "rate_limited").linkedError())
         assertEquals(LinkedError.REFUSED, StoreException.Refused(401, "unauthorized").linkedError())

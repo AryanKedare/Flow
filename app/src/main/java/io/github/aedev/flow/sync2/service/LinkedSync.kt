@@ -18,11 +18,13 @@ import io.github.aedev.flow.sync2.data.GroupRecord
 import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.device.DeviceKeys
+import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.engine.collectGarbage
 import io.github.aedev.flow.sync2.engine.isDue
 import io.github.aedev.flow.sync2.engine.writeSnapshot
 import io.github.aedev.flow.sync2.linking.deviceNames
+import io.github.aedev.flow.sync2.linking.rotateEpoch
 import io.github.aedev.flow.sync2.store.GroupStore
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
@@ -68,6 +70,7 @@ class LinkedSync
         private val identity: DeviceIdentity,
         private val local: LocalStore,
         private val indicator: SyncIndicator,
+        private val reset: LinkedReset,
     ) {
         private val running = Mutex()
         private val last = MutableStateFlow<LastSync?>(null)
@@ -121,6 +124,11 @@ class LinkedSync
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        // Out of the group: a verified roster drops this device, or its server refuses it a token.
+                        when (e) {
+                            is LinkedException.Removed -> reset.removed()
+                            is StoreException.SignInRefused -> LinkedSyncWorker.cancel(context)
+                        }
                         e.linkedError()
                     } finally {
                         active.value = false
@@ -147,8 +155,15 @@ class LinkedSync
                 } catch (e: StoreException.Network) {
                     e
                 }
-            val session = Session.open(db, if (offline == null) store else GroupStore(local, null), device)
+            val reading = if (offline == null) store else GroupStore(local, null)
+            var session = Session.open(db, reading, device)
             if (!session.adoptLink(ActiveProfile.get(context).id)) return
+            // A device left: start the epoch it never receives before writing anything, then read the roster back (spec/protocol.md, Leaving).
+            if (session.state.rotate && offline == null) {
+                if (rotateEpoch(session, device)) db.snapshots().snapshotSoon()
+                store.download(me, record.serverCursor, objects = false)
+                session = Session.open(db, reading, device)
+            }
             val link = session.record.link
             val pushed = session.push(export())
 

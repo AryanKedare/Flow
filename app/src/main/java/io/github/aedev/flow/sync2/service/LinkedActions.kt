@@ -25,6 +25,7 @@ import io.github.aedev.flow.sync2.linking.createGroup
 import io.github.aedev.flow.sync2.linking.createLanGroup
 import io.github.aedev.flow.sync2.linking.deviceNames
 import io.github.aedev.flow.sync2.linking.join
+import io.github.aedev.flow.sync2.linking.leaveGroup
 import io.github.aedev.flow.sync2.linking.listen
 import io.github.aedev.flow.sync2.linking.newOffer
 import io.github.aedev.flow.sync2.linking.readCode
@@ -113,8 +114,10 @@ class LinkedActions
 
         private suspend fun linked(): GroupRecord = db.groups().group() ?: throw LinkedException.NotLinked()
 
-        private suspend fun ensureUnlinked() {
+        /** Fresh device keys for a group this device is about to create, join or restore (spec/crypto.md, Device keys). */
+        private suspend fun newMembership(): MemberSecrets {
             if (db.groups().group() != null) throw LinkedException.AlreadyLinked()
+            return keys.fresh()
         }
 
         private suspend fun session(): Session = sync.open(linked(), keys.load())
@@ -147,25 +150,20 @@ class LinkedActions
         suspend fun create(
             url: String,
             adminToken: String,
-        ): String {
-            ensureUnlinked()
-            return createGroup(db, url.trim(), adminToken.trim(), keys.load(), meta(), ActiveProfile.get(context).id).also { linkedNow() }
-        }
+        ): String =
+            createGroup(db, url.trim(), adminToken.trim(), newMembership(), meta(), ActiveProfile.get(context).id).also { linkedNow() }
 
         /** Creates a group on this network alone, with no server, and returns the recovery words. */
-        suspend fun createOnNetwork(): String {
-            ensureUnlinked()
-            return createLanGroup(db, local, keys.load(), meta(), ActiveProfile.get(context).id).also { linkedNow() }
-        }
+        suspend fun createOnNetwork(): String =
+            createLanGroup(db, local, newMembership(), meta(), ActiveProfile.get(context).id).also {
+                linkedNow()
+            }
 
         /** Restores the group with the recovery words and returns the new words to show once. */
         suspend fun restore(
             url: String,
             words: String,
-        ): String {
-            ensureUnlinked()
-            return restoreGroup(db, url.trim(), words, keys.load(), meta()).also { linkedNow() }
-        }
+        ): String = restoreGroup(db, url.trim(), words, newMembership(), meta()).also { linkedNow() }
 
         suspend fun confirmRecoverySaved() = db.groups().setRecoverySaved(true)
 
@@ -183,7 +181,22 @@ class LinkedActions
             db.snapshots().snapshotSoon()
         }
 
-        /** Leaves the group on this device only: its state goes, its keys stay. */
+        /**
+         * Leaves the group (spec/protocol.md, Leaving): appends `leave` while other devices remain, so
+         * they start an epoch without this one, then forgets the group with this device's keys. The
+         * last device only forgets it.
+         */
+        suspend fun leave() {
+            val session = session()
+            if (session.state.members.values
+                    .count { it.role == Role.DEVICE } > 1
+            ) {
+                leaveGroup(session, keys.load())
+            }
+            reset.forget()
+        }
+
+        /** Forgets the group and this device's keys without telling the others, as after being removed. */
         suspend fun forget() = reset.forget()
 
         val syncing: StateFlow<Boolean> = sync.syncing
@@ -204,15 +217,14 @@ class LinkedActions
         /** Answers another device's code: a member's when this device isn't linked, a new device's when it is. */
         fun enterCode(text: String) =
             start {
-                val device = keys.load()
                 when (val code = readCode(text)) {
                     is Code.Member -> {
-                        joinMember(code, device)
+                        joinMember(code, newMembership())
                     }
 
                     is Code.New -> {
                         if (db.groups().group() == null) throw LinkedException.NeedsMember()
-                        addScanned(session(), code, device, ::confirm)
+                        addScanned(session(), code, keys.load(), ::confirm)
                     }
                 }
             }
@@ -221,7 +233,6 @@ class LinkedActions
             code: Code.Member,
             device: MemberSecrets,
         ) {
-            ensureUnlinked()
             val server = code.storeUrl?.let { ServerStore.connect(it, device, null, null) }
             join(db, local, server, server, code, device, meta(), ::confirm)
             linkedNow()
@@ -232,8 +243,7 @@ class LinkedActions
             url: String,
             adminToken: String,
         ) = start {
-            ensureUnlinked()
-            val device = keys.load()
+            val device = newMembership()
             phase.value = LinkPhase.Asked
             val code = askToJoin(ServerStore.connect(url.trim(), device, null, null), adminToken.trim(), meta().name)
             phase.value = LinkPhase.Waiting(null)
@@ -265,8 +275,7 @@ class LinkedActions
         /** Shows a new device's code, for a member on the same network to scan: how a TV joins. */
         fun showCode() =
             start {
-                ensureUnlinked()
-                val device = keys.load()
+                val device = newMembership()
                 val offer = newOffer(null, meta().name, listen() ?: throw LinkedException.LanUnreachable())
                 phase.value = LinkPhase.Waiting(offer.qr)
                 val welcomed = answerShown(offer, device, meta(), ::confirm)

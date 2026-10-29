@@ -145,14 +145,19 @@ class ServerStore private constructor(
                 throw StoreException.Malformed()
             }
         val issued =
-            postJson(
-                "v1/auth/token",
-                buildJsonObject {
-                    put("did", did)
-                    put("challenge", nonce)
-                    put("sig", SyncBytes.b64urlEncode(sign(member.sigSeed, message)))
-                },
-            )
+            try {
+                postJson(
+                    "v1/auth/token",
+                    buildJsonObject {
+                        put("did", did)
+                        put("challenge", nonce)
+                        put("sig", SyncBytes.b64urlEncode(sign(member.sigSeed, message)))
+                    },
+                )
+            } catch (e: StoreException.Refused) {
+                // The server issues tokens only to current devices: this one left or was removed.
+                if (e.status == 401 || e.status == 403) throw StoreException.SignInRefused() else throw e
+            }
         val value = issued["token"]?.jsonPrimitive?.contentOrNull ?: throw StoreException.Malformed()
         val expires = issued["expires"]?.jsonPrimitive?.longOrNull ?: throw StoreException.Malformed()
         instance = instanceId

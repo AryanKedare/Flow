@@ -74,6 +74,9 @@ sealed class StoreException(
         val rateLimited: Boolean get() = status == 429
     }
 
+    /** The Flow server issues this device no token: it is no longer in the group, and can't read the roster to see that. */
+    class SignInRefused : StoreException("The server refused this device's sign-in")
+
     class InstanceChanged : StoreException("This is not the server instance this device paired with")
 
     class Malformed : StoreException("The server sent an invalid response")

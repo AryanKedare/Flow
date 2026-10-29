@@ -5,13 +5,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore
 import io.github.aedev.flow.sync2.data.LinkedDatabase
+import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.store.LocalStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Leaving the linked group on this device, by choice or because its data was replaced. */
+/** Leaving the linked group on this device: by choice, because its data was replaced, or because it was removed. */
 @Singleton
 class LinkedReset
     @Inject
@@ -20,12 +21,25 @@ class LinkedReset
         private val db: LinkedDatabase,
         private val local: LocalStore,
         private val ledger: SyncChangeLedgerStore,
+        private val keys: DeviceKeys,
     ) {
-        /** Leaves the group on this device only: its state and what it holds go, its keys stay. */
+        /** Forgets the group on this device: its state, what it holds and its keys (spec/crypto.md, Device keys) go. */
         suspend fun forget() {
             LinkedSyncWorker.cancel(context)
             withContext(Dispatchers.IO) { db.clearAllTables() }
             local.clear()
+            keys.delete()
+        }
+
+        /**
+         * A verified roster no longer lists this device: it stops syncing and deletes its keys and the
+         * group's epoch keys with everything it held. The group stays recorded, so Linked devices can
+         * say so until the user forgets it.
+         */
+        suspend fun removed() {
+            LinkedSyncWorker.cancel(context)
+            local.clear()
+            keys.delete()
         }
 
         /**
