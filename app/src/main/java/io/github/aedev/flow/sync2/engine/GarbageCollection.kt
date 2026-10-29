@@ -77,10 +77,12 @@ class Facts(
 
     private fun acknowledged(link: String?): List<Logged> = manifests.filter { it.manifest.link == link && acked(it.did) >= it.seq }
 
+    /** A newer acknowledged snapshot covers [old], and every device read past [old] itself, so its removal leaves no gap. */
     private fun superseded(old: Logged): Boolean =
-        acknowledged(old.manifest.link).any { newer ->
-            newer != old && old.manifest.vv.all { (did, tip) -> (newer.manifest.vv[did]?.seq ?: -1) >= tip.seq }
-        }
+        acked(old.did) >= old.seq &&
+            acknowledged(old.manifest.link).any { newer ->
+                newer != old && old.manifest.vv.all { (did, tip) -> (newer.manifest.vv[did]?.seq ?: -1) >= tip.seq }
+            }
 
     /** How far every link's newest acknowledged snapshot covers [did]'s log. */
     private fun covered(did: String): Long =
