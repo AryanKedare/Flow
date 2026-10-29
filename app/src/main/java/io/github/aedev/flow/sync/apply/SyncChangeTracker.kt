@@ -15,6 +15,7 @@ import io.github.aedev.flow.sync.canonical.CanonicalPlaylistItem
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
 import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
+import io.github.aedev.flow.sync.identity.DeviceIdentity
 import io.github.aedev.flow.sync.identity.Hlc
 import io.github.aedev.flow.sync.mapping.PlaylistMapper
 import io.github.aedev.flow.sync.mapping.SettingsMapper
@@ -36,6 +37,7 @@ class SyncChangeTracker
     constructor(
         private val data: SyncDataAccess,
         private val store: SyncChangeLedgerStore,
+        private val identity: DeviceIdentity,
     ) {
         private val json =
             Json {
@@ -49,7 +51,8 @@ class SyncChangeTracker
 
         suspend fun watchHistory(node: String): List<CanonicalWatchHistory> {
             val live = data.readWatchHistory(node)
-            val ledger = store.update(WATCH_HISTORY) { it.observe(live.associate { r -> r.videoId to PRESENT }, now()) }
+            val at = now()
+            val ledger = store.update(WATCH_HISTORY) { it.observe(live.associate { r -> r.videoId to PRESENT }, at) }
             return live +
                 ledger.tombstones().map { (videoId, e) ->
                     peerRecord(e, CanonicalWatchHistory.serializer())
@@ -68,7 +71,8 @@ class SyncChangeTracker
 
         suspend fun likes(node: String): List<CanonicalLike> {
             val live = data.readLikes(node)
-            val ledger = store.update(LIKES) { it.observe(live.associate { r -> likeKey(r) to PRESENT }, now()) }
+            val at = now()
+            val ledger = store.update(LIKES) { it.observe(live.associate { r -> likeKey(r) to PRESENT }, at) }
             return live +
                 ledger.tombstones().mapNotNull { (key, e) ->
                     peerRecord(e, CanonicalLike.serializer()) ?: likeTombstone(key, e.atMs, node)
@@ -88,7 +92,8 @@ class SyncChangeTracker
 
         suspend fun notes(): List<CanonicalNote> {
             val live = data.readNotes()
-            val ledger = store.update(NOTES) { it.observe(live.associate { n -> n.id to PRESENT }, now()) }
+            val at = now()
+            val ledger = store.update(NOTES) { it.observe(live.associate { n -> n.id to PRESENT }, at) }
             return live +
                 ledger.tombstones().map { (id, e) ->
                     peerRecord(e, CanonicalNote.serializer()) ?: CanonicalNote(id = id, updatedAt = e.atMs, deleted = true)
@@ -108,7 +113,8 @@ class SyncChangeTracker
 
         suspend fun groups(node: String): List<CanonicalSubscriptionGroup> {
             val live = data.readSubscriptions(hlc = "")
-            val ledger = store.update(GROUPS) { it.observe(live.associate { g -> g.name to groupHash(g) }, now()) }
+            val at = now()
+            val ledger = store.update(GROUPS) { it.observe(live.associate { g -> g.name to groupHash(g) }, at) }
             return live.map { it.copy(hlc = stamp(ledger.stampOf(it.name), node)) } +
                 ledger.tombstones().map { (name, e) ->
                     peerRecord(e, CanonicalSubscriptionGroup.serializer())
@@ -128,11 +134,12 @@ class SyncChangeTracker
 
         suspend fun playlists(node: String): List<CanonicalPlaylist> {
             val live = data.readPlaylists(hlc = "")
+            val at = now()
             val playlists =
                 store.update(PLAYLISTS) {
-                    it.observe(live.associate { p -> p.syncId to playlistHash(p) }, now(), templates(live))
+                    it.observe(live.associate { p -> p.syncId to playlistHash(p) }, at, templates(live))
                 }
-            val items = store.update(PLAYLIST_ITEMS) { it.observe(itemHashes(live), now()) }
+            val items = store.update(PLAYLIST_ITEMS) { it.observe(itemHashes(live), at) }
             val liveIds = live.mapTo(HashSet()) { it.syncId }
             val stamped =
                 live.map { p ->
@@ -221,7 +228,8 @@ class SyncChangeTracker
 
         suspend fun settings(node: String): List<CanonicalSetting> {
             val live = data.readSettings(hlc = "")
-            val ledger = store.update(SETTINGS) { it.observe(live.associate { s -> s.key to s.value.toString().hashCode() }, now()) }
+            val at = now()
+            val ledger = store.update(SETTINGS) { it.observe(live.associate { s -> s.key to s.value.toString().hashCode() }, at) }
             val liveKeys = live.mapTo(HashSet()) { it.key }
             val relayed =
                 store
@@ -263,6 +271,7 @@ class SyncChangeTracker
             templates: Map<String, String> = emptyMap(),
         ) {
             store.update(collection) { it.settle(current, stamps, peerTombstones, templates) }
+            (stamps.values + peerTombstones.values.map { it.atMs }).maxOrNull()?.let { identity.observe(it) }
         }
 
         private fun <T> peer(
@@ -290,7 +299,7 @@ class SyncChangeTracker
             return CanonicalLike(kind = kind, id = id, state = CanonicalLike.STATE_NONE, updatedAtMs = atMs, hlc = stamp(atMs, node))
         }
 
-        private fun now() = System.currentTimeMillis()
+        private suspend fun now() = identity.editTime()
 
         private companion object {
             const val PRESENT = 1
