@@ -5,6 +5,7 @@ import io.github.aedev.flow.sync.qr.LocalNetworkAddress
 import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.crypto.sign
 import io.github.aedev.flow.sync2.crypto.tag
+import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.roster.Entry
 import io.github.aedev.flow.sync2.roster.entryJson
 import io.github.aedev.flow.sync2.roster.parseEntry
@@ -205,7 +206,7 @@ class ServerStore private constructor(
                 ).header("Authorization", "Bearer $adminToken")
                 .post(body.toString().toRequestBody(JSON))
                 .build()
-        check(send(request)).close()
+        send(request).use { if (it.code == 409) throw LinkedException.ServerHasGroup() else check(it) }
     }
 
     override suspend fun rosterAfter(after: Long): List<Entry> =

@@ -3,6 +3,8 @@ package io.github.aedev.flow.sync2
 import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.aedev.flow.sync.crypto.SyncBytes
+import io.github.aedev.flow.sync.protocol.CollectionWire
+import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync.transport.WsServer
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.linking.Code
@@ -42,6 +44,7 @@ class LanPairingTest {
         runTest {
             val g = LinkedGroup(this).apply { create() }
             val session = Session.open(g.deviceDb(), g.store, g.a)
+            session.push(mapOf(SyncCollection.WATCH_HISTORY to CollectionWire(listOf("""{"title":"t","videoId":"aaaaaaaaaaa"}"""), 1, "")))
             val tv = newMember()
             val db = emptyDb()
             val offer = newOffer(null, "Living room TV", loopback())
@@ -56,13 +59,8 @@ class LanPairingTest {
                 }
             assertEquals(SyncBytes.toHex(tv.did), added)
             assertEquals(LINK, db.groups().group()?.link)
-            assertEquals(
-                2,
-                Session
-                    .open(db, g.store, tv)
-                    .state.members
-                    .count { it.value.role.name == "DEVICE" } - 1,
-            )
+            assertTrue(added in Session.open(db, g.store, tv).state.members)
+            assertTrue(SyncBytes.toHex(g.a.did) in Session.open(db, g.store, tv).pull().batches)
         }
 
     @Test

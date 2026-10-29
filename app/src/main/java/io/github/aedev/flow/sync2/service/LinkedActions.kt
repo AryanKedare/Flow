@@ -186,6 +186,7 @@ class LinkedActions
                     }
 
                     is Code.New -> {
+                        if (db.groups().group() == null) throw LinkedException.NeedsMember()
                         addScanned(session(), code, device, ::confirm)
                     }
                 }

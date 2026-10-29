@@ -2691,6 +2691,8 @@
     <string name="linked_error_wrong_words">These aren\'t 24 valid recovery words.</string>
     <string name="linked_error_recovery_used">These recovery words were already used. Use the newer words that were shown then.</string>
     <string name="linked_error_lan_unreachable">Couldn\'t reach the other device. Keep both on the same network and try again.</string>
+    <string name="linked_error_server_has_group">This server already has a group. Join it from a device that\'s already linked.</string>
+    <string name="linked_error_needs_member">This is a new device\'s code. Scan it from a device that\'s already in the group.</string>
     <string name="linked_error_already_linked">This device is already in a group.</string>
     <string name="linked_error_unexpected">The other device sent something unexpected. Try again.</string>
     <string name="sync_default_only_title">Switch to %1$s to sync</string>

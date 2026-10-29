@@ -56,6 +56,7 @@ class PairingTest {
             assertEquals(codes[0], codes[1])
             assertEquals(SyncBytes.toHex(newcomer.did), did)
             assertTrue(did in g.store.head().members)
+            assertTrue("a joined device has no words to confirm", dbN.groups().group()!!.recoverySaved)
 
             val joinedSession = Session.open(dbN, g.store, newcomer)
             val pulled = joinedSession.pull()

@@ -212,7 +212,8 @@ class Welcomed internal constructor(
         }
         try {
             db.groups().addEntries(roster)
-            db.groups().saveGroup(GroupRecord(welcome.group, welcome.store.u, welcome.store.i, welcome.link))
+            // A joined device never had recovery words to confirm; the device that created or restored the group did.
+            db.groups().saveGroup(GroupRecord(welcome.group, welcome.store.u, welcome.store.i, welcome.link, recoverySaved = true))
             channel.send(Message.Done)
         } finally {
             close()

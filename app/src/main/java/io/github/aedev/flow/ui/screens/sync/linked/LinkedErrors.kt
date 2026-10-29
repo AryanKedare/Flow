@@ -23,6 +23,8 @@ internal fun LinkedError.message(): String =
             LinkedError.RECOVERY_USED -> R.string.linked_error_recovery_used
             LinkedError.ALREADY_LINKED -> R.string.linked_error_already_linked
             LinkedError.LAN_UNREACHABLE -> R.string.linked_error_lan_unreachable
+            LinkedError.SERVER_HAS_GROUP -> R.string.linked_error_server_has_group
+            LinkedError.NEEDS_MEMBER -> R.string.linked_error_needs_member
             LinkedError.UNEXPECTED -> R.string.linked_error_unexpected
         },
     )

@@ -20,5 +20,9 @@ sealed class LinkedException(
 
     class AlreadyLinked : LinkedException("This device is already in a sync group")
 
+    class ServerHasGroup : LinkedException("This server already has a group")
+
+    class NeedsMember : LinkedException("A new device's code is scanned from a device already in the group")
+
     class LanUnreachable : LinkedException("The other device can't be reached on this network")
 }

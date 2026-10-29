@@ -23,6 +23,8 @@ enum class LinkedError(
     RECOVERY_USED,
     ALREADY_LINKED,
     LAN_UNREACHABLE,
+    SERVER_HAS_GROUP,
+    NEEDS_MEMBER,
     UNEXPECTED,
 }
 
@@ -53,6 +55,10 @@ fun Throwable.linkedError(): LinkedError =
         is LinkedException.AlreadyLinked -> LinkedError.ALREADY_LINKED
 
         is LinkedException.LanUnreachable -> LinkedError.LAN_UNREACHABLE
+
+        is LinkedException.ServerHasGroup -> LinkedError.SERVER_HAS_GROUP
+
+        is LinkedException.NeedsMember -> LinkedError.NEEDS_MEMBER
 
         is LinkedException.Unexpected -> LinkedError.UNEXPECTED
 
