@@ -19,8 +19,8 @@ import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.data.serverUrl
 import io.github.aedev.flow.sync2.data.webDavUrl
 import io.github.aedev.flow.sync2.device.DeviceKeys
-import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.device.StoreCredentials
+import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.engine.collectGarbage
 import io.github.aedev.flow.sync2.engine.isDue

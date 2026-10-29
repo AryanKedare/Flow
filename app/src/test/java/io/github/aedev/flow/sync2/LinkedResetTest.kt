@@ -49,7 +49,14 @@ class LinkedResetTest {
             mockkObject(ActiveProfile)
             try {
                 every { ActiveProfile.get(any()) } returns RunningProfile(id = "b", isDefault = false)
-                LinkedReset(context, db, heldStore(db), SyncChangeLedgerStore(context), DeviceKeys(context), StoreCredentials(context)).dataReplaced()
+                LinkedReset(
+                    context,
+                    db,
+                    heldStore(db),
+                    SyncChangeLedgerStore(context),
+                    DeviceKeys(context),
+                    StoreCredentials(context),
+                ).dataReplaced()
             } finally {
                 unmockkObject(ActiveProfile)
             }
