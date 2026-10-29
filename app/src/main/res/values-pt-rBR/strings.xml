@@ -4274,10 +4274,10 @@
     <string name="device_info_hdr">HDR</string>
     <string name="device_info_hardware">Hardware</string>
     <string name="device_info_software">Somente software</string>
-    <string name="device_info_build_type">Build type</string>
+    <string name="device_info_build_type">Tipo de compilação</string>
     <string name="device_info_installer">Instalado a partir de</string>
     <string name="device_info_package">Pacote</string>
-    <string name="settings_color_hex_opaque_hint">Hex format: #RRGGBB</string>
+    <string name="settings_color_hex_opaque_hint">Formato hex: #RRGGBB</string>
     <string name="settings_custom_theme_start_from">Comece por</string>
     <string name="settings_theme_roles_accents">Destaque</string>
     <string name="settings_theme_roles_status">Status</string>
@@ -4289,13 +4289,13 @@
     <string name="taste_evidence_often">Assistido frequentemente</string>
     <string name="taste_evidence_some">Assisti algumas vezes</string>
     <string name="taste_evidence_once">Assistido uma ou duas vezes</string>
-    <string name="taste_evidence_none">Ainda não assisti</string>
+    <string name="taste_evidence_none">Não assistido ainda</string>
     <string name="taste_starter_searches">Pesquisas iniciais</string>
     <string name="liked_videos_playlist">Vídeos curtidos</string>
     <string name="liked_music_playlist">Músicas curtidas</string>
     <string name="liked_videos_empty_title">Ainda não há vídeos curtidos</string>
     <string name="liked_videos_empty_body">Os vídeos que você gosta aparecem aqui</string>
-    <string name="remove_selected_likes_text">Não curtidos.</string>
+    <string name="remove_selected_likes_text">Serão descurtidos.</string>
     <string name="removed_from_liked_music">Removido da lista de músicas curtidas</string>
     <string name="liked_video_template">Curtido %1$s</string>
     <string name="liked_music_empty_title">Ainda não há músicas curtidas</string>
@@ -4308,7 +4308,7 @@
     <string name="home_chip_empty_body">Deslize para baixo para visualizar novamente mais tarde.</string>
     <string name="home_mix_title">Mix - %1$s</string>
     <string name="settings_separate_playlists_summary">Mostre-os como duas entradas na Biblioteca</string>
-    <string name="discover_channels_summary">Pesquise canais e inscrições, como na configuração</string>
+    <string name="discover_channels_summary">Pesquise canais e inscreva-se, como na configuração</string>
     <string name="settings_auto_download_likes_title">Baixar músicas curtidas</string>
     <string name="settings_auto_download_likes_summary">As músicas que você curtiu foram salvas para ouvir offline</string>
     <string name="auto_download_queued">Salvando para uso offline</string>
@@ -4529,4 +4529,10 @@
     <string name="reminder_bedtime_body">É hora de relaxar baseado na sua agenda.</string>
     <string name="reminder_break_title">Faça uma pausa! ☕</string>
     <string name="reminder_break_body">Você já está assistindo há um tempo.</string>
+    <string name="description_streamed">Transmitido</string>
+    <string name="subscription_bell_alerts_off">Alertas de vídeos novos estão desligados</string>
+    <string name="subscription_bell_alerts_turn_on">Ligar</string>
+    <string name="player_settings_keep_playing_after_swipe">Continuar reproduzindo após fechar o Flow</string>
+    <string name="onboarding_import_subtitle_profile">Traga as inscrições e o histórico de outros aplicativos para %1$s. Tudo é opcional.</string>
+    <string name="profiles_copy_settings_summary">Tema, reprodução e preferências do aplicativo</string>
 </resources>
