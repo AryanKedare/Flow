@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync2
 import io.github.aedev.flow.sync.apply.ReceivedCollection
 import io.github.aedev.flow.sync.protocol.CollectionWire
 import io.github.aedev.flow.sync.protocol.SyncCollection
+import io.github.aedev.flow.sync2.changes.Batch
 import io.github.aedev.flow.sync2.changes.applyBatches
 import io.github.aedev.flow.sync2.changes.markSent
 import io.github.aedev.flow.sync2.changes.outgoingBatches
@@ -10,6 +11,9 @@ import io.github.aedev.flow.sync2.changes.parseBatch
 import io.github.aedev.flow.sync2.data.SentDao
 import io.github.aedev.flow.sync2.data.SentRecord
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -87,8 +91,71 @@ class ChangeBatchesTest {
             val sent = MemorySent()
             val remote = outgoingBatches(MemorySent(), history(*(1..1200).map { "v$it" to "t" }.toTypedArray()), head, "link-a", 0)
             var applied: Map<String, ReceivedCollection> = emptyMap()
-            applyBatches(sent, remote.batches.map { parseBatch(it.content) }, 0) { applied = it }
+            val ids = (1..1200).map { "v$it" to "t" }.toTypedArray()
+            applyBatches(sent, remote.batches.map { parseBatch(it.content) }, 0, { if (applied.isEmpty()) emptyMap() else history(*ids) }) {
+                applied =
+                    it
+            }
             assertEquals(1200, applied.getValue(SyncCollection.WATCH_HISTORY).lines.size)
             assertEquals(0, sentLines(sent, history(*(1..1200).map { "v$it" to "t" }.toTypedArray())).size)
+        }
+
+    /** One device's watch history, exported in its own canonical form: Desktop orders the fields differently. */
+    private inner class Device(
+        val titleFirst: Boolean,
+    ) {
+        val titles = LinkedHashMap<String, String>()
+        val sent = MemorySent()
+
+        fun export() =
+            mapOf(
+                SyncCollection.WATCH_HISTORY to
+                    wire(
+                        *titles
+                            .map { (id, title) ->
+                                if (titleFirst) """{"title":"$title","videoId":"$id"}""" else """{"videoId":"$id","title":"$title"}"""
+                            }.toTypedArray(),
+                    ),
+            )
+
+        suspend fun push(): List<Batch> = outgoingBatches(sent, export(), head, "link", 0).also { markSent(sent, it) }.batches
+
+        /** Takes every received title, except for [keep], whose local edit is newer. */
+        suspend fun receive(
+            batches: List<Batch>,
+            keep: Set<String> = emptySet(),
+        ) = applyBatches(sent, batches.map { parseBatch(it.content) }, 0, { export() }) { received ->
+            for (line in received[SyncCollection.WATCH_HISTORY]?.lines.orEmpty()) {
+                val record = Json.parseToJsonElement(line).jsonObject
+                val id = record.getValue("videoId").jsonPrimitive.content
+                if (id !in keep) titles[id] = record.getValue("title").jsonPrimitive.content
+            }
+        }
+    }
+
+    @Test
+    fun devices_whose_canonical_forms_differ_exchange_once_and_then_stay_quiet() =
+        runTest {
+            val phone = Device(titleFirst = true).apply { titles["v1"] = "one" }
+            val desktop = Device(titleFirst = false).apply { titles["v2"] = "two" }
+            phone.receive(desktop.push())
+            desktop.receive(phone.push())
+            repeat(2) {
+                assertEquals(emptyList<Batch>(), phone.push())
+                assertEquals(emptyList<Batch>(), desktop.push())
+            }
+            assertEquals(mapOf("v1" to "one", "v2" to "two"), phone.titles)
+            assertEquals(phone.titles, desktop.titles)
+        }
+
+    @Test
+    fun a_local_edit_not_uploaded_yet_still_goes_out_after_a_merge() =
+        runTest {
+            val phone = Device(titleFirst = true).apply { titles["v1"] = "old" }
+            val desktop = Device(titleFirst = false).apply { titles["v1"] = "theirs" }
+            phone.push()
+            phone.titles["v1"] = "mine"
+            phone.receive(desktop.push(), keep = setOf("v1"))
+            assertEquals(listOf("""{"title":"mine","videoId":"v1"}"""), phone.push().flatMap { parseBatch(it.content).lines })
         }
 }

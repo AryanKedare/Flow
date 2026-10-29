@@ -78,7 +78,7 @@ class LinkedSync
 
         val syncing: StateFlow<Boolean> = active.asStateFlow()
 
-        /** Each device a sync applied changes from. */
+        /** Each device a sync the user asked for applied changes from. */
         val received: SharedFlow<Received> = arrivals.asSharedFlow()
 
         /** The group's Flow server, or null for a group that lives on its devices alone. */
@@ -109,13 +109,14 @@ class LinkedSync
             return Session.open(db, store, device)
         }
 
-        suspend fun syncNow(): LastSync =
+        /** [announce]: say what arrived, for a sync the user asked for; the others stay silent. */
+        suspend fun syncNow(announce: Boolean = false): LastSync =
             running.withLock {
                 active.value = true
                 // A cancelled sync is not a failed one: it stops, and the next run picks up where it left off.
                 val error =
                     try {
-                        withContext(Dispatchers.Default) { run() }
+                        withContext(Dispatchers.Default) { run(announce) }
                         null
                     } catch (e: CancellationException) {
                         throw e
@@ -129,10 +130,10 @@ class LinkedSync
                 LastSync(System.currentTimeMillis(), error).also { last.value = it }
             }
 
-        private suspend fun export(): Map<String, CollectionWire> =
-            applier.exportPayload(SyncCollection.ANDROID_SYNCABLE, identity.hlcNode(), identity.newClock().now().encode())
+        private suspend fun export(collections: List<String> = SyncCollection.ANDROID_SYNCABLE): Map<String, CollectionWire> =
+            applier.exportPayload(collections, identity.hlcNode(), identity.newClock().now().encode())
 
-        private suspend fun run() {
+        private suspend fun run(announce: Boolean) {
             if (!SyncProfile.syncsHere(context)) return
             val record = db.groups().group() ?: return
             val device = keys.load()
@@ -158,14 +159,16 @@ class LinkedSync
             val counts = mutableMapOf<String, Int>()
             for ((sender, batches) in pulled.batches) {
                 val meta = names[sender]
-                applyBatches(db.sent(), batches, System.currentTimeMillis()) { received ->
+                applyBatches(db.sent(), batches, System.currentTimeMillis(), ::export) { received ->
                     applier.applyPayload(PeerInfo(sender, meta?.name.orEmpty(), meta?.platform.orEmpty()), received, hlc, onceEach = false)
                     counts.merge(sender, received.values.sumOf { it.lines.size }, Int::plus)
                 }
             }
             session.finish(pulled)
-            counts.filterValues { it > 0 }.forEach { (sender, changes) ->
-                arrivals.tryEmit(Received(names[sender]?.name.orEmpty(), changes))
+            if (announce) {
+                counts.filterValues { it > 0 }.forEach { (sender, changes) ->
+                    arrivals.tryEmit(Received(names[sender]?.name.orEmpty(), changes))
+                }
             }
 
             val now = System.currentTimeMillis()
