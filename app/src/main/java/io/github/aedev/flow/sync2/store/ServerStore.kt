@@ -35,6 +35,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import java.io.IOException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
@@ -100,10 +101,13 @@ class ServerStore private constructor(
 
     private fun url(path: String): HttpUrl = base.resolve(path) ?: throw StoreException.Malformed()
 
+    /** The whole body is read here, on the IO dispatcher, so callers never read the network from their own thread. */
     private suspend fun send(request: Request): Response =
         withContext(Dispatchers.IO) {
             try {
-                client.newCall(request).execute()
+                client.newCall(request).execute().use { response ->
+                    response.newBuilder().body(response.body.bytes().toResponseBody(response.body.contentType())).build()
+                }
             } catch (e: IOException) {
                 throw StoreException.Network(e)
             }
