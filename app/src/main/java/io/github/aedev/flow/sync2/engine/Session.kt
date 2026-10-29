@@ -29,6 +29,7 @@ import io.github.aedev.flow.sync2.roster.parseEntry
 import io.github.aedev.flow.sync2.roster.replayRoster
 import io.github.aedev.flow.sync2.store.Header
 import io.github.aedev.flow.sync2.store.ObjectType
+import io.github.aedev.flow.sync2.store.ParsedObject
 import io.github.aedev.flow.sync2.store.Store
 import io.github.aedev.flow.sync2.store.StorePaths
 import io.github.aedev.flow.sync2.store.StreamPosition
@@ -40,10 +41,22 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.TreeMap
 
+/** What a log object carries, once checked and opened. */
+internal sealed interface Content {
+    class Batch(
+        val batch: IncomingBatch,
+    ) : Content
+
+    class Snapshot(
+        val manifest: Manifest,
+    ) : Content
+
+    data object Ack : Content
+}
+
 private class ReadObject(
     val position: StreamPosition,
-    val type: ObjectType,
-    val batch: IncomingBatch?,
+    val content: Content,
 )
 
 /** Batches read from other devices, not applied yet, and how far reading got. */
@@ -62,15 +75,15 @@ class Pulled internal constructor(
  * holds no secrets beyond the session: epoch keys are unwrapped from the store each time.
  */
 class Session private constructor(
-    private val db: LinkedDatabase,
+    internal val db: LinkedDatabase,
     internal val store: Store,
-    private val device: MemberSecrets,
+    internal val device: MemberSecrets,
     record: GroupRecord,
     internal val group: ByteArray,
     val state: RosterState,
     internal val entries: List<Entry>,
 ) {
-    private val me = SyncBytes.toHex(device.did)
+    internal val me = SyncBytes.toHex(device.did)
     private val signingKeys = HashMap<String, ByteArray>()
     private val commitments = HashMap<Int, ByteArray>()
     private val keys = TreeMap<Int, ByteArray>()
@@ -128,7 +141,7 @@ class Session private constructor(
         return keys.getValue(epoch)
     }
 
-    private suspend fun write(
+    internal suspend fun write(
         type: ObjectType,
         content: ByteArray,
     ) {
@@ -183,6 +196,12 @@ class Session private constructor(
         var cursor = record.cursor
         var consumed = 0
         var stalled = false
+        if (positions.isEmpty() && cursor == 0L) {
+            bootstrap()?.let { start ->
+                if (link == null || start.manifest.link == link) batches[start.writer] = start.batches.toMutableList()
+                positions += start.positions
+            }
+        }
         while (true) {
             val (changes, next) = store.changes(cursor)
             if (changes.isEmpty()) break
@@ -199,8 +218,10 @@ class Session private constructor(
                     waiting.filter { (did, seq, path) ->
                         val read = readObject(path, did, seq, positions[did]) ?: return@filter true
                         positions[did] = read.position
-                        if (read.type != ObjectType.ACK) consumed++
-                        read.batch?.takeIf { link == null || it.link == link }?.let { batches.getOrPut(did) { ArrayList() } += it }
+                        if (read.content != Content.Ack) consumed++
+                        (read.content as? Content.Batch)?.batch?.takeIf { link == null || it.link == link }?.let {
+                            batches.getOrPut(did) { ArrayList() } += it
+                        }
                         false
                     }
                 if (still.size == waiting.size) break
@@ -223,10 +244,7 @@ class Session private constructor(
         seq: Long,
         last: StreamPosition?,
     ): ReadObject? {
-        val bytes = store.getObject(path) ?: return null
-        val parsed = parseObject(bytes, group)
-        parsed.verify(signingKeys[did] ?: reject(ProtocolError.SENDER))
-        if (SyncBytes.toHex(parsed.header.sender) != did || parsed.header.seq != seq) reject(ProtocolError.REPLAY)
+        val parsed = verified(store.getObject(path) ?: return null, did, seq)
         val position =
             try {
                 nextInStream(last, parsed)
@@ -234,15 +252,30 @@ class Session private constructor(
                 if (e.error == ProtocolError.GAP) return null
                 throw e
             }
+        return ReadObject(position, openContent(parsed))
+    }
+
+    /** Steps 1 to 3 of reading an envelope: structure, sender, signature. The caller checks its place in the stream. */
+    internal fun verified(
+        bytes: ByteArray,
+        did: String,
+        seq: Long,
+    ): ParsedObject {
+        val parsed = parseObject(bytes, group)
+        parsed.verify(signingKeys[did] ?: reject(ProtocolError.SENDER))
+        if (SyncBytes.toHex(parsed.header.sender) != did || parsed.header.seq != seq) reject(ProtocolError.REPLAY)
+        return parsed
+    }
+
+    internal suspend fun openContent(parsed: ParsedObject): Content {
         val epoch = parsed.header.epoch
         val content = decodePayload(parsed.open(purposeKey(epochKey(epoch), group, epoch, parsed.header.type.purpose)))
-        val batch =
-            when (parsed.header.type) {
-                ObjectType.CHANGES -> parseBatch(content)
-                ObjectType.ACK, ObjectType.SNAPSHOT -> null
-                ObjectType.LIVE -> reject(ProtocolError.SUITE)
-            }
-        return ReadObject(position, parsed.header.type, batch)
+        return when (parsed.header.type) {
+            ObjectType.CHANGES -> Content.Batch(parseBatch(content))
+            ObjectType.SNAPSHOT -> Content.Snapshot(parseManifest(content))
+            ObjectType.ACK -> Content.Ack
+            ObjectType.LIVE -> reject(ProtocolError.SUITE)
+        }
     }
 
     /** Saves how far reading got, after the caller applied the batches, and acknowledges it. */

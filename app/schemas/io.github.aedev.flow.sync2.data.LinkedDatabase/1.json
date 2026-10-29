@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "42ec2dc85b7ca59dbb38ff35222359d7",
+    "identityHash": "305e6c3771f39bb7a5b001adeb779883",
     "entities": [
       {
         "tableName": "sent",
@@ -153,11 +153,41 @@
             "did"
           ]
         }
+      },
+      {
+        "tableName": "snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`link` TEXT NOT NULL, `writtenMs` INTEGER NOT NULL, `mergedBytes` INTEGER NOT NULL, PRIMARY KEY(`link`))",
+        "fields": [
+          {
+            "fieldPath": "link",
+            "columnName": "link",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "writtenMs",
+            "columnName": "writtenMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mergedBytes",
+            "columnName": "mergedBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "link"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '42ec2dc85b7ca59dbb38ff35222359d7')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '305e6c3771f39bb7a5b001adeb779883')"
     ]
   }
 }
