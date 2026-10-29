@@ -23,6 +23,10 @@ data class GroupRecord(
     val cursor: Long = 0,
     /** The user proved they wrote down the recovery words this device last showed. */
     @ColumnInfo(defaultValue = "0") val recoverySaved: Boolean = false,
+    /** How far this device has read the server's change list; [cursor] pages what this device holds. */
+    @ColumnInfo(defaultValue = "0") val serverCursor: Long = 0,
+    /** This device's own log objects up to this `seq` are on the server. */
+    @ColumnInfo(defaultValue = "0") val uploaded: Long = 0,
     @PrimaryKey val id: Int = 1,
 )
 
@@ -48,6 +52,21 @@ interface GroupDao {
 
     @Query("SELECT * FROM group_record WHERE id = 1")
     fun observeGroup(): Flow<GroupRecord?>
+
+    @Query("UPDATE group_record SET ownSeq = :seq, ownPrev = :prev WHERE id = 1")
+    suspend fun setOwn(
+        seq: Long,
+        prev: String,
+    )
+
+    @Query("UPDATE group_record SET link = :link WHERE id = 1")
+    suspend fun setLink(link: String)
+
+    @Query("UPDATE group_record SET serverCursor = :cursor WHERE id = 1")
+    suspend fun setServerCursor(cursor: Long)
+
+    @Query("UPDATE group_record SET uploaded = :heldCursor WHERE id = 1")
+    suspend fun setUploaded(heldCursor: Long)
 
     @Query("UPDATE group_record SET recoverySaved = :saved WHERE id = 1")
     suspend fun setRecoverySaved(saved: Boolean)
