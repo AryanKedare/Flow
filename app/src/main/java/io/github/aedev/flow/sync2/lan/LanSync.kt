@@ -66,12 +66,12 @@ class LanSync
         private val sync: LinkedSync,
         @ApplicationScope private val scope: CoroutineScope,
     ) {
-        private val seen = MutableStateFlow<Set<String>>(emptySet())
+        private val seen = MutableStateFlow<Map<String, Long>>(emptyMap())
         private val dialed = ConcurrentHashMap<String, Long>()
         private var running: Job? = null
 
-        /** Devices met on this network while this process runs. */
-        val nearby: StateFlow<Set<String>> = seen.asStateFlow()
+        /** Devices met on this network while this process runs, and when. */
+        val nearby: StateFlow<Map<String, Long>> = seen.asStateFlow()
 
         fun start() {
             if (running?.isActive == true || !SyncProfile.syncsHere(context)) return
@@ -156,7 +156,7 @@ class LanSync
                     link.close()
                     reader.join()
                 }
-                seen.update { it + link.peer }
+                seen.update { it + (link.peer to System.currentTimeMillis()) }
                 sync.syncNow()
             } catch (e: CancellationException) {
                 throw e

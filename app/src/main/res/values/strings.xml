@@ -2653,8 +2653,8 @@
     <string name="linked_back">Back</string>
     <string name="linked_scan_member_code">Scan the code on a linked device</string>
     <string name="linked_server">Server</string>
-    <string name="linked_last_sync">Last sync: %1$s</string>
-    <string name="linked_last_sync_never">Not yet</string>
+    <string name="linked_last_sync">This device: synced %1$s</string>
+    <string name="linked_last_sync_never">This device hasn\'t synced yet</string>
     <string name="linked_sync_now">Sync now</string>
     <string name="linked_syncing">Syncing…</string>
     <string name="linked_syncing_notification">Syncing with your linked devices…</string>
@@ -2663,7 +2663,8 @@
         <item quantity="other">Received %1$d changes from %2$s</item>
     </plurals>
     <string name="linked_devices">Devices</string>
-    <string name="linked_device_nearby">%1$s, on this network</string>
+    <string name="linked_device_nearby">%1$s, on this network, synced %2$s</string>
+    <string name="linked_device_synced">%1$s, synced %2$s</string>
     <string name="linked_this_device">This device</string>
     <string name="linked_rename_title">Rename device</string>
     <string name="linked_device_name">Device name</string>

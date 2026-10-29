@@ -36,12 +36,15 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import java.io.IOException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 /** Refresh a token this long before it expires. */
 private const val TOKEN_MARGIN_MS = 60_000L
+private const val LIVE_PING_S = 15L
 private val JSON = "application/json".toMediaType()
 private val BYTES = "application/octet-stream".toMediaType()
 
@@ -234,6 +237,35 @@ class ServerStore private constructor(
         val response = send(admin(adminToken, "v1/join/$id").build())
         if (response.code == 404) return null.also { response.close() }
         return decode(response)["code"]?.jsonPrimitive?.contentOrNull ?: throw StoreException.Malformed()
+    }
+
+    /** When the server last heard from each device, in ms, by device id. */
+    suspend fun seen(): Map<String, Long> {
+        val devices = decode(authorized("GET", "v1/status"))["devices"] as? JsonObject ?: throw StoreException.Malformed()
+        return devices.mapValues { (_, device) ->
+            ((device as? JsonObject)?.get("seen") as? JsonPrimitive)?.longOrNull
+                ?: throw StoreException.Malformed()
+        }
+    }
+
+    /**
+     * Opens the live channel (spec/live.md, Server relay) after signing in afresh, pinging every 15
+     * seconds so a dead connection fails instead of hanging.
+     */
+    suspend fun live(listener: WebSocketListener): WebSocket {
+        val request =
+            Request
+                .Builder()
+                .url(url("v1/live"))
+                .header("Sec-WebSocket-Protocol", "flow-sync.v1, bearer.${token(renew = true)}")
+                .build()
+        return client
+            .newBuilder()
+            .pingInterval(LIVE_PING_S, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)
+            .callTimeout(0, TimeUnit.SECONDS)
+            .build()
+            .newWebSocket(request, listener)
     }
 
     /** Join requests no member has answered yet. */

@@ -65,7 +65,8 @@ internal fun LinkedOverview(
     }
 
     val lastSync =
-        state.lastSync?.let { DateUtils.getRelativeTimeSpanString(it.atMs).toString() } ?: stringResource(R.string.linked_last_sync_never)
+        state.lastSync?.let { stringResource(R.string.linked_last_sync, DateUtils.getRelativeTimeSpanString(it.atMs)) }
+            ?: stringResource(R.string.linked_last_sync_never)
     SyncRowGroup(count = 2) { index, shape ->
         if (index == 0) {
             FlowNavRow(
@@ -80,7 +81,7 @@ internal fun LinkedOverview(
             FlowNavRow(
                 title = stringResource(if (state.syncing) R.string.linked_syncing else R.string.linked_sync_now),
                 onClick = onSyncNow,
-                supportingText = stringResource(R.string.linked_last_sync, lastSync),
+                supportingText = lastSync,
                 enabled = !state.busy && !state.syncing,
                 shape = shape,
             )
@@ -139,7 +140,7 @@ internal fun LinkedOverview(
 @Composable
 private fun DeviceList(
     devices: List<LinkedDevice>,
-    nearby: Set<String>,
+    nearby: Map<String, Long>,
     busy: Boolean,
     onRename: (id: String, name: String) -> Unit,
     onRemove: (id: String) -> Unit,
@@ -153,9 +154,25 @@ private fun DeviceList(
             onClick = { open = device.id },
             supportingText =
                 when {
-                    device.thisDevice -> stringResource(R.string.linked_this_device)
-                    device.id in nearby -> stringResource(R.string.linked_device_nearby, device.platform)
-                    else -> device.platform
+                    device.thisDevice -> {
+                        stringResource(R.string.linked_this_device)
+                    }
+
+                    device.id in nearby -> {
+                        stringResource(
+                            R.string.linked_device_nearby,
+                            device.platform,
+                            synced(nearby.getValue(device.id)),
+                        )
+                    }
+
+                    device.seen != null -> {
+                        stringResource(R.string.linked_device_synced, device.platform, synced(device.seen))
+                    }
+
+                    else -> {
+                        device.platform
+                    }
                 },
             leadingIcon = if (device.platform == "android") Icons.Outlined.PhoneAndroid else Icons.Outlined.Computer,
             enabled = !busy,
@@ -177,6 +194,8 @@ private fun DeviceList(
         )
     }
 }
+
+private fun synced(atMs: Long): String = DateUtils.getRelativeTimeSpanString(atMs).toString()
 
 /** Renames a device, or, for another device, removes it after saying what that means. */
 @Composable
