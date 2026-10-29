@@ -91,7 +91,7 @@ internal fun LinkedOverview(
     }
     if (!state.recoverySaved) SyncInfoRow(icon = Icons.Outlined.Warning, text = stringResource(R.string.linked_recovery_unsaved))
 
-    DeviceList(state.devices.orEmpty(), state.busy, onRename, onRemove)
+    DeviceList(state.devices.orEmpty(), state.nearby, state.busy, onRename, onRemove)
     onScanNewDevice?.let {
         SyncActionRow(confirmLabel = stringResource(R.string.linked_scan_new_device), onConfirm = it, confirmEnabled = !state.busy)
     }
@@ -121,6 +121,7 @@ internal fun LinkedOverview(
 @Composable
 private fun DeviceList(
     devices: List<LinkedDevice>,
+    nearby: Set<String>,
     busy: Boolean,
     onRename: (id: String, name: String) -> Unit,
     onRemove: (id: String) -> Unit,
@@ -132,7 +133,12 @@ private fun DeviceList(
         FlowNavRow(
             title = device.name,
             onClick = { open = device.id },
-            supportingText = if (device.thisDevice) stringResource(R.string.linked_this_device) else device.platform,
+            supportingText =
+                when {
+                    device.thisDevice -> stringResource(R.string.linked_this_device)
+                    device.id in nearby -> stringResource(R.string.linked_device_nearby, device.platform)
+                    else -> device.platform
+                },
             leadingIcon = if (device.platform == "android") Icons.Outlined.PhoneAndroid else Icons.Outlined.Computer,
             enabled = !busy,
             shape = shape,

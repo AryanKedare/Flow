@@ -25,6 +25,7 @@ import io.github.aedev.flow.sync2.linking.deviceNames
 import io.github.aedev.flow.sync2.store.GroupStore
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
+import io.github.aedev.flow.sync2.store.StoreException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -103,8 +104,15 @@ class LinkedSync
             val device = keys.load()
             val me = SyncBytes.toHex(device.did)
             val store = groupStore(record, device)
-            db.groups().setServerCursor(store.download(me, record.serverCursor, objects = true))
-            val session = Session.open(db, store, device)
+            // Without the server, what LAN peers brought is still merged; the server's part waits for the next run.
+            val offline =
+                try {
+                    db.groups().setServerCursor(store.download(me, record.serverCursor, objects = true))
+                    null
+                } catch (e: StoreException.Network) {
+                    e
+                }
+            val session = Session.open(db, if (offline == null) store else GroupStore(local, null), device)
             if (!session.adoptLink(ActiveProfile.get(context).id)) return
             val link = session.record.link
             session.push(export())
@@ -123,6 +131,7 @@ class LinkedSync
             val now = System.currentTimeMillis()
             db.snapshots().noteMerged(link, pulled.batches.values.sumOf { batches -> batches.sumOf { it.size.toLong() } }, now)
             if (db.snapshots().isDue(link, now)) session.writeSnapshot(export())
+            if (offline != null) throw offline
             session.collectGarbage()
             db.groups().setUploaded(store.upload(me, db.groups().group()?.uploaded ?: 0))
         }

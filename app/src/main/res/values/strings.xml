@@ -2649,6 +2649,7 @@
     <string name="linked_sync_now">Sync now</string>
     <string name="linked_syncing">Syncing…</string>
     <string name="linked_devices">Devices</string>
+    <string name="linked_device_nearby">%1$s, on this network</string>
     <string name="linked_this_device">This device</string>
     <string name="linked_rename_title">Rename device</string>
     <string name="linked_device_name">Device name</string>

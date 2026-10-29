@@ -25,6 +25,8 @@ internal data class LinkedUiState(
     val recoverySaved: Boolean = true,
     val lastSync: LastSync? = null,
     val devices: List<LinkedDevice>? = null,
+    /** Devices met on this network while the app runs. */
+    val nearby: Set<String> = emptySet(),
     /** Recovery words to show once, until the user proves they wrote them down. */
     val words: String? = null,
     val busy: Boolean = false,
@@ -36,6 +38,8 @@ internal data class LinkedUiState(
 /** What the screen itself holds: the words being shown and the outcome of the last action. */
 private data class Local(
     val devices: List<LinkedDevice>? = null,
+    /** Devices met on this network while the app runs. */
+    val nearby: Set<String> = emptySet(),
     val words: String? = null,
     val busy: Boolean = false,
     val error: LinkedError? = null,
@@ -50,12 +54,13 @@ internal class LinkedDevicesViewModel
         private val local = MutableStateFlow(Local())
 
         val state: StateFlow<LinkedUiState> =
-            combine(actions.group, actions.lastSync, local) { group, lastSync, l ->
+            combine(actions.group, actions.lastSync, actions.nearby, local) { group, lastSync, nearby, l ->
                 LinkedUiState(
                     group?.storeUrl,
                     group?.recoverySaved ?: true,
                     lastSync,
                     l.devices,
+                    nearby,
                     l.words,
                     l.busy,
                     l.error ?: lastSync?.error,
