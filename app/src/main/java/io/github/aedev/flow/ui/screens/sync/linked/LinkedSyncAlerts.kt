@@ -23,7 +23,7 @@ internal class LinkedSyncAlertsViewModel
         val received = sync.received
     }
 
-/** Says briefly what a linked sync brought in, while the app is on screen. */
+/** Says briefly what a Sync now brought in, while the app is on screen. */
 @Composable
 fun LinkedSyncAlerts(snackbarHostState: SnackbarHostState) {
     val viewModel = hiltViewModel<LinkedSyncAlertsViewModel>()

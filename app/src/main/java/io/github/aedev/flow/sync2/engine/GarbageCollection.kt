@@ -8,6 +8,7 @@ import io.github.aedev.flow.sync2.data.CollectedRow
 import io.github.aedev.flow.sync2.data.LinkRow
 import io.github.aedev.flow.sync2.data.ManifestRow
 import io.github.aedev.flow.sync2.roster.Role
+import io.github.aedev.flow.sync2.store.StoreException
 import io.github.aedev.flow.sync2.store.StorePaths
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -77,10 +78,12 @@ class Facts(
 
     private fun acknowledged(link: String?): List<Logged> = manifests.filter { it.manifest.link == link && acked(it.did) >= it.seq }
 
+    /** A newer acknowledged snapshot covers [old], and every device read past [old] itself, so its removal leaves no gap. */
     private fun superseded(old: Logged): Boolean =
-        acknowledged(old.manifest.link).any { newer ->
-            newer != old && old.manifest.vv.all { (did, tip) -> (newer.manifest.vv[did]?.seq ?: -1) >= tip.seq }
-        }
+        acked(old.did) >= old.seq &&
+            acknowledged(old.manifest.link).any { newer ->
+                newer != old && old.manifest.vv.all { (did, tip) -> (newer.manifest.vv[did]?.seq ?: -1) >= tip.seq }
+            }
 
     /** How far every link's newest acknowledged snapshot covers [did]'s log. */
     private fun covered(did: String): Long =
@@ -98,7 +101,7 @@ class Facts(
 
 /**
  * Deletes this device's objects, and a removed device's, once every current device acknowledged
- * them and a snapshot covers them. The newest manifests stay; older ones go when a newer one covers them.
+ * them and a snapshot covers them, and only those this device holds. The newest manifests stay; older ones go when a newer one covers them.
  */
 suspend fun Session.collectGarbage() {
     val dao = db.collection()
@@ -121,23 +124,46 @@ suspend fun Session.collectGarbage() {
             manifests = manifests,
             collected = dao.collected().associate { it.did to it.through },
         ).plan()
+    val held = heldPaths()
     var budget = BUDGET
-    for (old in plan.manifests) {
-        if (budget < old.manifest.parts.size + 1) return
-        old.manifest.parts.forEach { store.deleteObject(StorePaths.blob(old.did, it.blob)) }
-        store.deleteObject(StorePaths.log(old.did, old.seq))
-        dao.deleteManifest(old.did, old.seq)
-        budget -= old.manifest.parts.size + 1
-    }
-    for ((did, range) in plan.logs) {
-        if (budget == 0) break
-        val kept = manifests.filter { it.did == did }.map { it.seq }.toSet()
-        var done = range.first - 1
-        for (seq in range.filter { it !in kept }.take(budget)) {
-            store.deleteObject(StorePaths.log(did, seq))
-            budget--
-            done = seq
+    try {
+        for (old in plan.manifests) {
+            // Only what this device holds: another device may have deleted the rest already.
+            val paths = old.manifest.parts.map { StorePaths.blob(old.did, it.blob) } + StorePaths.log(old.did, old.seq)
+            val present = paths.filter { it in held }
+            if (budget < present.size) continue
+            present.forEach { store.deleteObject(it) }
+            dao.deleteManifest(old.did, old.seq)
+            budget -= present.size
         }
-        dao.setCollected(CollectedRow(did, if (budget > 0) range.last else done))
+        for ((did, range) in plan.logs) {
+            val kept = manifests.filter { it.did == did }.map { it.seq }.toSet()
+            var done = range.first - 1
+            for (seq in range) {
+                val path = StorePaths.log(did, seq)
+                if (seq !in kept && path in held) {
+                    if (budget == 0) break
+                    store.deleteObject(path)
+                    budget--
+                }
+                done = seq
+            }
+            dao.setCollected(CollectedRow(did, done))
+        }
+    } catch (e: StoreException.Refused) {
+        // The server is rate limiting this device: stop, so syncs and pairing get their share; the rest goes next time.
+        if (!e.rateLimited) throw e
+    }
+}
+
+/** Every object path this device holds. */
+private suspend fun Session.heldPaths(): Set<String> {
+    val paths = HashSet<String>()
+    var cursor = 0L
+    while (true) {
+        val (changed, next) = store.changes(cursor)
+        if (changed.isEmpty()) return paths
+        changed.mapTo(paths) { it.path }
+        cursor = next
     }
 }

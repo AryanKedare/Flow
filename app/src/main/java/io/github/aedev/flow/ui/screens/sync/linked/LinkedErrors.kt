@@ -12,6 +12,7 @@ internal fun LinkedError.message(): String =
             LinkedError.INSECURE -> R.string.linked_error_insecure
             LinkedError.UNREACHABLE -> R.string.linked_error_unreachable
             LinkedError.REFUSED -> R.string.linked_error_refused
+            LinkedError.BUSY -> R.string.linked_error_busy
             LinkedError.INSTANCE_CHANGED -> R.string.linked_error_instance_changed
             LinkedError.PROTOCOL -> R.string.linked_error_protocol
             LinkedError.LOCAL -> R.string.linked_error_local
@@ -26,5 +27,6 @@ internal fun LinkedError.message(): String =
             LinkedError.SERVER_HAS_GROUP -> R.string.linked_error_server_has_group
             LinkedError.NEEDS_MEMBER -> R.string.linked_error_needs_member
             LinkedError.UNEXPECTED -> R.string.linked_error_unexpected
+            LinkedError.STOPPED -> R.string.linked_error_stopped
         },
     )

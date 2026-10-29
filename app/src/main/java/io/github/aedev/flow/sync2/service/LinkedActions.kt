@@ -188,7 +188,7 @@ class LinkedActions
 
         val syncing: StateFlow<Boolean> = sync.syncing
 
-        fun syncNow() = LinkedSyncWorker.syncSoon(context)
+        fun syncNow() = LinkedSyncWorker.syncSoon(context, announce = true)
 
         /** Shows a member's code, answered through the server's mailbox or over the LAN. */
         fun addDevice() =

@@ -5,11 +5,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync.protocol.CollectionWire
 import io.github.aedev.flow.sync.protocol.SyncCollection
+import io.github.aedev.flow.sync.transport.SyncConnection
 import io.github.aedev.flow.sync.transport.WsServer
+import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.linking.Code
 import io.github.aedev.flow.sync2.linking.DeviceMeta
 import io.github.aedev.flow.sync2.linking.LanEndpoint
+import io.github.aedev.flow.sync2.linking.LanPipe
 import io.github.aedev.flow.sync2.linking.Listening
 import io.github.aedev.flow.sync2.linking.StoreLocation
 import io.github.aedev.flow.sync2.linking.addDevice
@@ -84,5 +87,20 @@ class LanPairingTest {
                 }
             assertEquals(SyncBytes.toHex(phone.did), added)
             assertTrue(added in g.store.head().members)
+        }
+
+    @Test
+    fun a_peer_that_closes_the_connection_stopped_rather_than_sent_something_wrong() =
+        runTest {
+            val closed =
+                object : SyncConnection {
+                    override suspend fun send(bytes: ByteArray) = Unit
+
+                    override suspend fun receive(): ByteArray? = null
+
+                    override fun close() = Unit
+                }
+            val error = runCatching { LanPipe(closed).receive() }.exceptionOrNull()
+            assertTrue("$error", error is LinkedException.Stopped)
         }
 }

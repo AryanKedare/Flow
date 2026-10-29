@@ -6,6 +6,7 @@ import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync.protocol.CollectionWire
 import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync2.crypto.MemberSecrets
+import io.github.aedev.flow.sync2.data.CollectedRow
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.engine.Facts
 import io.github.aedev.flow.sync2.engine.Logged
@@ -16,7 +17,10 @@ import io.github.aedev.flow.sync2.engine.Tip
 import io.github.aedev.flow.sync2.engine.VersionVector
 import io.github.aedev.flow.sync2.engine.collectGarbage
 import io.github.aedev.flow.sync2.engine.writeSnapshot
+import io.github.aedev.flow.sync2.store.Store
+import io.github.aedev.flow.sync2.store.StoreException
 import io.github.aedev.flow.sync2.store.StorePaths
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -72,6 +76,17 @@ class GarbageCollectionTest {
     }
 
     @Test
+    fun a_snapshot_stays_until_every_device_read_past_it_even_when_another_covers_it() {
+        // The Mac's manifest 573 is covered by the phone's acknowledged snapshot, but the phone has read the Mac's log only to 572.
+        val mac = snapshot("mac", 573, "mac" to 572, "phone" to 40)
+        val phone = snapshot("phone", 41, "mac" to 572, "phone" to 40)
+        val acks = mapOf("mac" to mapOf("phone" to 41L))
+        val devices = setOf("mac", "phone")
+        assertTrue(plan(devices, setOf("mac"), acks + ("phone" to mapOf("mac" to 572L)), listOf(mac, phone)).manifests.isEmpty())
+        assertEquals(listOf(mac), plan(devices, setOf("mac"), acks + ("phone" to mapOf("mac" to 573L)), listOf(mac, phone)).manifests)
+    }
+
+    @Test
     fun every_link_batches_name_needs_an_acknowledged_snapshot() {
         val acks = mapOf("b" to mapOf("a" to 9L))
         val links = setOf(link, null)
@@ -116,5 +131,57 @@ class GarbageCollectionTest {
                 "another device's log is not this device's to delete",
                 StorePaths.log(SyncBytes.toHex(g.b.did), 1) in g.store.objects,
             )
+        }
+
+    /** The group's store, recording each delete it is asked for, or refusing them all as rate limited. */
+    private class Watched(
+        private val inner: MemoryStore,
+        private val refuse: Boolean = false,
+    ) : Store by inner {
+        val deleted = ArrayList<String>()
+
+        override suspend fun deleteObject(path: String) {
+            if (refuse) throw StoreException.Refused(429, "rate_limited")
+            deleted += path
+            inner.deleteObject(path)
+        }
+    }
+
+    /** Device A's first log object, acknowledged by both devices and covered by an acknowledged snapshot. */
+    private suspend fun TestScope.collectable(): Triple<LinkedGroup, LinkedDatabase, String> {
+        val g = LinkedGroup(this).apply { create() }
+        val (dbA, dbB) = g.deviceDb() to g.deviceDb()
+        val watched = mapOf(SyncCollection.WATCH_HISTORY to CollectionWire(listOf("""{"title":"t","videoId":"aaaaaaaaaaa"}"""), 1, ""))
+        Session.open(dbA, g.store, g.a).apply {
+            push(watched)
+            writeSnapshot(watched)
+        }
+        for ((db, device) in listOf(dbB to g.b, dbA to g.a)) Session.open(db, g.store, device).run { finish(pull()) }
+        return Triple(g, dbA, StorePaths.log(SyncBytes.toHex(g.a.did), 1))
+    }
+
+    @Test
+    fun a_collection_that_starts_over_deletes_only_what_this_device_still_holds() =
+        runTest {
+            val (g, dbA, first) = collectable()
+            Session.open(dbA, g.store, g.a).collectGarbage()
+            assertFalse(first in g.store.objects)
+
+            // The marker is gone, as after leaving and joining again: nothing already deleted is asked for again.
+            dbA.collection().setCollected(CollectedRow(SyncBytes.toHex(g.a.did), 0))
+            val store = Watched(g.store)
+            Session.open(dbA, store, g.a).collectGarbage()
+            assertEquals(emptyList<String>(), store.deleted)
+        }
+
+    @Test
+    fun a_rate_limited_collection_stops_and_finishes_on_a_later_sync() =
+        runTest {
+            val (g, dbA, first) = collectable()
+            Session.open(dbA, Watched(g.store, refuse = true), g.a).collectGarbage()
+            assertTrue(first in g.store.objects)
+
+            Session.open(dbA, g.store, g.a).collectGarbage()
+            assertFalse(first in g.store.objects)
         }
 }

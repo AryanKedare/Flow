@@ -144,4 +144,22 @@ class LanSyncTest {
                 assertEquals(winner, member.session().state.head)
             }
         }
+
+    @Test
+    fun a_member_whose_entry_lost_a_fork_the_other_already_resolved_still_ends_on_the_winner() =
+        runTest {
+            val g = LinkedGroup(this).apply { create() }
+            val a = member(g, g.a)
+            val b = member(g, g.b)
+            renameDevice(a.session(), g.a, SyncBytes.toHex(g.a.did), DeviceMeta("app-a", "Phone", "android"))
+            renameDevice(b.session(), g.b, SyncBytes.toHex(g.b.did), DeviceMeta("app-b", "TV", "android"))
+            val winner = checkNotNull(forkWinner(listOf(a, b).map { it.local.rosterAfter(-1).last() }))
+            val (won, lost) = if (entryHash(a.local.rosterAfter(-1).last()) == entryHash(winner)) a to b else b to a
+            // The winner already pulled the loser's entry, as when both pull at the same moment.
+            won.local.addEntries(listOf(lost.local.rosterAfter(-1).last()))
+
+            meet(client = lost, server = won)
+
+            for (member in listOf(a, b)) assertEquals(entryHash(winner), entryHash(member.local.rosterAfter(-1).last()))
+        }
 }

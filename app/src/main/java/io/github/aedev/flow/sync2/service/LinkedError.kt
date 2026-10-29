@@ -12,6 +12,7 @@ enum class LinkedError(
     INSECURE,
     UNREACHABLE(retryable = true),
     REFUSED,
+    BUSY(retryable = true),
     INSTANCE_CHANGED,
     PROTOCOL,
     LOCAL(retryable = true),
@@ -26,6 +27,7 @@ enum class LinkedError(
     SERVER_HAS_GROUP,
     NEEDS_MEMBER,
     UNEXPECTED,
+    STOPPED,
 }
 
 fun Throwable.linkedError(): LinkedError =
@@ -34,7 +36,7 @@ fun Throwable.linkedError(): LinkedError =
 
         is StoreException.Network -> LinkedError.UNREACHABLE
 
-        is StoreException.Refused -> LinkedError.REFUSED
+        is StoreException.Refused -> if (rateLimited) LinkedError.BUSY else LinkedError.REFUSED
 
         is StoreException.InstanceChanged -> LinkedError.INSTANCE_CHANGED
 
@@ -61,6 +63,8 @@ fun Throwable.linkedError(): LinkedError =
         is LinkedException.NeedsMember -> LinkedError.NEEDS_MEMBER
 
         is LinkedException.Unexpected -> LinkedError.UNEXPECTED
+
+        is LinkedException.Stopped -> LinkedError.STOPPED
 
         // Damaged device keys, a failed merge, the database.
         else -> LinkedError.LOCAL
