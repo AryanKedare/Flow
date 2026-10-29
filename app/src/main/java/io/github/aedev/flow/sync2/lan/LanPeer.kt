@@ -111,12 +111,13 @@ class LanPeer(
             runCatching {
                 when (op) {
                     "roster" -> {
-                        // An asker on a head this device doesn't hold is on another fork: it gets everything to choose from.
+                        // An asker whose head isn't on this device's winning chain is on another fork, or lost one
+                        // this device already resolved: it gets everything to choose from.
                         val head = header.text("head")
                         val held = local.entries()
                         val after =
                             if (head != null &&
-                                held.none { entryHash(it) == head }
+                                local.rosterAfter(-1).none { entryHash(it) == head }
                             ) {
                                 -1
                             } else {
