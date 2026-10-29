@@ -5,6 +5,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddLink
 import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.QrCodeScanner
@@ -28,7 +29,7 @@ import io.github.aedev.flow.ui.screens.sync.SyncOptions
 import io.github.aedev.flow.ui.screens.sync.SyncScanContent
 import io.github.aedev.flow.ui.screens.sync.SyncStepHeader
 
-private enum class Setup { CHOOSE, CREATE, JOIN_SCAN, JOIN_PASTE, RESTORE }
+private enum class Setup { CHOOSE, CREATE, JOIN_SCAN, JOIN_PASTE, JOIN_ADMIN, RESTORE }
 
 /**
  * Linking a device that isn't in a group yet: create one, join one with a member's code, or restore
@@ -41,6 +42,7 @@ internal fun LinkedSetup(
     onCreate: (url: String, adminToken: String) -> Unit,
     onCreateOnNetwork: () -> Unit,
     onEnterCode: (code: String) -> Unit,
+    onJoinWithAdmin: (url: String, adminToken: String) -> Unit,
     onShowCode: () -> Unit,
     onRestore: (url: String, words: String) -> Unit,
 ) {
@@ -77,6 +79,13 @@ internal fun LinkedSetup(
                         setup = if (hostOnly) Setup.JOIN_PASTE else Setup.JOIN_SCAN
                     },
                     SyncOption(
+                        Icons.Outlined.Dns,
+                        stringResource(R.string.linked_join_admin_title),
+                        stringResource(R.string.linked_join_admin_body),
+                    ) {
+                        setup = Setup.JOIN_ADMIN
+                    },
+                    SyncOption(
                         Icons.Outlined.QrCode2,
                         stringResource(R.string.linked_show_code_title),
                         stringResource(R.string.linked_show_code_body),
@@ -99,15 +108,7 @@ internal fun LinkedSetup(
             var token by rememberSaveable { mutableStateOf("") }
             SyncStepHeader(icon = Icons.Outlined.AddLink, title = stringResource(R.string.linked_create_title))
             ServerField(url) { url = it }
-            OutlinedTextField(
-                value = token,
-                onValueChange = { token = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.linked_admin_token)) },
-                supportingText = { Text(stringResource(R.string.linked_admin_token_hint)) },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-            )
+            AdminTokenField(token) { token = it }
             SyncActionRow(
                 confirmLabel = stringResource(R.string.linked_create),
                 onConfirm = { onCreate(url, token) },
@@ -130,6 +131,21 @@ internal fun LinkedSetup(
         Setup.JOIN_PASTE -> {
             SyncManualEntryContent(onSubmit = onEnterCode)
             SyncActionRow(confirmLabel = stringResource(R.string.linked_back), onConfirm = back)
+        }
+
+        Setup.JOIN_ADMIN -> {
+            var url by rememberSaveable { mutableStateOf("") }
+            var token by rememberSaveable { mutableStateOf("") }
+            SyncStepHeader(icon = Icons.Outlined.Dns, title = stringResource(R.string.linked_join_admin_title))
+            ServerField(url) { url = it }
+            AdminTokenField(token) { token = it }
+            SyncActionRow(
+                confirmLabel = stringResource(R.string.linked_join_admin_ask),
+                onConfirm = { onJoinWithAdmin(url, token) },
+                confirmEnabled = !busy && url.isNotBlank() && token.isNotBlank(),
+                dismissLabel = stringResource(R.string.linked_back),
+                onDismiss = back,
+            )
         }
 
         Setup.RESTORE -> {
@@ -167,6 +183,22 @@ private fun ServerField(
         label = { Text(stringResource(R.string.linked_server_url)) },
         placeholder = { Text(stringResource(R.string.linked_server_url_hint)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        singleLine = true,
+    )
+}
+
+@Composable
+private fun AdminTokenField(
+    token: String,
+    onChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = token,
+        onValueChange = onChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(stringResource(R.string.linked_admin_token)) },
+        supportingText = { Text(stringResource(R.string.linked_admin_token_hint)) },
+        visualTransformation = PasswordVisualTransformation(),
         singleLine = true,
     )
 }

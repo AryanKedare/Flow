@@ -9,6 +9,8 @@ import io.github.aedev.flow.sync2.service.LinkedActions
 import io.github.aedev.flow.sync2.service.LinkedDevice
 import io.github.aedev.flow.sync2.service.LinkedError
 import io.github.aedev.flow.sync2.service.linkedError
+import io.github.aedev.flow.sync2.store.JoinRequest
+import io.github.aedev.flow.sync2.store.StoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,6 +27,8 @@ internal data class LinkedUiState(
     val recoverySaved: Boolean = true,
     val lastSync: LastSync? = null,
     val devices: List<LinkedDevice>? = null,
+    /** Devices asking to join with the admin token. */
+    val requests: List<JoinRequest> = emptyList(),
     /** Devices met on this network while the app runs. */
     val nearby: Set<String> = emptySet(),
     /** Recovery words to show once, until the user proves they wrote them down. */
@@ -38,6 +42,7 @@ internal data class LinkedUiState(
 /** What the screen itself holds: the words being shown and the outcome of the last action. */
 private data class Local(
     val devices: List<LinkedDevice>? = null,
+    val requests: List<JoinRequest> = emptyList(),
     /** Devices met on this network while the app runs. */
     val nearby: Set<String> = emptySet(),
     val words: String? = null,
@@ -60,6 +65,7 @@ internal class LinkedDevicesViewModel
                     group?.recoverySaved ?: true,
                     lastSync,
                     l.devices,
+                    l.requests,
                     nearby,
                     l.words,
                     l.busy,
@@ -129,6 +135,33 @@ internal class LinkedDevicesViewModel
         fun syncNow() = run { actions.syncNow() }
 
         fun enterCode(code: String) = actions.enterCode(code)
+
+        fun joinWithAdmin(
+            url: String,
+            adminToken: String,
+        ) = actions.joinWithAdmin(url, adminToken)
+
+        /** Polled while the screen is open; a failure here only means no requests are shown. */
+        suspend fun refreshRequests() {
+            val requests =
+                try {
+                    actions.joinRequests()
+                } catch (_: StoreException) {
+                    emptyList()
+                }
+            local.update { it.copy(requests = requests) }
+        }
+
+        fun accept(id: String) {
+            local.update { l -> l.copy(requests = l.requests.filter { it.id != id }) }
+            actions.accept(id)
+        }
+
+        fun decline(id: String) =
+            run {
+                local.update { l -> l.copy(requests = l.requests.filter { it.id != id }) }
+                actions.decline(id)
+            }
 
         fun showCode() = actions.showCode()
 

@@ -48,6 +48,8 @@ internal fun LinkedOverview(
     onRename: (id: String, name: String) -> Unit,
     onRemove: (id: String) -> Unit,
     onForget: () -> Unit,
+    onAccept: (id: String) -> Unit,
+    onDecline: (id: String) -> Unit,
 ) {
     var confirmForget by rememberSaveable { mutableStateOf(false) }
     if (state.error == LinkedError.REMOVED) {
@@ -91,6 +93,22 @@ internal fun LinkedOverview(
     }
     if (!state.recoverySaved) SyncInfoRow(icon = Icons.Outlined.Warning, text = stringResource(R.string.linked_recovery_unsaved))
 
+    state.requests.forEach { request ->
+        SyncCard {
+            Text(
+                stringResource(R.string.linked_join_request, request.name),
+                Modifier.padding(16.dp),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        SyncActionRow(
+            confirmLabel = stringResource(R.string.linked_accept),
+            onConfirm = { onAccept(request.id) },
+            confirmEnabled = !state.busy,
+            dismissLabel = stringResource(R.string.linked_decline),
+            onDismiss = { onDecline(request.id) },
+        )
+    }
     DeviceList(state.devices.orEmpty(), state.nearby, state.busy, onRename, onRemove)
     onScanNewDevice?.let {
         SyncActionRow(confirmLabel = stringResource(R.string.linked_scan_new_device), onConfirm = it, confirmEnabled = !state.busy)

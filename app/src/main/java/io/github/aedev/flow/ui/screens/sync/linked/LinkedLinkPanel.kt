@@ -52,6 +52,11 @@ internal fun LinkedLinkPanel(
             SyncSasContent(phase.sas, onConfirm = onAnswer)
         }
 
+        LinkPhase.Asked -> {
+            SyncBusyContent(stringResource(R.string.linked_asked))
+            SyncActionRow(confirmLabel = stringResource(R.string.linked_cancel), onConfirm = onClose)
+        }
+
         LinkPhase.Linking -> {
             SyncBusyContent(stringResource(R.string.linked_linking))
         }
