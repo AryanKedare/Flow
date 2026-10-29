@@ -20,10 +20,12 @@ import io.github.aedev.flow.sync2.roster.memberSubject
 import io.github.aedev.flow.sync2.roster.replayRoster
 import io.github.aedev.flow.sync2.store.Appended
 import io.github.aedev.flow.sync2.store.ChangedObject
+import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.Mailbox
 import io.github.aedev.flow.sync2.store.Store
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlin.io.path.createTempDirectory
 
 const val LINK = "default-link"
 
@@ -171,6 +173,8 @@ class LinkedGroup(
             db.groups().addEntries(store.roster)
         }
 }
+
+fun heldStore(db: LinkedDatabase): LocalStore = LocalStore(createTempDirectory("held").toFile(), db.held())
 
 // Queries run on the test's scheduler, so its virtual clock never races real database work.
 fun TestScope.emptyDb(): LinkedDatabase =

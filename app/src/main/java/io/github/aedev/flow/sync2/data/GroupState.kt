@@ -11,6 +11,9 @@ import io.github.aedev.flow.sync2.roster.Entry
 import io.github.aedev.flow.sync2.roster.canonicalEntry
 import kotlinx.coroutines.flow.Flow
 
+/** The [GroupRecord.storeUrl] of a group that lives on its devices alone (spec/live.md, LAN groups). */
+const val LAN_STORE = "lan"
+
 /** The group this device belongs to, where its store is, and how far it has written and read. */
 @Entity(tableName = "group_record")
 data class GroupRecord(

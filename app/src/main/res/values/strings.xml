@@ -2627,6 +2627,9 @@
     <string name="linked_intro">Keep this device in sync with your other devices through your own Flow sync server. Everything is encrypted on your devices; the server can\'t read it.</string>
     <string name="linked_create_title">Create a group</string>
     <string name="linked_create_body">Start linking on a new Flow sync server</string>
+    <string name="linked_create_lan_title">Create a group on this network</string>
+    <string name="linked_create_lan_body">No server: your devices sync with each other when they share a Wi-Fi network</string>
+    <string name="linked_server_lan">This network, no server</string>
     <string name="linked_join_title">Join a group</string>
     <string name="linked_join_body">Scan or paste the code another linked device shows</string>
     <string name="linked_restore_title">Restore with recovery words</string>

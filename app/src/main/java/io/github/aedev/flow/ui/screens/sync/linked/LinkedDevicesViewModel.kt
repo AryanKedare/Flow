@@ -88,6 +88,8 @@ internal class LinkedDevicesViewModel
             adminToken: String,
         ) = run { local.update { it.copy(words = actions.create(url, adminToken)) } }
 
+        fun createOnNetwork() = run { local.update { it.copy(words = actions.createOnNetwork()) } }
+
         fun restore(
             url: String,
             words: String,

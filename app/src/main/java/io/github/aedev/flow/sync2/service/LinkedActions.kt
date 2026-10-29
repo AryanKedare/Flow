@@ -7,16 +7,19 @@ import io.github.aedev.flow.di.ApplicationScope
 import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync.identity.DeviceIdentity
 import io.github.aedev.flow.sync2.data.GroupRecord
+import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.linking.Code
 import io.github.aedev.flow.sync2.linking.DeviceMeta
+import io.github.aedev.flow.sync2.linking.StoreLocation
 import io.github.aedev.flow.sync2.linking.addDevice
 import io.github.aedev.flow.sync2.linking.addScanned
 import io.github.aedev.flow.sync2.linking.answerShown
 import io.github.aedev.flow.sync2.linking.createGroup
+import io.github.aedev.flow.sync2.linking.createLanGroup
 import io.github.aedev.flow.sync2.linking.deviceNames
 import io.github.aedev.flow.sync2.linking.join
 import io.github.aedev.flow.sync2.linking.listen
@@ -26,6 +29,7 @@ import io.github.aedev.flow.sync2.linking.removeDevice
 import io.github.aedev.flow.sync2.linking.renameDevice
 import io.github.aedev.flow.sync2.linking.restoreGroup
 import io.github.aedev.flow.sync2.roster.Role
+import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -83,6 +87,7 @@ class LinkedActions
         private val keys: DeviceKeys,
         private val sync: LinkedSync,
         private val identity: DeviceIdentity,
+        private val local: LocalStore,
         @ApplicationScope private val scope: CoroutineScope,
     ) {
         private val phase = MutableStateFlow<LinkPhase>(LinkPhase.Idle)
@@ -129,6 +134,12 @@ class LinkedActions
             return createGroup(db, url.trim(), adminToken.trim(), keys.load(), meta(), ActiveProfile.get(context).id).also { linkedNow() }
         }
 
+        /** Creates a group on this network alone, with no server, and returns the recovery words. */
+        suspend fun createOnNetwork(): String {
+            ensureUnlinked()
+            return createLanGroup(db, local, keys.load(), meta(), ActiveProfile.get(context).id).also { linkedNow() }
+        }
+
         /** Restores the group with the recovery words and returns the new words to show once. */
         suspend fun restore(
             url: String,
@@ -167,7 +178,8 @@ class LinkedActions
             start {
                 val record = linked()
                 val device = keys.load()
-                val offer = newOffer(record.storeUrl, meta().name, listen())
+                val location = if (record.storeUrl == LAN_STORE) StoreLocation("lan") else StoreLocation("server", record.storeUrl)
+                val offer = newOffer(location, meta().name, listen())
                 phase.value = LinkPhase.Waiting(offer.qr)
                 addDevice(sync.open(record, device), sync.server(record, device), offer, device, ::confirm)
             }
@@ -179,8 +191,8 @@ class LinkedActions
                 when (val code = readCode(text)) {
                     is Code.Member -> {
                         ensureUnlinked()
-                        val store = ServerStore.connect(code.storeUrl, device, null, null)
-                        join(db, store, store, code, device, meta(), ::confirm)
+                        val server = code.storeUrl?.let { ServerStore.connect(it, device, null, null) }
+                        join(db, local, server, server, code, device, meta(), ::confirm)
                         linkedNow()
                     }
 
@@ -199,7 +211,7 @@ class LinkedActions
                 val offer = newOffer(null, meta().name, listen() ?: throw LinkedException.LanUnreachable())
                 phase.value = LinkPhase.Waiting(offer.qr)
                 val welcomed = answerShown(offer, device, meta(), ::confirm)
-                welcomed.finish(db, ServerStore.connect(welcomed.storeUrl, device, welcomed.instance, welcomed.group))
+                welcomed.finish(db, local, welcomed.storeUrl?.let { ServerStore.connect(it, device, welcomed.instance, welcomed.group) })
                 linkedNow()
             }
 

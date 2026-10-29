@@ -14,7 +14,6 @@ import io.github.aedev.flow.sync2.roster.entryHash
 import io.github.aedev.flow.sync2.roster.memberSubject
 import io.github.aedev.flow.sync2.store.Appended
 import io.github.aedev.flow.sync2.store.GroupStore
-import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.StorePaths
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -24,23 +23,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
-import kotlin.io.path.createTempDirectory
 
 /** What a device holds of its group, and how a server group fills it and drains it. */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class)
 class HeldStoreTest {
-    private fun local(db: LinkedDatabase) = LocalStore(createTempDirectory("held").toFile(), db.held())
-
     private suspend fun TestScope.heldCopy(g: LinkedGroup): Pair<LinkedDatabase, GroupStore> {
         val db = g.deviceDb()
-        return db to GroupStore(local(db), g.store)
+        return db to GroupStore(heldStore(db), g.store)
     }
 
     @Test
     fun objects_are_held_once_paged_in_arrival_order_and_listed_above_a_version_vector() =
         runTest {
-            val store = local(emptyDb())
+            val store = heldStore(emptyDb())
             val did = "ab".repeat(16)
             store.putObject(StorePaths.log(did, 1), byteArrayOf(1))
             store.putObject(StorePaths.log(did, 2), byteArrayOf(2))
@@ -58,7 +54,7 @@ class HeldStoreTest {
     fun the_roster_follows_the_fork_winner_and_an_append_names_the_head_it_builds_on() =
         runTest {
             val g = LinkedGroup(this).apply { create() }
-            val store = local(emptyDb())
+            val store = heldStore(emptyDb())
             store.addEntries(g.store.roster)
             val state = g.store.head()
             val (c, d) = newMember() to newMember()

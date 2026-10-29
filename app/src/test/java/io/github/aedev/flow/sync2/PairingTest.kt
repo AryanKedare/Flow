@@ -10,6 +10,7 @@ import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.linking.Code
 import io.github.aedev.flow.sync2.linking.DeviceMeta
+import io.github.aedev.flow.sync2.linking.StoreLocation
 import io.github.aedev.flow.sync2.linking.addDevice
 import io.github.aedev.flow.sync2.linking.join
 import io.github.aedev.flow.sync2.linking.newOffer
@@ -39,7 +40,7 @@ class PairingTest {
 
             val newcomer = newMember()
             val dbN = emptyDb()
-            val offer = newOffer("memory", "Desktop A", null)
+            val offer = newOffer(StoreLocation("server", "memory"), "Desktop A", null)
             val codes = ArrayList<String>()
             val shown = { sas: String ->
                 codes += sas
@@ -48,7 +49,18 @@ class PairingTest {
             val did =
                 coroutineScope {
                     val added = async { addDevice(session, g.store, offer, g.a) { shown(it) } }
-                    val joined = async { join(dbN, g.store, g.store, readCode(offer.qr) as Code.Member, newcomer, meta) { shown(it) } }
+                    val joined =
+                        async {
+                            join(
+                                dbN,
+                                heldStore(dbN),
+                                g.store,
+                                g.store,
+                                readCode(offer.qr) as Code.Member,
+                                newcomer,
+                                meta,
+                            ) { shown(it) }
+                        }
                     joined.await()
                     added.await()
                 }
@@ -77,15 +89,17 @@ class PairingTest {
             val g = LinkedGroup(this).apply { create() }
             val session = Session.open(g.deviceDb(), g.store, g.a)
             val before = g.store.head().seq
-            val offer = newOffer("memory", "Desktop A", null)
+            val offer = newOffer(StoreLocation("server", "memory"), "Desktop A", null)
             val results =
                 coroutineScope {
                     val added = async { runCatching { addDevice(session, g.store, offer, g.a) { false } } }
                     val joined =
                         async {
                             runCatching {
+                                val db = emptyDb()
                                 join(
-                                    emptyDb(),
+                                    db,
+                                    heldStore(db),
                                     g.store,
                                     g.store,
                                     readCode(offer.qr) as Code.Member,
@@ -102,7 +116,7 @@ class PairingTest {
 
     @Test
     fun codes_that_are_not_flow_sync_2_are_refused() {
-        val newWithStore = newOffer("memory", "Desktop A", null).qr.replace("\"r\":\"m\"", "\"r\":\"n\"")
+        val newWithStore = newOffer(StoreLocation("server", "memory"), "Desktop A", null).qr.replace("\"r\":\"m\"", "\"r\":\"n\"")
         val flowSync1 = """{"v":1,"sid":"AAAAAAAAAAAAAAAAAAAAAA","k":"AAAA","ip":"192.168.1.2","p":1,"d":"x","exp":0}"""
         for (qr in listOf(newWithStore, flowSync1, "not json")) {
             assertTrue(qr, runCatching { readCode(qr) }.exceptionOrNull() is LinkedException.Unexpected)

@@ -58,7 +58,15 @@ internal fun LinkedDevicesSection(
         }
 
         else -> {
-            LinkedSetup(hostOnly, state.busy, viewModel::create, viewModel::enterCode, viewModel::showCode, viewModel::restore)
+            LinkedSetup(
+                hostOnly,
+                state.busy,
+                viewModel::create,
+                viewModel::createOnNetwork,
+                viewModel::enterCode,
+                viewModel::showCode,
+                viewModel::restore,
+            )
         }
     }
 }
