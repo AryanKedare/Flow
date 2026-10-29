@@ -72,6 +72,17 @@ class GarbageCollectionTest {
     }
 
     @Test
+    fun a_snapshot_stays_until_every_device_read_past_it_even_when_another_covers_it() {
+        // The Mac's manifest 573 is covered by the phone's acknowledged snapshot, but the phone has read the Mac's log only to 572.
+        val mac = snapshot("mac", 573, "mac" to 572, "phone" to 40)
+        val phone = snapshot("phone", 41, "mac" to 572, "phone" to 40)
+        val acks = mapOf("mac" to mapOf("phone" to 41L))
+        val devices = setOf("mac", "phone")
+        assertTrue(plan(devices, setOf("mac"), acks + ("phone" to mapOf("mac" to 572L)), listOf(mac, phone)).manifests.isEmpty())
+        assertEquals(listOf(mac), plan(devices, setOf("mac"), acks + ("phone" to mapOf("mac" to 573L)), listOf(mac, phone)).manifests)
+    }
+
+    @Test
     fun every_link_batches_name_needs_an_acknowledged_snapshot() {
         val acks = mapOf("b" to mapOf("a" to 9L))
         val links = setOf(link, null)
