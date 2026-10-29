@@ -30,7 +30,7 @@ internal data class LinkedUiState(
     /** Devices asking to join with the admin token. */
     val requests: List<JoinRequest> = emptyList(),
     /** Devices met on this network while the app runs. */
-    val nearby: Set<String> = emptySet(),
+    val nearby: Map<String, Long> = emptyMap(),
     /** Recovery words to show once, until the user proves they wrote them down. */
     val words: String? = null,
     val busy: Boolean = false,

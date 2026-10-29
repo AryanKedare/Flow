@@ -142,6 +142,13 @@ class ServerStoreTest {
         }
 
     @Test
+    fun the_status_says_when_each_device_was_last_seen() =
+        runTest {
+            serve { respondJson(200, """{"used":0,"quota":0,"objects":0,"devices":{"aa":{"seen":5},"bb":{"seen":7}}}""") }
+            assertEquals(mapOf("aa" to 5L, "bb" to 7L), store().seen())
+        }
+
+    @Test
     fun redirects_are_not_followed() {
         serve {
             response.header("Location", "https://elsewhere.example/")

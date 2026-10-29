@@ -35,6 +35,7 @@ import io.github.aedev.flow.sync2.roster.Role
 import io.github.aedev.flow.sync2.store.JoinRequest
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
+import io.github.aedev.flow.sync2.store.StoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -80,6 +81,8 @@ data class LinkedDevice(
     val name: String,
     val platform: String,
     val thisDevice: Boolean,
+    /** When the server last heard from it; null in a group without a server. */
+    val seen: Long? = null,
 )
 
 /** What the Linked devices screen can do. Pairing runs in the application scope, so it survives the screen. */
@@ -104,7 +107,7 @@ class LinkedActions
         val group: Flow<GroupRecord?> = db.groups().observeGroup()
         val lastSync: StateFlow<LastSync?> = sync.lastSync
         val link: StateFlow<LinkPhase> = phase.asStateFlow()
-        val nearby: StateFlow<Set<String>> = lan.nearby
+        val nearby: StateFlow<Map<String, Long>> = lan.nearby
 
         private suspend fun meta() = DeviceMeta(identity.deviceId(), identity.deviceName(), PLATFORM)
 
@@ -126,10 +129,17 @@ class LinkedActions
             val session = session()
             val names = deviceNames(session)
             val me = SyncBytes.toHex(session.device.did)
+            // The status is extra; the devices still show without it.
+            val seen =
+                try {
+                    sync.server(session.record, session.device)?.seen()
+                } catch (_: StoreException) {
+                    null
+                }.orEmpty()
             return session.state.members
                 .filterValues { it.role == Role.DEVICE }
                 .keys
-                .map { id -> LinkedDevice(id, names[id]?.name.orEmpty(), names[id]?.platform.orEmpty(), id == me) }
+                .map { id -> LinkedDevice(id, names[id]?.name.orEmpty(), names[id]?.platform.orEmpty(), id == me, seen[id]) }
                 .sortedByDescending { it.thisDevice }
         }
 
