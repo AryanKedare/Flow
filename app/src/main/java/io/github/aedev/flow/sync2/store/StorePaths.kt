@@ -12,6 +12,11 @@ object StorePaths {
         seq: Long,
     ): String = "dev/$did/log/${hex(seq ushr 10, 16)}/${hex(seq, 16)}.o"
 
+    fun blob(
+        did: String,
+        hash: String,
+    ): String = "dev/$did/blob/$hash.b"
+
     private val LOG = Regex("dev/([0-9a-f]{32})/log/[0-9a-f]{16}/([0-9a-f]{16})\\.o")
 
     /** The sender and sequence of a log object path, or `null` for any other path. */
