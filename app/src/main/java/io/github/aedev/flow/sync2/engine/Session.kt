@@ -66,7 +66,7 @@ class Session private constructor(
     record: GroupRecord,
     internal val group: ByteArray,
     val state: RosterState,
-    entries: List<Entry>,
+    internal val entries: List<Entry>,
 ) {
     private val me = SyncBytes.toHex(device.did)
     private val signingKeys = HashMap<String, ByteArray>()
@@ -114,7 +114,7 @@ class Session private constructor(
     }
 
     /** The key of [epoch], walking the history chain back from the oldest key this device holds. */
-    private suspend fun epochKey(epoch: Int): ByteArray {
+    internal suspend fun epochKey(epoch: Int): ByteArray {
         while (epoch !in keys) {
             val (known, key) = keys.firstEntry() ?: reject(ProtocolError.KEY_COMMITMENT)
             if (known <= epoch) reject(ProtocolError.KEY_COMMITMENT)
