@@ -132,25 +132,53 @@ fun parseBatch(content: ByteArray): IncomingBatch {
 
 /**
  * Applies batches from one sender through the FLOW-SYNC/1 merges, which run in one transaction
- * behind a pre-merge backup. Applied records count as known to the group, so this device doesn't
- * send them back unchanged.
+ * behind a pre-merge backup. What an applied record looks like in this device's own [export] counts
+ * as known to the group, so it isn't sent back: another app's canonical form of the same record
+ * differs, and sending that back would bounce between the two forever. A record of this device's
+ * that changed since its last upload stays unknown, so it still goes out.
  */
 suspend fun applyBatches(
     sentDao: SentDao,
     batches: List<IncomingBatch>,
     nowMs: Long,
+    export: suspend (collections: List<String>) -> Map<String, CollectionWire>,
     apply: suspend (Map<String, ReceivedCollection>) -> Unit,
 ) {
-    val known = ArrayList<SentRecord>()
+    val keys = HashMap<String, MutableSet<String>>()
     val received =
         batches.groupBy { it.collection }.mapValues { (collection, parts) ->
             val lines = parts.flatMap { it.lines }
             for (line in lines) {
-                val record = Json.parseToJsonElement(line).jsonObject
-                recordKey(collection, record)?.let { known += SentRecord(collection, it, recordHash(collection, record, line), nowMs) }
+                recordKey(collection, Json.parseToJsonElement(line).jsonObject)?.let { keys.getOrPut(collection) { HashSet() } += it }
             }
             ReceivedCollection(lines, SyncSerialization.sha256Hex(lines.joinToString("\n")))
         }
+    val collections = keys.keys.toList()
+    val before = ownHashes(export(collections), keys)
     apply(received)
+    val after = ownHashes(export(collections), keys)
+    val known = ArrayList<SentRecord>()
+    for ((collection, hashes) in after) {
+        val previous = sentDao.forCollection(collection).associateBy { it.recordKey }
+        for ((key, hash) in hashes) {
+            val last = previous[key]?.hash
+            val pending = before[collection]?.get(key).let { it != null && it != last }
+            if (!pending && hash != last) known += SentRecord(collection, key, hash, nowMs)
+        }
+    }
     sentDao.upsert(known)
 }
+
+/** The hash of each of [keys] in this device's own export, by collection and record key. */
+private fun ownHashes(
+    exported: Map<String, CollectionWire>,
+    keys: Map<String, Set<String>>,
+): Map<String, Map<String, String>> =
+    exported.mapValues { (collection, wire) ->
+        val wanted = keys[collection].orEmpty()
+        wire.lines
+            .mapNotNull { line ->
+                val record = Json.parseToJsonElement(line).jsonObject
+                recordKey(collection, record)?.takeIf { it in wanted }?.let { it to recordHash(collection, record, line) }
+            }.toMap()
+    }
