@@ -17,9 +17,12 @@ import kotlinx.coroutines.channels.Channel
 /**
  * Show-QR/host role transport: an embedded Ktor **CIO** WebSocket server bound to `0.0.0.0:0`
  * (OS-assigned ephemeral port, read back for the QR). CIO is pure-Kotlin/coroutine so it runs on
- * Android. v1 handles a single 1↔1 session per server instance.
+ * Android. v1 handles a single 1↔1 session per server instance. [path] is FLOW-SYNC/1's unless
+ * FLOW-SYNC/2 pairing serves on its own.
  */
-class WsServer {
+class WsServer(
+    private val path: String = QrPath.PATH,
+) {
     private var server: EmbeddedServer<*, *>? = null
     private val connectionDeferred = CompletableDeferred<SyncConnection>()
 
@@ -34,7 +37,7 @@ class WsServer {
                     timeoutMillis = PING_TIMEOUT_MS
                 }
                 routing {
-                    webSocket(QrPath.PATH) {
+                    webSocket(path) {
                         val conn = KtorServerConnection(this)
                         if (!connectionDeferred.isCompleted) connectionDeferred.complete(conn)
                         try {

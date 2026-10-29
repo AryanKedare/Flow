@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddLink
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -30,14 +31,15 @@ private enum class Setup { CHOOSE, CREATE, JOIN_SCAN, JOIN_PASTE, RESTORE }
 
 /**
  * Linking a device that isn't in a group yet: create one, join one with a member's code, or restore
- * one with the recovery words. [hostOnly] devices have no camera, so they join by pasting.
+ * one with the recovery words. [hostOnly] devices have no camera, so they join by pasting or by showing a code.
  */
 @Composable
 internal fun LinkedSetup(
     hostOnly: Boolean,
     busy: Boolean,
     onCreate: (url: String, adminToken: String) -> Unit,
-    onJoin: (code: String) -> Unit,
+    onEnterCode: (code: String) -> Unit,
+    onShowCode: () -> Unit,
     onRestore: (url: String, words: String) -> Unit,
 ) {
     var setup by rememberSaveable { mutableStateOf(Setup.CHOOSE) }
@@ -64,6 +66,13 @@ internal fun LinkedSetup(
                         stringResource(R.string.linked_join_body),
                     ) {
                         setup = if (hostOnly) Setup.JOIN_PASTE else Setup.JOIN_SCAN
+                    },
+                    SyncOption(
+                        Icons.Outlined.QrCode2,
+                        stringResource(R.string.linked_show_code_title),
+                        stringResource(R.string.linked_show_code_body),
+                    ) {
+                        onShowCode()
                     },
                     SyncOption(
                         Icons.Outlined.Key,
@@ -100,7 +109,7 @@ internal fun LinkedSetup(
         }
 
         Setup.JOIN_SCAN -> {
-            SyncScanContent(prompt = stringResource(R.string.linked_scan_member_code), onScanned = onJoin)
+            SyncScanContent(prompt = stringResource(R.string.linked_scan_member_code), onScanned = onEnterCode)
             SyncActionRow(
                 confirmLabel = stringResource(R.string.sync_paste_connection_data),
                 onConfirm = { setup = Setup.JOIN_PASTE },
@@ -110,7 +119,7 @@ internal fun LinkedSetup(
         }
 
         Setup.JOIN_PASTE -> {
-            SyncManualEntryContent(onSubmit = onJoin)
+            SyncManualEntryContent(onSubmit = onEnterCode)
             SyncActionRow(confirmLabel = stringResource(R.string.linked_back), onConfirm = back)
         }
 

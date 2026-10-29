@@ -42,6 +42,8 @@ internal fun LinkedOverview(
     state: LinkedUiState,
     onSyncNow: () -> Unit,
     onAddDevice: () -> Unit,
+    /** Null on a device without a camera. */
+    onScanNewDevice: (() -> Unit)?,
     onRename: (id: String, name: String) -> Unit,
     onRemove: (id: String) -> Unit,
     onForget: () -> Unit,
@@ -83,6 +85,9 @@ internal fun LinkedOverview(
     if (!state.recoverySaved) SyncInfoRow(icon = Icons.Outlined.Warning, text = stringResource(R.string.linked_recovery_unsaved))
 
     DeviceList(state.devices.orEmpty(), state.busy, onRename, onRemove)
+    onScanNewDevice?.let {
+        SyncActionRow(confirmLabel = stringResource(R.string.linked_scan_new_device), onConfirm = it, confirmEnabled = !state.busy)
+    }
     SyncActionRow(
         confirmLabel = stringResource(R.string.linked_add_device),
         onConfirm = onAddDevice,

@@ -8,10 +8,12 @@ import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync2.changes.applyBatches
 import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
+import io.github.aedev.flow.sync2.linking.Code
 import io.github.aedev.flow.sync2.linking.DeviceMeta
 import io.github.aedev.flow.sync2.linking.addDevice
 import io.github.aedev.flow.sync2.linking.join
 import io.github.aedev.flow.sync2.linking.newOffer
+import io.github.aedev.flow.sync2.linking.readCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
@@ -37,7 +39,7 @@ class PairingTest {
 
             val newcomer = newMember()
             val dbN = emptyDb()
-            val offer = newOffer("memory", "Desktop A")
+            val offer = newOffer("memory", "Desktop A", null)
             val codes = ArrayList<String>()
             val shown = { sas: String ->
                 codes += sas
@@ -46,7 +48,7 @@ class PairingTest {
             val did =
                 coroutineScope {
                     val added = async { addDevice(session, g.store, offer, g.a) { shown(it) } }
-                    val joined = async { join(dbN, g.store, g.store, offer.qr, newcomer, meta) { shown(it) } }
+                    val joined = async { join(dbN, g.store, g.store, readCode(offer.qr) as Code.Member, newcomer, meta) { shown(it) } }
                     joined.await()
                     added.await()
                 }
@@ -74,11 +76,23 @@ class PairingTest {
             val g = LinkedGroup(this).apply { create() }
             val session = Session.open(g.deviceDb(), g.store, g.a)
             val before = g.store.head().seq
-            val offer = newOffer("memory", "Desktop A")
+            val offer = newOffer("memory", "Desktop A", null)
             val results =
                 coroutineScope {
                     val added = async { runCatching { addDevice(session, g.store, offer, g.a) { false } } }
-                    val joined = async { runCatching { join(emptyDb(), g.store, g.store, offer.qr, newMember(), meta) { false } } }
+                    val joined =
+                        async {
+                            runCatching {
+                                join(
+                                    emptyDb(),
+                                    g.store,
+                                    g.store,
+                                    readCode(offer.qr) as Code.Member,
+                                    newMember(),
+                                    meta,
+                                ) { false }
+                            }
+                        }
                     listOf(added.await(), joined.await())
                 }
             results.forEach { assertTrue("${it.exceptionOrNull()}", it.exceptionOrNull() is LinkedException.Declined) }
@@ -86,14 +100,11 @@ class PairingTest {
         }
 
     @Test
-    fun codes_that_are_not_a_member_offer_are_refused() =
-        runTest {
-            val g = LinkedGroup(this).apply { create() }
-            val fromNewDevice = newOffer("memory", "Desktop A").qr.replace("\"r\":\"m\"", "\"r\":\"n\"")
-            val flowSync1 = """{"v":1,"sid":"AAAAAAAAAAAAAAAAAAAAAA","k":"AAAA","ip":"192.168.1.2","p":1,"d":"x","exp":0}"""
-            for (qr in listOf(fromNewDevice, flowSync1, "not json")) {
-                val error = runCatching { join(emptyDb(), g.store, g.store, qr, newMember(), meta) { true } }.exceptionOrNull()
-                assertTrue(qr, error is LinkedException.Unexpected)
-            }
+    fun codes_that_are_not_flow_sync_2_are_refused() {
+        val newWithStore = newOffer("memory", "Desktop A", null).qr.replace("\"r\":\"m\"", "\"r\":\"n\"")
+        val flowSync1 = """{"v":1,"sid":"AAAAAAAAAAAAAAAAAAAAAA","k":"AAAA","ip":"192.168.1.2","p":1,"d":"x","exp":0}"""
+        for (qr in listOf(newWithStore, flowSync1, "not json")) {
+            assertTrue(qr, runCatching { readCode(qr) }.exceptionOrNull() is LinkedException.Unexpected)
         }
+    }
 }

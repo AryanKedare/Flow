@@ -24,6 +24,7 @@ import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.roster.Draft
 import io.github.aedev.flow.sync2.roster.Op
 import io.github.aedev.flow.sync2.roster.Role
+import io.github.aedev.flow.sync2.roster.Subject
 import io.github.aedev.flow.sync2.roster.applyEntry
 import io.github.aedev.flow.sync2.roster.buildEntry
 import io.github.aedev.flow.sync2.roster.memberSubject
@@ -33,92 +34,29 @@ import io.github.aedev.flow.sync2.roster.signingBytes
 import io.github.aedev.flow.sync2.store.Appended
 import io.github.aedev.flow.sync2.store.Mailbox
 import io.github.aedev.flow.sync2.store.Store
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.SerializationException
-import java.util.Locale
 
-private const val POLL_INTERVAL_MS = 2_000L
-private const val SLOT_LIFETIME_MS = 180_000L
-private const val KEY_SIZE = 32
-
-/** A code shown by a member, valid until its slot closes. */
-class Offer internal constructor(
-    val qr: String,
-    internal val token: ByteArray,
-    internal val secret: ByteArray,
-    internal val public: ByteArray,
-)
-
-fun newOffer(
-    storeUrl: String,
-    deviceName: String,
-): Offer {
-    val token = SyncCrypto.randomBytes(16)
-    val secret = SyncCrypto.randomBytes(KEY_SIZE)
-    val public = agreementPublicKey(secret)
-    val code =
-        QrCode(
-            2,
-            SyncBytes.b64urlEncode(token),
-            SyncBytes.b64urlEncode(public),
-            "m",
-            deviceName.take(64),
-            StoreLocation("server", storeUrl),
-        )
-    return Offer(canonical(QrCode.serializer(), code), token, secret, public)
-}
-
-/** A member's code, checked before anything is sent: version 2, shown by a member, on a Flow server. */
-fun readOffer(qr: String): QrCode =
-    try {
-        pairingJson.decodeFromString(QrCode.serializer(), qr).takeIf { it.v == 2 && it.r == "m" && it.s.k == "server" }
-    } catch (_: SerializationException) {
-        null
-    } catch (_: IllegalArgumentException) {
-        null
-    } ?: throw LinkedException.Unexpected()
-
-/** One side of the mailbox: seals what it sends and opens what the other side sent, in order. */
-private class Channel(
-    private val mailbox: Mailbox,
-    private val slot: String,
+/** Sealed pairing messages over a pipe, numbered from 0 in each direction. */
+internal class Channel(
+    val pipe: Pipe,
     private val token: ByteArray,
-    private val sendDirection: Char,
-    private val receiveDirection: Char,
+    private val sealKey: ByteArray,
+    private val openKey: ByteArray,
 ) {
-    lateinit var sealKey: ByteArray
-    lateinit var openKey: ByteArray
     private var sent = 0L
     private var received = 0L
 
-    private fun name(
-        direction: Char,
-        seq: Long,
-    ) = "%c-%016x.p".format(Locale.ROOT, direction, seq)
-
-    suspend fun send(
-        message: Message,
-        prefix: ByteArray = ByteArray(0),
-    ) {
+    suspend fun send(message: Message) {
         val content = canonical(Message.serializer(), message)
-        val sealed = seal(sealKey, pairingAad(token, sent), encodePayload(content.toByteArray()))
-        mailbox.putMessage(slot, name(sendDirection, sent), prefix + sealed)
+        pipe.send(seal(sealKey, pairingAad(token, sent), encodePayload(content.toByteArray())))
         sent++
     }
 
-    suspend fun nextBytes(): ByteArray {
-        val name = name(receiveDirection, received)
-        var waited = 0L
-        while (true) {
-            mailbox.getMessage(slot, name)?.let { return it }
-            if (waited >= SLOT_LIFETIME_MS) throw LinkedException.TimedOut()
-            delay(POLL_INTERVAL_MS)
-            waited += POLL_INTERVAL_MS
-        }
-    }
-
-    fun open(sealed: ByteArray): Message {
-        val content = decodePayload(open(openKey, pairingAad(token, received), sealed))
+    suspend fun receive(): Message {
+        val content = decodePayload(open(openKey, pairingAad(token, received), pipe.receive()))
         received++
         return try {
             pairingJson.decodeFromString(Message.serializer(), content.toString(Charsets.UTF_8))
@@ -127,17 +65,36 @@ private class Channel(
         }
     }
 
-    suspend fun receive(): Message = open(nextBytes())
-}
+    companion object {
+        /** The side that showed [offer], once the scanner's key arrived. Returns the six digits too. */
+        fun shower(
+            pipe: Pipe,
+            offer: Offer,
+            scanner: ByteArray,
+        ): Pair<Channel, String> {
+            val keys = pairingKeys(offer.secret, scanner, offer.token, offer.public, scanner)
+            return Channel(pipe, offer.token, keys.showerKey, keys.scannerKey) to keys.sas
+        }
 
-private fun key(value: String): ByteArray =
-    runCatching { SyncBytes.b64urlDecode(value) }.getOrNull()?.takeIf { it.size == KEY_SIZE } ?: throw LinkedException.Unexpected()
+        /** The side that read [code]: sends its key first. */
+        suspend fun scanner(
+            pipe: Pipe,
+            code: Code,
+        ): Pair<Channel, String> {
+            val secret = SyncCrypto.randomBytes(KEY_SIZE)
+            val public = agreementPublicKey(secret)
+            val keys = pairingKeys(secret, code.showerKey, code.token, code.showerKey, public)
+            pipe.sendKey(public)
+            return Channel(pipe, code.token, keys.scannerKey, keys.showerKey) to keys.sas
+        }
+    }
+}
 
 internal fun metaJson(meta: DeviceMeta): ByteArray = canonical(DeviceMeta.serializer(), meta).toByteArray()
 
 /**
- * The member's side: waits for the scanner, shows the code through [confirm], and adds the new
- * device once the user confirms. Returns the new device's id.
+ * The member's side, on a code it shows: waits for the scanner on the mailbox and, when the code
+ * lists LAN addresses, on the LAN too. Returns the new device's id.
  */
 suspend fun addDevice(
     session: Session,
@@ -149,30 +106,53 @@ suspend fun addDevice(
     val slot = SyncBytes.toHex(pairingSlot(offer.token))
     mailbox.openSlot(slot)
     try {
-        return runMember(session, mailbox, offer, slot, device, confirm)
+        val (pipe, key) =
+            coroutineScope {
+                val mailboxPipe = MailboxPipe(mailbox, slot, shower = true)
+                val viaMailbox = async { mailboxPipe to mailboxPipe.receiveKey() }
+                val viaLan = offer.listening?.let { listening -> async { listening.accept() } }
+                select<Pair<Pipe, ByteArray>> {
+                    viaMailbox.onAwait { it }
+                    if (viaLan != null) viaLan.onAwait { it }
+                }.also {
+                    viaMailbox.cancel()
+                    viaLan?.cancel()
+                }
+            }
+        val (channel, sas) = Channel.shower(pipe, offer, key)
+        return memberSide(session, channel, sas, device, confirm)
     } finally {
+        offer.listening?.stop()
         // The slot expires on its own if this fails.
         runCatching { mailbox.closeSlot(slot) }
     }
 }
 
-private suspend fun runMember(
+/** The member's side, on a new device's code: reaches it over the LAN. */
+suspend fun addScanned(
     session: Session,
-    mailbox: Mailbox,
-    offer: Offer,
-    slot: String,
+    code: Code.New,
     device: MemberSecrets,
     confirm: suspend (String) -> Boolean,
 ): String {
-    val channel = Channel(mailbox, slot, offer.token, 'a', 'b')
-    val first = channel.nextBytes()
-    if (first.size <= KEY_SIZE) throw LinkedException.Unexpected()
-    val scannerPublic = first.copyOfRange(0, KEY_SIZE)
-    val keys = pairingKeys(offer.secret, scannerPublic, offer.token, offer.public, scannerPublic)
-    channel.sealKey = keys.showerKey
-    channel.openKey = keys.scannerKey
-    val join = channel.open(first.copyOfRange(KEY_SIZE, first.size)) as? Message.Join ?: throw LinkedException.Unexpected()
-    if (!confirm(keys.sas)) throw LinkedException.Declined()
+    val pipe = dial(code.lan) ?: throw LinkedException.LanUnreachable()
+    try {
+        val (channel, sas) = Channel.scanner(pipe, code)
+        return memberSide(session, channel, sas, device, confirm)
+    } finally {
+        pipe.close()
+    }
+}
+
+private suspend fun memberSide(
+    session: Session,
+    channel: Channel,
+    sas: String,
+    device: MemberSecrets,
+    confirm: suspend (String) -> Boolean,
+): String {
+    val join = channel.receive() as? Message.Join ?: throw LinkedException.Unexpected()
+    if (!confirm(sas)) throw LinkedException.Declined()
 
     val sigPublic = key(join.sig)
     val kemPublic = key(join.kem)
@@ -208,31 +188,48 @@ private suspend fun runMember(
     return didHex
 }
 
-/**
- * The new device's side: answers a member's code, shows the six digits through [confirm], and once
- * accepted saves the group with the roster verified up to the head the member named.
- */
-suspend fun join(
-    db: LinkedDatabase,
-    store: Store,
-    mailbox: Mailbox,
-    qr: String,
+/** A new device that was welcomed and has yet to check the roster and say it is done. */
+class Welcomed internal constructor(
+    private val channel: Channel,
+    private val me: Subject,
+    internal val welcome: Message.Welcome,
+    /** Closes the LAN connection or server the welcome came through. */
+    private val close: () -> Unit,
+) {
+    val storeUrl: String get() = welcome.store.u
+    val instance: String get() = welcome.store.i
+    val group: String get() = welcome.group
+
+    /** Saves the group once the roster on [store] verifies up to the head the member named. */
+    suspend fun finish(
+        db: LinkedDatabase,
+        store: Store,
+    ) {
+        val roster = store.rosterAfter(-1)
+        val end = roster.indexOfFirst { it.seq == welcome.seq }
+        if (end < 0 || replayRoster(roster.take(end + 1)).head != welcome.head || me.did !in replayRoster(roster).members) {
+            reject(ProtocolError.ROSTER_CHAIN)
+        }
+        try {
+            db.groups().addEntries(roster)
+            db.groups().saveGroup(GroupRecord(welcome.group, welcome.store.u, welcome.store.i, welcome.link))
+            channel.send(Message.Done)
+        } finally {
+            close()
+        }
+    }
+}
+
+private suspend fun newSide(
+    channel: Channel,
+    sas: String,
     device: MemberSecrets,
     meta: DeviceMeta,
     confirm: suspend (String) -> Boolean,
-) {
-    val code = readOffer(qr)
-    val token = runCatching { SyncBytes.b64urlDecode(code.t) }.getOrNull()?.takeIf { it.size == 16 } ?: throw LinkedException.Unexpected()
-    val showerPublic = key(code.e)
-    val secret = SyncCrypto.randomBytes(KEY_SIZE)
-    val public = agreementPublicKey(secret)
-    val keys = pairingKeys(secret, showerPublic, token, showerPublic, public)
-    val channel = Channel(mailbox, SyncBytes.toHex(pairingSlot(token)), token, 'b', 'a')
-    channel.sealKey = keys.scannerKey
-    channel.openKey = keys.showerKey
-
-    channel.send(Message.Join(SyncBytes.b64urlEncode(device.sigPublic), SyncBytes.b64urlEncode(device.kemPublic), meta), prefix = public)
-    if (!confirm(keys.sas)) throw LinkedException.Declined()
+    close: () -> Unit,
+): Welcomed {
+    channel.send(Message.Join(SyncBytes.b64urlEncode(device.sigPublic), SyncBytes.b64urlEncode(device.kemPublic), meta))
+    if (!confirm(sas)) throw LinkedException.Declined()
 
     val entry = (channel.receive() as? Message.EntryMessage)?.entry ?: throw LinkedException.Unexpected()
     val me = memberSubject(device.sigPublic, device.kemPublic, Role.DEVICE)
@@ -240,13 +237,51 @@ suspend fun join(
     channel.send(Message.Accept(SyncBytes.b64urlEncode(sign(device.sigSeed, signingBytes(entry)))))
 
     val welcome = channel.receive() as? Message.Welcome ?: throw LinkedException.Unexpected()
-    if (welcome.store.u != code.s.u || welcome.group != entry.group) throw LinkedException.Unexpected()
-    val roster = store.rosterAfter(-1)
-    val end = roster.indexOfFirst { it.seq == welcome.seq }
-    if (end < 0 || replayRoster(roster.take(end + 1)).head != welcome.head || me.did !in replayRoster(roster).members) {
-        reject(ProtocolError.ROSTER_CHAIN)
+    if (welcome.group != entry.group || welcome.store.k != "server") throw LinkedException.Unexpected()
+    return Welcomed(channel, me, welcome, close)
+}
+
+/**
+ * The new device's side, on a member's code: tries the LAN addresses it lists, then the store's
+ * mailbox, and saves the group once accepted.
+ */
+suspend fun join(
+    db: LinkedDatabase,
+    store: Store,
+    mailbox: Mailbox,
+    code: Code.Member,
+    device: MemberSecrets,
+    meta: DeviceMeta,
+    confirm: suspend (String) -> Boolean,
+) {
+    val pipe = dial(code.lan) ?: MailboxPipe(mailbox, SyncBytes.toHex(pairingSlot(code.token)), shower = false)
+    val close = { (pipe as? LanPipe)?.close() ?: Unit }
+    val welcomed =
+        try {
+            val (channel, sas) = Channel.scanner(pipe, code)
+            newSide(channel, sas, device, meta, confirm, close).takeIf { it.storeUrl == code.storeUrl }
+                ?: throw LinkedException.Unexpected()
+        } catch (e: Exception) {
+            close()
+            throw e
+        }
+    welcomed.finish(db, store)
+}
+
+/** The new device's side, on the code it shows: waits on the LAN for a member to scan it. */
+suspend fun answerShown(
+    offer: Offer,
+    device: MemberSecrets,
+    meta: DeviceMeta,
+    confirm: suspend (String) -> Boolean,
+): Welcomed {
+    val listening = offer.listening ?: throw LinkedException.LanUnreachable()
+    try {
+        val (pipe, key) = listening.accept()
+        val (channel, sas) = Channel.shower(pipe, offer, key)
+        return newSide(channel, sas, device, meta, confirm, listening::stop)
+    } catch (e: Exception) {
+        listening.stop()
+        throw e
     }
-    db.groups().addEntries(roster)
-    db.groups().saveGroup(GroupRecord(welcome.group, welcome.store.u, welcome.store.i, welcome.link))
-    channel.send(Message.Done)
 }

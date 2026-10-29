@@ -2655,7 +2655,11 @@
     <string name="linked_remove_title">Remove %1$s?</string>
     <string name="linked_remove_body">It stops receiving anything new right away. What it already has stays on it.</string>
     <string name="linked_add_device">Add a device</string>
-    <string name="linked_add_device_body">On the new device, open Linked devices, choose Join a group and scan this code.</string>
+    <string name="linked_scan_this_code">Scan this code</string>
+    <string name="linked_scan_this_code_body">On the other device, open Linked devices and scan this code. Keep both devices on the same network if the other one can\'t reach the server.</string>
+    <string name="linked_show_code_title">Show a code</string>
+    <string name="linked_show_code_body">For a device without a camera, like a TV: a linked device on the same network scans it</string>
+    <string name="linked_scan_new_device">Scan a new device\'s code</string>
     <string name="linked_waiting">Waiting for the other device…</string>
     <string name="linked_linking">Linking…</string>
     <string name="linked_done_title">Linked</string>
@@ -2686,6 +2690,7 @@
     <string name="linked_error_timed_out">The other device didn\'t answer in time.</string>
     <string name="linked_error_wrong_words">These aren\'t 24 valid recovery words.</string>
     <string name="linked_error_recovery_used">These recovery words were already used. Use the newer words that were shown then.</string>
+    <string name="linked_error_lan_unreachable">Couldn\'t reach the other device. Keep both on the same network and try again.</string>
     <string name="linked_error_already_linked">This device is already in a group.</string>
     <string name="linked_error_unexpected">The other device sent something unexpected. Try again.</string>
     <string name="sync_default_only_title">Switch to %1$s to sync</string>

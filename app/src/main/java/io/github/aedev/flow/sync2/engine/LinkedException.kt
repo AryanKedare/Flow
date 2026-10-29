@@ -19,4 +19,6 @@ sealed class LinkedException(
     class RecoveryUsed : LinkedException("This recovery key was already used")
 
     class AlreadyLinked : LinkedException("This device is already in a sync group")
+
+    class LanUnreachable : LinkedException("The other device can't be reached on this network")
 }

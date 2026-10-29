@@ -29,7 +29,8 @@ data class QrCode(
     val e: String,
     val r: String,
     val d: String,
-    val s: StoreLocation,
+    val s: StoreLocation? = null,
+    val l: List<LanEndpoint>? = null,
 )
 
 @Serializable
