@@ -13,4 +13,8 @@ sealed class LinkedException(
     class TimedOut : LinkedException("The other device did not answer in time")
 
     class Unexpected : LinkedException("The other device sent something unexpected")
+
+    class WrongWords : LinkedException("These aren't the recovery words of a group")
+
+    class RecoveryUsed : LinkedException("This recovery key was already used")
 }
