@@ -59,7 +59,7 @@ class ServerStore private constructor(
     private var instance: String?,
     private var group: String?,
 ) : ChangeList,
-    Mailbox {
+    Remote {
     private val session = Mutex()
     private var token: Pair<String, Long>? = null
 

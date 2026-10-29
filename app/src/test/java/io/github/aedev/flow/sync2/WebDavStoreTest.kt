@@ -61,7 +61,7 @@ class WebDavStoreTest {
             val wrong = dav.store(password = "wrong")
             repeat(3) {
                 val error = runCatching { wrong.get("store.json") }.exceptionOrNull()
-                assertTrue("$error", error is StoreException.Refused && error.status == 401)
+                assertTrue("$error", error is StoreException.LoginRefused)
             }
             assertEquals("only the first request reached the server", 1, dav.requests.size)
             assertNull("other credentials are tried again", dav.store().get("store.json"))

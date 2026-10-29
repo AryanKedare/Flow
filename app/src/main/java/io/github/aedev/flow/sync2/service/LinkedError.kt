@@ -12,6 +12,7 @@ enum class LinkedError(
     INSECURE,
     UNREACHABLE(retryable = true),
     REFUSED,
+    LOGIN_REFUSED,
     BUSY(retryable = true),
     INSTANCE_CHANGED,
     PROTOCOL,
@@ -37,6 +38,8 @@ fun Throwable.linkedError(): LinkedError =
         is StoreException.Network -> LinkedError.UNREACHABLE
 
         is StoreException.Refused -> if (rateLimited) LinkedError.BUSY else LinkedError.REFUSED
+
+        is StoreException.LoginRefused -> LinkedError.LOGIN_REFUSED
 
         is StoreException.InstanceChanged -> LinkedError.INSTANCE_CHANGED
 

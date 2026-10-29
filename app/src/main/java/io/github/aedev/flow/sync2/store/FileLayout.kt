@@ -18,8 +18,7 @@ private val LOG_NAME = Regex("([0-9a-f]{16})\\.o")
 class FileLayout(
     private val files: FileStore,
     private val me: String,
-) : Store,
-    Mailbox {
+) : Remote {
     private suspend fun entry(path: String): Entry? =
         files.get(path)?.let { runCatching { parseEntry(Json.parseToJsonElement(it.decodeToString())) }.getOrNull() }
 

@@ -36,6 +36,11 @@ interface Store {
     suspend fun deleteObject(path: String)
 }
 
+/** A group's shared store: a Flow server, or files through [FileLayout]. Both carry the pairing mailbox. */
+interface Remote :
+    Store,
+    Mailbox
+
 /** A store that lists what arrived after a cursor: what a device holds, and the Flow server. File stores keep no such list. */
 interface ChangeList : Store {
     /** Objects that arrived after [cursor], and the cursor to pass next time. */
@@ -91,6 +96,9 @@ sealed class StoreException(
     ) : StoreException("The server refused the request: $code ($status)") {
         val rateLimited: Boolean get() = status == 429
     }
+
+    /** A file store refused the user name or password; nothing more is sent with them. */
+    class LoginRefused : StoreException("The store refused the user name or password")
 
     class InstanceChanged : StoreException("This is not the server instance this device paired with")
 

@@ -6,8 +6,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.profile.SyncProfile
 import io.github.aedev.flow.di.ApplicationScope
 import io.github.aedev.flow.sync2.data.GroupRecord
-import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.LinkedDatabase
+import io.github.aedev.flow.sync2.data.serverUrl
 import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.store.ServerStore
 import kotlinx.coroutines.CancellationException
@@ -61,7 +61,7 @@ class LinkedLive
                         .groups()
                         .observeGroup()
                         .distinctUntilChangedBy { it?.let { record -> Triple(record.groupId, record.storeUrl, record.instance) } }
-                        .collectLatest { record -> if (record != null && record.storeUrl != LAN_STORE) stayConnected(record) }
+                        .collectLatest { record -> if (record?.serverUrl != null) stayConnected(record) }
                 }
         }
 

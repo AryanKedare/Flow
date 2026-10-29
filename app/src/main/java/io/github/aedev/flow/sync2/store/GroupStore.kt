@@ -10,7 +10,7 @@ import io.github.aedev.flow.sync2.roster.replayRoster
  */
 class GroupStore(
     val local: LocalStore,
-    val server: Store?,
+    val server: Remote?,
 ) : ChangeList {
     override suspend fun rosterAfter(after: Long): List<Entry> = local.rosterAfter(after)
 

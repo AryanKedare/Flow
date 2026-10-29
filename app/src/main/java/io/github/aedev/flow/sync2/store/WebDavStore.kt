@@ -72,7 +72,7 @@ class WebDavStore private constructor(
         body: RequestBody? = null,
         headers: Map<String, String> = emptyMap(),
     ): Pair<Int, ByteArray> {
-        if (account in refused) throw StoreException.Refused(401, "unauthorized")
+        if (account in refused) throw StoreException.LoginRefused()
         val request =
             Request
                 .Builder()
@@ -91,7 +91,7 @@ class WebDavStore private constructor(
             }
         if (code == 401) {
             refused += account
-            throw StoreException.Refused(401, "unauthorized")
+            throw StoreException.LoginRefused()
         }
         return code to bytes
     }
