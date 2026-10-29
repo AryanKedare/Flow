@@ -20,12 +20,11 @@ import io.github.aedev.flow.sync2.crypto.sha256
 import io.github.aedev.flow.sync2.crypto.unwrapEpochKey
 import io.github.aedev.flow.sync2.data.GroupRecord
 import io.github.aedev.flow.sync2.data.LinkedDatabase
-import io.github.aedev.flow.sync2.data.RosterRow
 import io.github.aedev.flow.sync2.data.StreamRow
+import io.github.aedev.flow.sync2.data.addEntries
 import io.github.aedev.flow.sync2.roster.Entry
 import io.github.aedev.flow.sync2.roster.RosterState
 import io.github.aedev.flow.sync2.roster.applyEntry
-import io.github.aedev.flow.sync2.roster.entryJson
 import io.github.aedev.flow.sync2.roster.parseEntry
 import io.github.aedev.flow.sync2.roster.replayRoster
 import io.github.aedev.flow.sync2.store.Header
@@ -47,10 +46,6 @@ private class ReadObject(
     val batch: IncomingBatch?,
 )
 
-class NotLinkedException : Exception("This device is not in a sync group")
-
-class RemovedException : Exception("This device was removed from its sync group")
-
 /** Batches read from other devices, not applied yet, and how far reading got. */
 class Pulled internal constructor(
     val batches: Map<String, List<IncomingBatch>>,
@@ -66,10 +61,10 @@ class Pulled internal constructor(
  */
 class Session private constructor(
     private val db: LinkedDatabase,
-    private val store: Store,
+    internal val store: Store,
     private val device: MemberSecrets,
-    private var record: GroupRecord,
-    private val group: ByteArray,
+    record: GroupRecord,
+    internal val group: ByteArray,
     val state: RosterState,
     entries: List<Entry>,
 ) {
@@ -77,6 +72,11 @@ class Session private constructor(
     private val signingKeys = HashMap<String, ByteArray>()
     private val commitments = HashMap<Int, ByteArray>()
     private val keys = TreeMap<Int, ByteArray>()
+
+    var record = record
+        private set
+
+    internal fun currentKey(): ByteArray = keys.getValue(state.epoch)
 
     init {
         for (entry in entries) {
@@ -93,14 +93,14 @@ class Session private constructor(
             device: MemberSecrets,
         ): Session {
             val groups = db.groups()
-            val record = groups.group() ?: throw NotLinkedException()
+            val record = groups.group() ?: throw LinkedException.NotLinked()
             val entries = groups.roster().map { parseEntry(Json.parseToJsonElement(it.entry)) }.toMutableList()
             var state = replayRoster(entries)
             val fresh = store.rosterAfter(state.seq)
             for (entry in fresh) state = applyEntry(state, entry)
-            groups.addRoster(fresh.map { RosterRow(it.seq, SyncSerialization.canonicalJson(entryJson(it))) })
+            groups.addEntries(fresh)
             entries += fresh
-            if (SyncBytes.toHex(device.did) !in state.members) throw RemovedException()
+            if (SyncBytes.toHex(device.did) !in state.members) throw LinkedException.Removed()
             return Session(db, store, device, record, SyncBytes.fromHex(record.groupId), state, entries).apply { unwrapCurrent() }
         }
     }

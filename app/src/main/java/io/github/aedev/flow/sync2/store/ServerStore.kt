@@ -60,7 +60,8 @@ class ServerStore private constructor(
     private val member: MemberSecrets,
     private var instance: String?,
     private var group: String?,
-) : Store {
+) : Store,
+    Mailbox {
     private val session = Mutex()
     private var token: Pair<String, Long>? = null
 
@@ -185,6 +186,28 @@ class ServerStore private constructor(
             if (response.code == 404) null else check(response).body.bytes()
         }
 
+    /** Creates the group on an unclaimed server with the operator's admin token. */
+    suspend fun claim(
+        adminToken: String,
+        genesis: Entry,
+        wraps: Map<String, String>,
+    ) {
+        val body =
+            buildJsonObject {
+                put("entry", entryJson(genesis))
+                put("wraps", wrapsJson(wraps))
+            }
+        val request =
+            Request
+                .Builder()
+                .url(
+                    url("v1/claim"),
+                ).header("Authorization", "Bearer $adminToken")
+                .post(body.toString().toRequestBody(JSON))
+                .build()
+        check(send(request)).close()
+    }
+
     override suspend fun rosterAfter(after: Long): List<Entry> =
         decode(authorized("GET", "v1/roster?after=$after"))["entries"]
             ?.jsonArray
@@ -200,7 +223,7 @@ class ServerStore private constructor(
         val body =
             buildJsonObject {
                 put("entry", entryJson(entry))
-                put("wraps", JsonObject(wraps.mapValues { (_, wrap) -> JsonPrimitive(wrap) }))
+                put("wraps", wrapsJson(wraps))
                 chain?.let { put("chain", it) }
             }
         val response = authorized("POST", "v1/roster", body.toString().toRequestBody(JSON), mapOf("If-Match" to "\"$head\""))
@@ -241,6 +264,39 @@ class ServerStore private constructor(
         val next = value["cursor"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: throw StoreException.Malformed()
         return objects to next
     }
+
+    // Messages need no token: the new device has none yet, and only a holder of the QR code can derive the slot.
+    override suspend fun openSlot(slot: String) {
+        check(authorized("POST", "v1/pair", buildJsonObject { put("slot", slot) }.toString().toRequestBody(JSON))).close()
+    }
+
+    override suspend fun putMessage(
+        slot: String,
+        name: String,
+        bytes: ByteArray,
+    ) {
+        check(
+            send(
+                Request
+                    .Builder()
+                    .url(url("v1/pair/$slot/$name"))
+                    .put(bytes.toRequestBody(BYTES))
+                    .build(),
+            ),
+        ).close()
+    }
+
+    override suspend fun getMessage(
+        slot: String,
+        name: String,
+    ): ByteArray? =
+        send(Request.Builder().url(url("v1/pair/$slot/$name")).build()).use { response ->
+            if (response.code == 404) null else check(response).body.bytes()
+        }
+
+    override suspend fun closeSlot(slot: String) {
+        check(authorized("DELETE", "v1/pair/$slot")).close()
+    }
 }
 
 private fun check(response: Response): Response {
@@ -262,5 +318,7 @@ private fun decodeBody(response: Response): JsonObject =
     response.use {
         runCatching { Json.parseToJsonElement(it.body.string()).jsonObject }.getOrElse { throw StoreException.Malformed() }
     }
+
+private fun wrapsJson(wraps: Map<String, String>): JsonObject = JsonObject(wraps.mapValues { (_, wrap) -> JsonPrimitive(wrap) })
 
 private fun decode(response: Response): JsonObject = decodeBody(check(response))

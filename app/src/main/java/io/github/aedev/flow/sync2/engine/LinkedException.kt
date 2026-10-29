@@ -1,0 +1,16 @@
+package io.github.aedev.flow.sync2.engine
+
+/** Why a linked-devices action stopped, beyond store and protocol errors. */
+sealed class LinkedException(
+    message: String,
+) : Exception(message) {
+    class NotLinked : LinkedException("This device is not in a sync group")
+
+    class Removed : LinkedException("This device was removed from its sync group")
+
+    class Declined : LinkedException("The verification code was not confirmed")
+
+    class TimedOut : LinkedException("The other device did not answer in time")
+
+    class Unexpected : LinkedException("The other device sent something unexpected")
+}
