@@ -4,6 +4,7 @@ import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.crypto.tag
 import io.github.aedev.flow.sync2.crypto.verify
+import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.roster.Entry
 import io.github.aedev.flow.sync2.roster.Op
 import io.github.aedev.flow.sync2.store.Appended
@@ -129,6 +130,15 @@ class ServerStoreTest {
             }
             assertTrue(store().rosterAfter(-1).isEmpty())
             assertEquals(2, issued)
+        }
+
+    @Test
+    fun claiming_a_server_that_has_a_group_says_so() =
+        runTest {
+            serve { respondJson(409, """{"error":"conflict"}""") }
+            val genesis = Entry(2, groupId, 0, "00".repeat(32), Op.GENESIS, "00".repeat(16), sigs = emptyMap())
+            val error = runCatching { store().claim("admin", genesis, emptyMap()) }.exceptionOrNull()
+            assertTrue("$error", error is LinkedException.ServerHasGroup)
         }
 
     @Test

@@ -19,6 +19,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -88,6 +89,7 @@ class GroupSetupTest {
                         .role,
                 )
                 assertEquals(LINK, db.groups().group()?.link)
+                assertFalse("the creator still has to confirm its words", db.groups().group()!!.recoverySaved)
                 assertEquals(instance, db.groups().group()?.instance)
             }
         }
