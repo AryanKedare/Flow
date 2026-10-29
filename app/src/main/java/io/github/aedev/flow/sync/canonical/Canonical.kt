@@ -1,6 +1,8 @@
 package io.github.aedev.flow.sync.canonical
 
 import io.github.aedev.flow.sync.identity.Hlc
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.MapSerializer
@@ -141,6 +143,8 @@ data class CanonicalSubscriptionGroup(
     val hlc: String = "",
     val deleted: Boolean = false,
     /** Each channel's own stamp, so a removal can sync; `channelIds` stays the live list for apps without it. */
+    @OptIn(ExperimentalSerializationApi::class)
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val members: List<CanonicalGroupMember> = emptyList(),
 )
 

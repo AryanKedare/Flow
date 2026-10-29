@@ -23,6 +23,7 @@ import io.github.aedev.flow.sync.merge.PlaylistMerger
 import io.github.aedev.flow.sync.merge.SettingsMerger
 import io.github.aedev.flow.sync.merge.SubscriptionsMerger
 import io.github.aedev.flow.sync.merge.WatchHistoryMerger
+import io.github.aedev.flow.sync.protocol.SyncSerialization
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -135,6 +136,19 @@ class MergeConvergenceTest {
         val olderApp = listOf(CanonicalSubscriptionGroup("Tech", listOf("UC1", "UC2"), 0, hlc(200, 0, "c")))
         laws("group members", kept, removed, olderApp, SubscriptionsMerger::merge)
         assertEquals(listOf("UC1"), SubscriptionsMerger.merge(SubscriptionsMerger.merge(kept, removed), olderApp).single().channelIds)
+
+        val wire = SyncSerialization.encodeSubscriptions(SubscriptionsMerger.merge(kept, removed)).lines.single()
+        assertEquals(
+            "the shape Flow Desktop emits",
+            """{"channelIds":["UC1"],"deleted":false,"hlc":"${hlc(
+                300,
+                0,
+                "b",
+            )}","members":[{"channelId":"UC1","deleted":false,"hlc":"${hlc(100, 0, "a")}"},""" +
+                """{"channelId":"UC2","deleted":true,"hlc":"${hlc(300, 0, "a")}"}],"name":"Tech","sortOrder":0}""",
+            wire,
+        )
+        assertEquals(false, "members" in SyncSerialization.encodeSubscriptions(olderApp).lines.single())
 
         val laterOlderApp = listOf(CanonicalSubscriptionGroup("Tech", listOf("UC1", "UC2"), 0, hlc(400, 0, "c")))
         assertEquals(listOf("UC1", "UC2"), SubscriptionsMerger.merge(removed, laterOlderApp).single().channelIds)
