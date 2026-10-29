@@ -19,7 +19,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 // This device's keys for its current membership, whatever profile runs; the backup rules never copy this file.
-private val Context.linkedDeviceDataStore by safePreferencesDataStore(name = "linked_device", scope = StoreScope.DEVICE)
+internal val Context.linkedDeviceDataStore by safePreferencesDataStore(name = "linked_device", scope = StoreScope.DEVICE)
 private val KEY_DEVICE = stringPreferencesKey("device_keys")
 
 /** Where the device keys are kept, already opened from their platform protection. */

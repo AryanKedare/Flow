@@ -10,7 +10,10 @@ import io.github.aedev.flow.sync2.crypto.MemberSecrets
 import io.github.aedev.flow.sync2.data.GroupRecord
 import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.LinkedDatabase
+import io.github.aedev.flow.sync2.data.webDavUrl
 import io.github.aedev.flow.sync2.device.DeviceKeys
+import io.github.aedev.flow.sync2.device.StoreCredentials
+import io.github.aedev.flow.sync2.device.WebDavLogin
 import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.lan.LanSync
@@ -23,6 +26,7 @@ import io.github.aedev.flow.sync2.linking.answerShown
 import io.github.aedev.flow.sync2.linking.askToJoin
 import io.github.aedev.flow.sync2.linking.createGroup
 import io.github.aedev.flow.sync2.linking.createLanGroup
+import io.github.aedev.flow.sync2.linking.createWebDavGroup
 import io.github.aedev.flow.sync2.linking.deviceNames
 import io.github.aedev.flow.sync2.linking.join
 import io.github.aedev.flow.sync2.linking.leaveGroup
@@ -32,11 +36,14 @@ import io.github.aedev.flow.sync2.linking.readCode
 import io.github.aedev.flow.sync2.linking.removeDevice
 import io.github.aedev.flow.sync2.linking.renameDevice
 import io.github.aedev.flow.sync2.linking.restoreGroup
+import io.github.aedev.flow.sync2.linking.restoreWebDavGroup
 import io.github.aedev.flow.sync2.roster.Role
+import io.github.aedev.flow.sync2.store.FileLayout
 import io.github.aedev.flow.sync2.store.JoinRequest
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
 import io.github.aedev.flow.sync2.store.StoreException
+import io.github.aedev.flow.sync2.store.WebDavStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -99,6 +106,7 @@ class LinkedActions
         private val local: LocalStore,
         lan: LanSync,
         private val reset: LinkedReset,
+        private val credentials: StoreCredentials,
         @ApplicationScope private val scope: CoroutineScope,
     ) {
         private val phase = MutableStateFlow<LinkPhase>(LinkPhase.Idle)
@@ -153,6 +161,24 @@ class LinkedActions
         ): String =
             createGroup(db, url.trim(), adminToken.trim(), newMembership(), meta(), ActiveProfile.get(context).id).also { linkedNow() }
 
+        /** Creates a group in an empty WebDAV folder and returns the recovery words. */
+        suspend fun createOnWebDav(
+            url: String,
+            user: String,
+            password: String,
+        ): String {
+            val (words, conditional) =
+                createWebDavGroup(
+                    db,
+                    WebDavStore.connect(url.trim(), user, password),
+                    newMembership(),
+                    meta(),
+                    ActiveProfile.get(context).id,
+                )
+            credentials.save(WebDavLogin(user, password, conditional))
+            return words.also { linkedNow() }
+        }
+
         /** Creates a group on this network alone, with no server, and returns the recovery words. */
         suspend fun createOnNetwork(): String =
             createLanGroup(db, local, newMembership(), meta(), ActiveProfile.get(context).id).also {
@@ -164,6 +190,27 @@ class LinkedActions
             url: String,
             words: String,
         ): String = restoreGroup(db, url.trim(), words, newMembership(), meta()).also { linkedNow() }
+
+        /** Restores the group from a WebDAV folder with the recovery words and returns the new words to show once. */
+        suspend fun restoreFromWebDav(
+            url: String,
+            user: String,
+            password: String,
+            words: String,
+        ): String {
+            val restored = restoreWebDavGroup(db, WebDavStore.connect(url.trim(), user, password), words, newMembership(), meta())
+            credentials.save(WebDavLogin(user, password))
+            return restored.also { linkedNow() }
+        }
+
+        /** Replaces a WebDAV login the server refused, then syncs with it. */
+        suspend fun updateLogin(
+            user: String,
+            password: String,
+        ) {
+            credentials.save(WebDavLogin(user, password))
+            syncNow()
+        }
 
         suspend fun confirmRecoverySaved() = db.groups().setRecoverySaved(true)
 
@@ -208,33 +255,67 @@ class LinkedActions
             start {
                 val record = linked()
                 val device = keys.load()
-                val location = if (record.storeUrl == LAN_STORE) StoreLocation("lan") else StoreLocation("server", record.storeUrl)
-                val offer = newOffer(location, meta().name, listen())
+                val offer = newOffer(location(record), meta().name, listen())
                 phase.value = LinkPhase.Waiting(offer.qr)
-                addDevice(sync.open(record, device), sync.server(record, device), offer, device, ::confirm)
+                addDevice(sync.open(record, device), sync.remote(record, device), offer, device, credentials.webDav(), ::confirm)
             }
 
-        /** Answers another device's code: a member's when this device isn't linked, a new device's when it is. */
-        fun enterCode(text: String) =
-            start {
-                when (val code = readCode(text)) {
-                    is Code.Member -> {
-                        joinMember(code, newMembership())
-                    }
+        /** Where this device's group lives, as its codes name it: never with credentials. */
+        private fun location(record: GroupRecord): StoreLocation =
+            when {
+                record.storeUrl == LAN_STORE -> StoreLocation("lan")
+                record.webDavUrl != null -> StoreLocation("webdav", record.webDavUrl)
+                else -> StoreLocation("server", record.storeUrl)
+            }
 
-                    is Code.New -> {
-                        if (db.groups().group() == null) throw LinkedException.NeedsMember()
-                        addScanned(session(), code, keys.load(), ::confirm)
-                    }
+        /**
+         * Answers another device's code: a member's when this device isn't linked, a new device's when
+         * it is. [login] is a WebDAV login the user entered before scanning, so pairing can go through
+         * that folder when the devices aren't on the same network.
+         */
+        fun enterCode(
+            text: String,
+            login: WebDavLogin? = null,
+        ) = start {
+            when (val code = readCode(text)) {
+                is Code.Member -> {
+                    joinMember(code, newMembership(), login)
+                }
+
+                is Code.New -> {
+                    if (db.groups().group() == null) throw LinkedException.NeedsMember()
+                    addScanned(session(), code, keys.load(), credentials.webDav(), ::confirm)
                 }
             }
+        }
 
         private suspend fun joinMember(
             code: Code.Member,
             device: MemberSecrets,
+            login: WebDavLogin? = null,
         ) {
-            val server = code.storeUrl?.let { ServerStore.connect(it, device, null, null) }
-            join(db, local, server, server, code, device, meta(), ::confirm)
+            val url = code.storeUrl
+            val mailbox =
+                when {
+                    url == null -> {
+                        null
+                    }
+
+                    code.store?.k == "webdav" -> {
+                        login?.let {
+                            FileLayout(
+                                WebDavStore.connect(url, it.user, it.password),
+                                SyncBytes.toHex(device.did),
+                            )
+                        }
+                    }
+
+                    else -> {
+                        ServerStore.connect(url, device, null, null)
+                    }
+                }
+            val welcomed = join(db, local, { it.remote(device) }, mailbox, code, device, meta(), ::confirm)
+            welcomed.login?.let { credentials.save(it) }
             linkedNow()
         }
 
@@ -264,7 +345,7 @@ class LinkedActions
                 val server = sync.server(record, device) ?: throw LinkedException.Unexpected()
                 val offer = newOffer(StoreLocation("server", record.storeUrl), meta().name, null)
                 server.answerJoin(id, offer.qr)
-                addDevice(sync.open(record, device), server, offer, device, ::confirm)
+                addDevice(sync.open(record, device), server, offer, device, confirm = ::confirm)
             }
 
         suspend fun decline(id: String) {
@@ -279,7 +360,8 @@ class LinkedActions
                 val offer = newOffer(null, meta().name, listen() ?: throw LinkedException.LanUnreachable())
                 phase.value = LinkPhase.Waiting(offer.qr)
                 val welcomed = answerShown(offer, device, meta(), ::confirm)
-                welcomed.finish(db, local, welcomed.storeUrl?.let { ServerStore.connect(it, device, welcomed.instance, welcomed.group) })
+                welcomed.finish(db, local, welcomed.remote(device))
+                welcomed.login?.let { credentials.save(it) }
                 linkedNow()
             }
 

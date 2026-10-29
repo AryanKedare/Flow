@@ -141,7 +141,7 @@ class JoinRequestTest {
                             join(
                                 dbN,
                                 heldStore(dbN),
-                                g.store,
+                                { g.store },
                                 g.store,
                                 code,
                                 newcomer,

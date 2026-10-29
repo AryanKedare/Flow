@@ -314,3 +314,15 @@ fun replayRoster(entries: List<Entry>): RosterState =
  * removal first, then the lowest entry hash.
  */
 fun forkWinner(candidates: List<Entry>): Entry? = candidates.minWithOrNull(compareBy({ it.op.rank }, { entryHash(it) }))
+
+/** The chain every device picks from [entries]: at each `seq`, the winner among the entries valid there (spec/protocol.md, Forks). */
+fun resolveForks(entries: List<Entry>): List<Entry> {
+    val chain = ArrayList<Entry>()
+    var state: RosterState? = null
+    for ((_, candidates) in entries.groupBy { it.seq }.toSortedMap()) {
+        val winner = forkWinner(candidates.filter { runCatching { applyEntry(state, it) }.isSuccess }) ?: break
+        state = applyEntry(state, winner)
+        chain += winner
+    }
+    return chain
+}

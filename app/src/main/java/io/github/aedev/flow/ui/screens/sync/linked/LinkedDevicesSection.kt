@@ -12,6 +12,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync2.data.LAN_STORE
+import io.github.aedev.flow.sync2.data.WEBDAV_STORE
 import io.github.aedev.flow.sync2.service.LinkPhase
 import io.github.aedev.flow.ui.screens.sync.SyncActionRow
 import io.github.aedev.flow.ui.screens.sync.SyncScanContent
@@ -31,7 +32,8 @@ internal fun LinkedDevicesSection(
     LaunchedEffect(state.linked, state.lastSync?.atMs) { if (state.linked) viewModel.refreshDevices() }
     // Devices asking to join with the admin token show up while this screen is open.
     LaunchedEffect(state.linked, state.storeUrl) {
-        while (state.linked && state.storeUrl != LAN_STORE) {
+        // Only a Flow server takes join requests.
+        while (state.storeUrl?.let { it != LAN_STORE && !it.startsWith(WEBDAV_STORE) } == true) {
             viewModel.refreshRequests()
             delay(REQUEST_POLL_MS)
         }
@@ -67,6 +69,7 @@ internal fun LinkedDevicesSection(
                 onRemove = viewModel::remove,
                 onLeave = viewModel::leave,
                 onForget = viewModel::forget,
+                onUpdateLogin = viewModel::updateLogin,
                 onAccept = viewModel::accept,
                 onDecline = viewModel::decline,
             )
@@ -74,14 +77,16 @@ internal fun LinkedDevicesSection(
 
         else -> {
             LinkedSetup(
-                hostOnly,
-                state.busy,
-                viewModel::create,
-                viewModel::createOnNetwork,
-                viewModel::enterCode,
-                viewModel::joinWithAdmin,
-                viewModel::showCode,
-                viewModel::restore,
+                hostOnly = hostOnly,
+                busy = state.busy,
+                onCreate = viewModel::create,
+                onCreateOnWebDav = viewModel::createOnWebDav,
+                onCreateOnNetwork = viewModel::createOnNetwork,
+                onEnterCode = viewModel::enterCode,
+                onJoinWithAdmin = viewModel::joinWithAdmin,
+                onShowCode = viewModel::showCode,
+                onRestore = viewModel::restore,
+                onRestoreFromWebDav = viewModel::restoreFromWebDav,
             )
         }
     }

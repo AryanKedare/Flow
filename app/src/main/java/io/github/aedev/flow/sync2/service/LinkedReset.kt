@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.device.DeviceKeys
+import io.github.aedev.flow.sync2.device.StoreCredentials
 import io.github.aedev.flow.sync2.store.LocalStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,6 +23,7 @@ class LinkedReset
         private val local: LocalStore,
         private val ledger: SyncChangeLedgerStore,
         private val keys: DeviceKeys,
+        private val credentials: StoreCredentials,
     ) {
         /** Forgets the group on this device: its state, what it holds and its keys (spec/crypto.md, Device keys) go. */
         suspend fun forget() {
@@ -29,6 +31,7 @@ class LinkedReset
             withContext(Dispatchers.IO) { db.clearAllTables() }
             local.clear()
             keys.delete()
+            credentials.clear()
         }
 
         /**
