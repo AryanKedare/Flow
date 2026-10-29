@@ -14,6 +14,8 @@ sealed class LinkedException(
 
     class Unexpected : LinkedException("The other device sent something unexpected")
 
+    class Stopped : LinkedException("The other device stopped pairing")
+
     class WrongWords : LinkedException("These aren't the recovery words of a group")
 
     class RecoveryUsed : LinkedException("This recovery key was already used")

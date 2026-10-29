@@ -70,7 +70,9 @@ sealed class StoreException(
     class Refused(
         val status: Int,
         val code: String,
-    ) : StoreException("The server refused the request: $code ($status)")
+    ) : StoreException("The server refused the request: $code ($status)") {
+        val rateLimited: Boolean get() = status == 429
+    }
 
     class InstanceChanged : StoreException("This is not the server instance this device paired with")
 

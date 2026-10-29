@@ -2714,6 +2714,8 @@
     <string name="linked_error_needs_member">This is a new device\'s code. Scan it from a device that\'s already in the group.</string>
     <string name="linked_error_already_linked">This device is already in a group.</string>
     <string name="linked_error_unexpected">The other device sent something unexpected. Try again.</string>
+    <string name="linked_error_stopped">The other device stopped pairing. Check it for a message, then try again.</string>
+    <string name="linked_error_busy">The server is busy. Wait a minute, then try again.</string>
     <string name="sync_default_only_title">Switch to %1$s to sync</string>
     <string name="sync_default_only_body">Other profiles stay on this device only</string>
     <string name="sync_devices_subtitle">Sync library, history &amp; profile over local Wi-Fi</string>

@@ -20,11 +20,15 @@ class LinkedErrorTest {
         assertEquals(LinkedError.PROTOCOL, ProtocolException(ProtocolError.SIGNATURE).linkedError())
         assertEquals(LinkedError.REMOVED, LinkedException.Removed().linkedError())
         assertEquals(LinkedError.LOCAL, DamagedKeysException().linkedError())
+        assertEquals(LinkedError.BUSY, StoreException.Refused(429, "rate_limited").linkedError())
+        assertEquals(LinkedError.REFUSED, StoreException.Refused(401, "unauthorized").linkedError())
+        assertEquals(LinkedError.STOPPED, LinkedException.Stopped().linkedError())
     }
 
     @Test
     fun only_passing_trouble_is_retried_on_its_own() {
         assertTrue(LinkedError.UNREACHABLE.retryable)
+        assertTrue(LinkedError.BUSY.retryable)
         assertFalse(LinkedError.REMOVED.retryable)
         assertFalse(LinkedError.INSTANCE_CHANGED.retryable)
     }
