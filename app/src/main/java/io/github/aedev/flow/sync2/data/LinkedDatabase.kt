@@ -27,7 +27,17 @@ interface SentDao {
 
 /** Linked-devices state, kept apart from the app's database. Only Default syncs. */
 @Database(
-    entities = [SentRecord::class, GroupRecord::class, RosterRow::class, StreamRow::class, SnapshotRow::class],
+    entities = [
+        SentRecord::class,
+        GroupRecord::class,
+        RosterRow::class,
+        StreamRow::class,
+        SnapshotRow::class,
+        AckRow::class,
+        ManifestRow::class,
+        LinkRow::class,
+        CollectedRow::class,
+    ],
     version = 1,
     exportSchema = true,
 )
@@ -37,4 +47,6 @@ abstract class LinkedDatabase : RoomDatabase() {
     abstract fun groups(): GroupDao
 
     abstract fun snapshots(): SnapshotDao
+
+    abstract fun collection(): CollectionDao
 }
