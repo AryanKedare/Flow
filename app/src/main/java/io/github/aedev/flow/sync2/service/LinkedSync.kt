@@ -27,11 +27,13 @@ import io.github.aedev.flow.sync2.store.GroupStore
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
 import io.github.aedev.flow.sync2.store.StoreException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -91,7 +93,7 @@ class LinkedSync
 
         suspend fun syncNow(): LastSync =
             running.withLock {
-                val error = runCatching { run() }.exceptionOrNull()?.linkedError()
+                val error = runCatching { withContext(Dispatchers.Default) { run() } }.exceptionOrNull()?.linkedError()
                 error?.let { Log.w(TAG, "Linked-devices sync failed: $it") }
                 LastSync(System.currentTimeMillis(), error).also { last.value = it }
             }
