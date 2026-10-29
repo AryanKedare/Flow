@@ -1,6 +1,7 @@
 package io.github.aedev.flow.sync.apply
 
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.GROUPS
+import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.GROUP_MEMBERS
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.LIKES
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.NOTES
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.PLAYLISTS
@@ -8,6 +9,7 @@ import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.PLAYLIST_
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.SETTINGS
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.SETTINGS_RELAY
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore.Companion.WATCH_HISTORY
+import io.github.aedev.flow.sync.canonical.CanonicalGroupMember
 import io.github.aedev.flow.sync.canonical.CanonicalLike
 import io.github.aedev.flow.sync.canonical.CanonicalNote
 import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
@@ -115,20 +117,45 @@ class SyncChangeTracker
             val live = data.readSubscriptions(hlc = "")
             val at = now()
             val ledger = store.update(GROUPS) { it.observe(live.associate { g -> g.name to groupHash(g) }, at) }
-            return live.map { it.copy(hlc = stamp(ledger.stampOf(it.name), node)) } +
+            val members = store.update(GROUP_MEMBERS) { it.observe(memberKeys(live), at) }
+            return live.map { g ->
+                val present = g.channelIds.toSet()
+                g.copy(
+                    hlc = stamp(ledger.stampOf(g.name), node),
+                    members =
+                        (
+                            present.map { CanonicalGroupMember(it, stamp(members.stampOf(memberKey(g.name, it)), node)) } +
+                                tombstonesUnder(members, memberKey(g.name, ""), present, CanonicalGroupMember.serializer()) { id, atMs ->
+                                    CanonicalGroupMember(id, stamp(atMs, node), deleted = true)
+                                }
+                        ).sortedBy { it.channelId },
+                )
+            } +
                 ledger.tombstones().map { (name, e) ->
                     peerRecord(e, CanonicalSubscriptionGroup.serializer())
                         ?: CanonicalSubscriptionGroup(name = name, hlc = stamp(e.atMs, node), deleted = true)
                 }
         }
 
-        suspend fun settleGroups(merged: List<CanonicalSubscriptionGroup>) =
+        suspend fun settleGroups(merged: List<CanonicalSubscriptionGroup>) {
+            val written = data.readSubscriptions(hlc = "")
+            val (deleted, live) = merged.partition { it.deleted }
             settle(
                 GROUPS,
-                data.readSubscriptions(hlc = "").associate { it.name to groupHash(it) },
-                merged.filter { it.deleted }.associate { it.name to peer(it.hlc, it, CanonicalSubscriptionGroup.serializer()) },
-                stamps = merged.filter { !it.deleted }.associate { it.name to physical(it.hlc) },
+                written.associate { it.name to groupHash(it) },
+                deleted.associate { it.name to peer(it.hlc, it, CanonicalSubscriptionGroup.serializer()) },
+                stamps = live.associate { it.name to physical(it.hlc) },
             )
+            val memberStates = live.flatMap { g -> g.members.map { memberKey(g.name, it.channelId) to it } }
+            settle(
+                GROUP_MEMBERS,
+                memberKeys(written),
+                memberStates.filter { it.second.deleted }.associate { (key, m) ->
+                    key to peer(m.hlc, m, CanonicalGroupMember.serializer())
+                },
+                stamps = memberStates.filter { !it.second.deleted }.associate { (key, m) -> key to physical(m.hlc) },
+            )
+        }
 
         // --- playlists ---
 
@@ -148,7 +175,14 @@ class SyncChangeTracker
                         updatedHlc = stamp(playlists.stampOf(p.syncId), node),
                         items =
                             p.items.map { it.copy(hlc = stamp(items.stampOf(itemKey(p.syncId, it.videoId)), node)) } +
-                                itemTombstones(items, p.syncId, present, node),
+                                tombstonesUnder(
+                                    items,
+                                    itemKey(p.syncId, ""),
+                                    present,
+                                    CanonicalPlaylistItem.serializer(),
+                                ) { videoId, atMs ->
+                                    CanonicalPlaylistItem(videoId = videoId, deleted = true, hlc = stamp(atMs, node))
+                                },
                     )
                 }
             val deleted =
@@ -184,21 +218,21 @@ class SyncChangeTracker
             )
         }
 
-        private fun itemTombstones(
+        /** Tombstones of the entries under [prefix] that aren't [present]: a peer's record, or one stamped here. */
+        private fun <T> tombstonesUnder(
             ledger: CollectionLedger,
-            syncId: String,
+            prefix: String,
             present: Set<String>,
-            node: String,
-        ): List<CanonicalPlaylistItem> {
-            val prefix = itemKey(syncId, "")
-            return ledger
+            serializer: KSerializer<T>,
+            make: (id: String, atMs: Long) -> T,
+        ): List<T> =
+            ledger
                 .tombstones()
                 .filterKeys { it.startsWith(prefix) && it.removePrefix(prefix) !in present }
-                .map { (key, e) ->
-                    peerRecord(e, CanonicalPlaylistItem.serializer())
-                        ?: CanonicalPlaylistItem(videoId = key.removePrefix(prefix), deleted = true, hlc = stamp(e.atMs, node))
-                }
-        }
+                .map { (key, e) -> peerRecord(e, serializer) ?: make(key.removePrefix(prefix), e.atMs) }
+
+        private fun memberKeys(groups: List<CanonicalSubscriptionGroup>): Map<String, Int> =
+            groups.flatMap { g -> g.channelIds.map { memberKey(g.name, it) to PRESENT } }.toMap()
 
         private fun playlistTombstone(
             syncId: String,
@@ -318,6 +352,12 @@ class SyncChangeTracker
                 syncId: String,
                 videoId: String,
             ) = "$syncId|$videoId"
+
+            // Group names are typed by the user, so the separator is one a name can't hold.
+            fun memberKey(
+                group: String,
+                channelId: String,
+            ) = "$group\u0000$channelId"
 
             fun groupHash(g: CanonicalSubscriptionGroup) = "${g.channelIds.sorted()}|${g.sortOrder}".hashCode()
 

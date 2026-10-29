@@ -140,6 +140,15 @@ data class CanonicalSubscriptionGroup(
     val sortOrder: Int = 0,
     val hlc: String = "",
     val deleted: Boolean = false,
+    /** Each channel's own stamp, so a removal can sync; `channelIds` stays the live list for apps without it. */
+    val members: List<CanonicalGroupMember> = emptyList(),
+)
+
+@Serializable
+data class CanonicalGroupMember(
+    val channelId: String,
+    val hlc: String = "",
+    val deleted: Boolean = false,
 )
 
 /**
