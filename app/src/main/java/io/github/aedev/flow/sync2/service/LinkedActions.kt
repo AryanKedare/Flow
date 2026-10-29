@@ -176,7 +176,9 @@ class LinkedActions
         /** Leaves the group on this device only: its state goes, its keys stay. */
         suspend fun forget() = reset.forget()
 
-        suspend fun syncNow(): LastSync = sync.syncNow()
+        val syncing: StateFlow<Boolean> = sync.syncing
+
+        fun syncNow() = LinkedSyncWorker.syncSoon(context)
 
         /** Shows a member's code, answered through the server's mailbox or over the LAN. */
         fun addDevice() =

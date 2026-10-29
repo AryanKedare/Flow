@@ -27,9 +27,13 @@ import io.github.aedev.flow.sync2.store.GroupStore
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
 import io.github.aedev.flow.sync2.store.StoreException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,6 +45,12 @@ import javax.inject.Singleton
 data class LastSync(
     val atMs: Long,
     val error: LinkedError?,
+)
+
+/** What one sync applied from one device. */
+data class Received(
+    val from: String,
+    val changes: Int,
 )
 
 /**
@@ -57,11 +67,19 @@ class LinkedSync
         private val applier: SyncApplier,
         private val identity: DeviceIdentity,
         private val local: LocalStore,
+        private val indicator: SyncIndicator,
     ) {
         private val running = Mutex()
         private val last = MutableStateFlow<LastSync?>(null)
+        private val active = MutableStateFlow(false)
+        private val arrivals = MutableSharedFlow<Received>(extraBufferCapacity = 16)
 
         val lastSync: StateFlow<LastSync?> = last.asStateFlow()
+
+        val syncing: StateFlow<Boolean> = active.asStateFlow()
+
+        /** Each device a sync applied changes from. */
+        val received: SharedFlow<Received> = arrivals.asSharedFlow()
 
         /** The group's Flow server, or null for a group that lives on its devices alone. */
         fun server(
@@ -93,7 +111,20 @@ class LinkedSync
 
         suspend fun syncNow(): LastSync =
             running.withLock {
-                val error = runCatching { withContext(Dispatchers.Default) { run() } }.exceptionOrNull()?.linkedError()
+                active.value = true
+                // A cancelled sync is not a failed one: it stops, and the next run picks up where it left off.
+                val error =
+                    try {
+                        withContext(Dispatchers.Default) { run() }
+                        null
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        e.linkedError()
+                    } finally {
+                        active.value = false
+                        indicator.hide()
+                    }
                 error?.let { Log.w(TAG, "Linked-devices sync failed: $it") }
                 LastSync(System.currentTimeMillis(), error).also { last.value = it }
             }
@@ -118,18 +149,24 @@ class LinkedSync
             val session = Session.open(db, if (offline == null) store else GroupStore(local, null), device)
             if (!session.adoptLink(ActiveProfile.get(context).id)) return
             val link = session.record.link
-            session.push(export())
+            val pushed = session.push(export())
 
             val pulled = session.pull()
+            if (pushed > 0 || pulled.batches.isNotEmpty()) indicator.show()
             val names = if (pulled.batches.isEmpty()) emptyMap() else deviceNames(session)
             val hlc = identity.newClock().now().encode()
+            val counts = mutableMapOf<String, Int>()
             for ((sender, batches) in pulled.batches) {
                 val meta = names[sender]
                 applyBatches(db.sent(), batches, System.currentTimeMillis()) { received ->
                     applier.applyPayload(PeerInfo(sender, meta?.name.orEmpty(), meta?.platform.orEmpty()), received, hlc, onceEach = false)
+                    counts.merge(sender, received.values.sumOf { it.lines.size }, Int::plus)
                 }
             }
             session.finish(pulled)
+            counts.filterValues { it > 0 }.forEach { (sender, changes) ->
+                arrivals.tryEmit(Received(names[sender]?.name.orEmpty(), changes))
+            }
 
             val now = System.currentTimeMillis()
             db.snapshots().noteMerged(link, pulled.batches.values.sumOf { batches -> batches.sumOf { it.size.toLong() } }, now)

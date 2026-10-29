@@ -34,6 +34,7 @@ internal data class LinkedUiState(
     /** Recovery words to show once, until the user proves they wrote them down. */
     val words: String? = null,
     val busy: Boolean = false,
+    val syncing: Boolean = false,
     val error: LinkedError? = null,
 ) {
     val linked: Boolean get() = storeUrl != null
@@ -59,7 +60,7 @@ internal class LinkedDevicesViewModel
         private val local = MutableStateFlow(Local())
 
         val state: StateFlow<LinkedUiState> =
-            combine(actions.group, actions.lastSync, actions.nearby, local) { group, lastSync, nearby, l ->
+            combine(actions.group, actions.lastSync, actions.nearby, actions.syncing, local) { group, lastSync, nearby, syncing, l ->
                 LinkedUiState(
                     group?.storeUrl,
                     group?.recoverySaved ?: true,
@@ -69,6 +70,7 @@ internal class LinkedDevicesViewModel
                     nearby,
                     l.words,
                     l.busy,
+                    syncing,
                     l.error ?: lastSync?.error,
                 )
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LinkedUiState())
@@ -132,7 +134,7 @@ internal class LinkedDevicesViewModel
                 local.value = Local()
             }
 
-        fun syncNow() = run { actions.syncNow() }
+        fun syncNow() = actions.syncNow()
 
         fun enterCode(code: String) = actions.enterCode(code)
 

@@ -2657,6 +2657,11 @@
     <string name="linked_last_sync_never">Not yet</string>
     <string name="linked_sync_now">Sync now</string>
     <string name="linked_syncing">Syncing…</string>
+    <string name="linked_syncing_notification">Syncing with your linked devices…</string>
+    <plurals name="linked_received">
+        <item quantity="one">Received %1$d change from %2$s</item>
+        <item quantity="other">Received %1$d changes from %2$s</item>
+    </plurals>
     <string name="linked_devices">Devices</string>
     <string name="linked_device_nearby">%1$s, on this network</string>
     <string name="linked_this_device">This device</string>
