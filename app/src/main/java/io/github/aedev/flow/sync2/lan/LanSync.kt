@@ -77,7 +77,13 @@ class LanSync
             if (running?.isActive == true || !SyncProfile.syncsHere(context)) return
             running =
                 scope.launch {
-                    runCatching { serve() }.onFailure { Log.w(TAG, "LAN sync stopped: ${it.linkedError()}") }
+                    try {
+                        serve()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "LAN sync stopped: ${e.linkedError()}")
+                    }
                 }
         }
 

@@ -78,10 +78,10 @@ internal fun LinkedOverview(
             )
         } else {
             FlowNavRow(
-                title = stringResource(if (state.busy) R.string.linked_syncing else R.string.linked_sync_now),
+                title = stringResource(if (state.syncing) R.string.linked_syncing else R.string.linked_sync_now),
                 onClick = onSyncNow,
                 supportingText = stringResource(R.string.linked_last_sync, lastSync),
-                enabled = !state.busy,
+                enabled = !state.busy && !state.syncing,
                 shape = shape,
             )
         }

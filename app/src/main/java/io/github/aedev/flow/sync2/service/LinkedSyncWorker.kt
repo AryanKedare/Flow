@@ -5,8 +5,10 @@ import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -39,7 +41,12 @@ class LinkedSyncWorker(
         fun linkedDatabase(): LinkedDatabase
 
         fun lanSync(): LanSync
+
+        fun syncIndicator(): SyncIndicator
     }
+
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        EntryPointAccessors.fromApplication(applicationContext, Dependencies::class.java).syncIndicator().foregroundInfo()
 
     override suspend fun doWork(): Result {
         if (!ProfileWork.belongsHere(this)) return Result.success()
@@ -66,6 +73,7 @@ class LinkedSyncWorker(
         private const val OPEN_TAG = "linked_sync_open"
         private const val LAN_NAME = "linked_sync_lan"
         private const val LAN_TAG = "linked_sync_lan"
+        private const val SOON_NAME = "linked_sync_soon"
 
         private val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
@@ -103,8 +111,22 @@ class LinkedSyncWorker(
             WorkManager.getInstance(context).enqueueUniqueWork(OPEN_NAME, ExistingWorkPolicy.KEEP, work)
         }
 
+        /** Sync now and leaving the app: starts at once and outlives the screen that asked for it. */
+        fun syncSoon(context: Context) {
+            if (!SyncProfile.syncsHere(context)) return
+            val work =
+                OneTimeWorkRequestBuilder<LinkedSyncWorker>()
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .setConstraints(constraints)
+                    .setInputData(ProfileWork.data(context))
+                    .addTag(ProfileWork.tag(context))
+                    .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(SOON_NAME, ExistingWorkPolicy.KEEP, work)
+        }
+
         fun cancel(context: Context) {
             WorkManager.getInstance(context).run {
+                cancelUniqueWork(SOON_NAME)
                 cancelUniqueWork(PERIODIC_NAME)
                 cancelUniqueWork(OPEN_NAME)
                 cancelUniqueWork(LAN_NAME)
