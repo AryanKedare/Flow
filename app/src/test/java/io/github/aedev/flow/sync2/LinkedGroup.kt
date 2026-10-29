@@ -19,10 +19,10 @@ import io.github.aedev.flow.sync2.roster.epochDraft
 import io.github.aedev.flow.sync2.roster.memberSubject
 import io.github.aedev.flow.sync2.roster.replayRoster
 import io.github.aedev.flow.sync2.store.Appended
+import io.github.aedev.flow.sync2.store.ChangeList
 import io.github.aedev.flow.sync2.store.ChangedObject
 import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.Mailbox
-import io.github.aedev.flow.sync2.store.Store
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlin.io.path.createTempDirectory
@@ -33,7 +33,7 @@ fun newMember() = MemberSecrets(SyncCrypto.randomBytes(32), SyncCrypto.randomByt
 
 /** The server's rules in memory: linear roster appends, immutable objects, one change cursor, a pairing mailbox. */
 class MemoryStore :
-    Store,
+    ChangeList,
     Mailbox {
     private val slots = HashMap<String, HashMap<String, ByteArray>>()
 

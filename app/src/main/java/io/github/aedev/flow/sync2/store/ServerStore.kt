@@ -48,13 +48,6 @@ private const val LIVE_PING_S = 15L
 private val JSON = "application/json".toMediaType()
 private val BYTES = "application/octet-stream".toMediaType()
 
-/** A `.local` name may resolve only to local addresses, checked on every connection. */
-private val LOCAL_ONLY_DNS =
-    Dns { host ->
-        Dns.SYSTEM.lookup(host).takeIf { addresses -> addresses.all { LocalNetworkAddress.isLocal(it.hostAddress.orEmpty()) } }
-            ?: throw UnknownHostException("$host is not on the local network")
-    }
-
 /**
  * The Flow sync server as a store (spec/api.md). Requests are signed in with this member's roster
  * key; the server never sees anything but sealed objects.
@@ -65,7 +58,7 @@ class ServerStore private constructor(
     private val member: MemberSecrets,
     private var instance: String?,
     private var group: String?,
-) : Store,
+) : ChangeList,
     Mailbox {
     private val session = Mutex()
     private var token: Pair<String, Long>? = null
@@ -83,19 +76,7 @@ class ServerStore private constructor(
             group: String?,
         ): ServerStore {
             val base = url.toHttpUrlOrNull() ?: throw StoreException.Insecure()
-            val builder =
-                OkHttpClient
-                    .Builder()
-                    .followRedirects(false)
-                    .followSslRedirects(false)
-                    .connectTimeout(10, TimeUnit.SECONDS)
-                    .callTimeout(60, TimeUnit.SECONDS)
-            when {
-                base.isHttps || LocalNetworkAddress.isLocal(base.host) -> Unit
-                base.host.endsWith(".local", ignoreCase = true) -> builder.dns(LOCAL_ONLY_DNS)
-                else -> throw StoreException.Insecure()
-            }
-            return ServerStore(base, builder.build(), member, instance, group)
+            return ServerStore(base, storeClient(base), member, instance, group)
         }
     }
 
