@@ -160,19 +160,22 @@ class WebDavStore private constructor(
     }
 
     /**
-     * Makes the store's folder and finds out whether the server honours `If-None-Match: *`, by
-     * writing one probe file twice (spec/store.md, Setup probe). Correctness never depends on the answer.
+     * Makes the store's folder, then writes, reads back and deletes a probe file, so wrong
+     * credentials or a read-only folder show up before anything else is written (spec/store.md,
+     * Setup probe). Returns whether a second guarded write was refused, the only case where later
+     * writes send `If-None-Match: *`; correctness never depends on it.
      */
     suspend fun probe(): Boolean {
         val code = send("MKCOL", "").first
         if (code !in 200..299 && code != 405) refusal(code)
         val path = "probe/" + SyncBytes.toHex(SyncCrypto.randomBytes(16))
+        val content = SyncCrypto.randomBytes(16)
         val guard = mapOf("If-None-Match" to "*")
-        val body = ByteArray(1)
         makeFolders(path)
-        val first = send("PUT", path, body.toRequestBody(OCTETS), guard).first
+        val first = send("PUT", path, content.toRequestBody(OCTETS), guard).first
         if (first !in 200..299) refusal(first)
-        val second = send("PUT", path, body.toRequestBody(OCTETS), guard).first
+        if (!get(path).contentEquals(content)) throw StoreException.Malformed()
+        val second = send("PUT", path, content.toRequestBody(OCTETS), guard).first
         delete("probe/")
         return second == 412
     }

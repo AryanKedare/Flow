@@ -68,7 +68,7 @@ class WebDavStoreTest {
         }
 
     @Test
-    fun the_probe_finds_out_whether_the_server_honours_if_none_match() =
+    fun the_probe_writes_reads_back_and_cleans_up_and_tells_whether_if_none_match_works() =
         runTest {
             assertTrue(serve(WebDavStandIn(ifNoneMatch = true)).store().probe())
             stop()
