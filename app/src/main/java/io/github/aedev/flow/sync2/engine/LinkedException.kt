@@ -17,4 +17,6 @@ sealed class LinkedException(
     class WrongWords : LinkedException("These aren't the recovery words of a group")
 
     class RecoveryUsed : LinkedException("This recovery key was already used")
+
+    class AlreadyLinked : LinkedException("This device is already in a sync group")
 }

@@ -79,5 +79,12 @@ class LinkedSyncWorker(
                     .build()
             WorkManager.getInstance(context).enqueueUniqueWork(OPEN_NAME, ExistingWorkPolicy.KEEP, work)
         }
+
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).run {
+                cancelUniqueWork(PERIODIC_NAME)
+                cancelUniqueWork(OPEN_NAME)
+            }
+        }
     }
 }

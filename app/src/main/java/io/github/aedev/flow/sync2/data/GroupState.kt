@@ -1,5 +1,6 @@
 package io.github.aedev.flow.sync2.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -8,6 +9,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import io.github.aedev.flow.sync2.roster.Entry
 import io.github.aedev.flow.sync2.roster.canonicalEntry
+import kotlinx.coroutines.flow.Flow
 
 /** The group this device belongs to, where its store is, and how far it has written and read. */
 @Entity(tableName = "group_record")
@@ -19,6 +21,8 @@ data class GroupRecord(
     val ownSeq: Long = 0,
     val ownPrev: String = "00".repeat(32),
     val cursor: Long = 0,
+    /** The user proved they wrote down the recovery words this device last showed. */
+    @ColumnInfo(defaultValue = "0") val recoverySaved: Boolean = false,
     @PrimaryKey val id: Int = 1,
 )
 
@@ -41,6 +45,12 @@ data class StreamRow(
 interface GroupDao {
     @Query("SELECT * FROM group_record WHERE id = 1")
     suspend fun group(): GroupRecord?
+
+    @Query("SELECT * FROM group_record WHERE id = 1")
+    fun observeGroup(): Flow<GroupRecord?>
+
+    @Query("UPDATE group_record SET recoverySaved = :saved WHERE id = 1")
+    suspend fun setRecoverySaved(saved: Boolean)
 
     @Upsert
     suspend fun saveGroup(record: GroupRecord)
