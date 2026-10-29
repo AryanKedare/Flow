@@ -38,10 +38,11 @@ interface SentDao {
         ManifestRow::class,
         LinkRow::class,
         CollectedRow::class,
+        HeldRow::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3, spec = HoldObjects::class)],
 )
 abstract class LinkedDatabase : RoomDatabase() {
     abstract fun sent(): SentDao
@@ -51,4 +52,6 @@ abstract class LinkedDatabase : RoomDatabase() {
     abstract fun snapshots(): SnapshotDao
 
     abstract fun collection(): CollectionDao
+
+    abstract fun held(): HeldDao
 }

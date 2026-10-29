@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.data.profile.SyncProfile
 import io.github.aedev.flow.sync.apply.PeerInfo
 import io.github.aedev.flow.sync.apply.SyncApplier
+import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync.identity.DeviceIdentity
 import io.github.aedev.flow.sync.protocol.CollectionWire
 import io.github.aedev.flow.sync.protocol.SyncCollection
@@ -20,6 +21,8 @@ import io.github.aedev.flow.sync2.engine.collectGarbage
 import io.github.aedev.flow.sync2.engine.isDue
 import io.github.aedev.flow.sync2.engine.writeSnapshot
 import io.github.aedev.flow.sync2.linking.deviceNames
+import io.github.aedev.flow.sync2.store.GroupStore
+import io.github.aedev.flow.sync2.store.LocalStore
 import io.github.aedev.flow.sync2.store.ServerStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,21 +51,32 @@ class LinkedSync
         private val keys: DeviceKeys,
         private val applier: SyncApplier,
         private val identity: DeviceIdentity,
+        private val local: LocalStore,
     ) {
         private val running = Mutex()
         private val last = MutableStateFlow<LastSync?>(null)
 
         val lastSync: StateFlow<LastSync?> = last.asStateFlow()
 
-        fun store(
+        fun server(
             record: GroupRecord,
             device: MemberSecrets,
         ): ServerStore = ServerStore.connect(record.storeUrl, device, record.instance, record.groupId)
 
+        fun groupStore(
+            record: GroupRecord,
+            device: MemberSecrets,
+        ): GroupStore = GroupStore(local, server(record, device))
+
+        /** A session on what this device holds, after copying the server's roster and keys. */
         suspend fun open(
             record: GroupRecord,
             device: MemberSecrets,
-        ): Session = Session.open(db, store(record, device), device)
+        ): Session {
+            val store = groupStore(record, device)
+            store.download(SyncBytes.toHex(device.did), record.serverCursor, objects = false)
+            return Session.open(db, store, device)
+        }
 
         suspend fun syncNow(): LastSync =
             running.withLock {
@@ -77,7 +91,11 @@ class LinkedSync
         private suspend fun run() {
             if (!SyncProfile.syncsHere(context)) return
             val record = db.groups().group() ?: return
-            val session = open(record, keys.load())
+            val device = keys.load()
+            val me = SyncBytes.toHex(device.did)
+            val store = groupStore(record, device)
+            db.groups().setServerCursor(store.download(me, record.serverCursor, objects = true))
+            val session = Session.open(db, store, device)
             if (!session.adoptLink(ActiveProfile.get(context).id)) return
             val link = session.record.link
             session.push(export())
@@ -97,6 +115,7 @@ class LinkedSync
             db.snapshots().noteMerged(link, pulled.batches.values.sumOf { batches -> batches.sumOf { it.size.toLong() } }, now)
             if (db.snapshots().isDue(link, now)) session.writeSnapshot(export())
             session.collectGarbage()
+            db.groups().setUploaded(store.upload(me, db.groups().group()?.uploaded ?: 0))
         }
 
         private companion object {

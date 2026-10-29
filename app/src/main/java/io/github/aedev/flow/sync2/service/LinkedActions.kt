@@ -167,10 +167,9 @@ class LinkedActions
             start {
                 val record = linked()
                 val device = keys.load()
-                val store = sync.store(record, device)
                 val offer = newOffer(record.storeUrl, meta().name, listen())
                 phase.value = LinkPhase.Waiting(offer.qr)
-                addDevice(Session.open(db, store, device), store, offer, device, ::confirm)
+                addDevice(sync.open(record, device), sync.server(record, device), offer, device, ::confirm)
             }
 
         /** Answers another device's code: a member's when this device isn't linked, a new device's when it is. */

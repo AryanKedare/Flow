@@ -17,6 +17,21 @@ object StorePaths {
         hash: String,
     ): String = "dev/$did/blob/$hash.b"
 
+    fun roster(
+        seq: Long,
+        hash: String,
+    ): String = "roster/${hex(seq, 16)}-${hash.take(16)}.r"
+
+    fun key(
+        epoch: Int,
+        name: String,
+    ): String = "keys/${epochName(epoch)}/$name.k"
+
+    private val BLOB = Regex("dev/[0-9a-f]{32}/blob/[0-9a-f]{64}\\.b")
+
+    /** A path a device may hold an object or blob under; anything else, such as `..`, is refused. */
+    fun isObject(path: String): Boolean = parseLog(path) != null || BLOB.matches(path)
+
     private val LOG = Regex("dev/([0-9a-f]{32})/log/[0-9a-f]{16}/([0-9a-f]{16})\\.o")
 
     /** The sender and sequence of a log object path, or `null` for any other path. */

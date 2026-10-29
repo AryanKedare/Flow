@@ -157,7 +157,7 @@ class Session private constructor(
         val sealed = sealObject(header, key, encodePayload(content), device.sigSeed)
         store.putObject(StorePaths.log(me, seq), sealed)
         record = record.copy(ownSeq = seq, ownPrev = SyncBytes.toHex(sha256(sealed)))
-        db.groups().saveGroup(record)
+        db.groups().setOwn(record.ownSeq, record.ownPrev)
     }
 
     /** Uploads what changed locally since the last upload; returns how many batches went out. */
@@ -190,7 +190,7 @@ class Session private constructor(
                         .flatten()
                         .firstNotNullOfOrNull { it.link } ?: own,
             )
-        db.groups().saveGroup(record)
+        db.groups().setLink(record.link)
         return true
     }
 
