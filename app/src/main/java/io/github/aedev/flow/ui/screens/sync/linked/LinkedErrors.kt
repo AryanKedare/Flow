@@ -22,6 +22,7 @@ internal fun LinkedError.message(): String =
             LinkedError.WRONG_WORDS -> R.string.linked_error_wrong_words
             LinkedError.RECOVERY_USED -> R.string.linked_error_recovery_used
             LinkedError.ALREADY_LINKED -> R.string.linked_error_already_linked
+            LinkedError.LAN_UNREACHABLE -> R.string.linked_error_lan_unreachable
             LinkedError.UNEXPECTED -> R.string.linked_error_unexpected
         },
     )

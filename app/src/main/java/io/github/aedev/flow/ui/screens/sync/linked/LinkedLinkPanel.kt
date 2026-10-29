@@ -38,8 +38,8 @@ internal fun LinkedLinkPanel(
             } else {
                 SyncStepHeader(
                     icon = Icons.Outlined.QrCode2,
-                    title = stringResource(R.string.linked_add_device),
-                    body = stringResource(R.string.linked_add_device_body),
+                    title = stringResource(R.string.linked_scan_this_code),
+                    body = stringResource(R.string.linked_scan_this_code_body),
                 )
                 SyncCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
                     QrCodeImage(code, Modifier.fillMaxWidth().aspectRatio(1f).padding(16.dp))

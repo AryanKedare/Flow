@@ -121,7 +121,9 @@ internal class LinkedDevicesViewModel
 
         fun syncNow() = run { actions.syncNow() }
 
-        fun join(code: String) = actions.join(code)
+        fun enterCode(code: String) = actions.enterCode(code)
+
+        fun showCode() = actions.showCode()
 
         fun addDevice() = actions.addDevice()
 

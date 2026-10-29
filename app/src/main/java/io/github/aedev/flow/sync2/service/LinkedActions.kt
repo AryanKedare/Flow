@@ -11,13 +11,17 @@ import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
+import io.github.aedev.flow.sync2.linking.Code
 import io.github.aedev.flow.sync2.linking.DeviceMeta
 import io.github.aedev.flow.sync2.linking.addDevice
+import io.github.aedev.flow.sync2.linking.addScanned
+import io.github.aedev.flow.sync2.linking.answerShown
 import io.github.aedev.flow.sync2.linking.createGroup
 import io.github.aedev.flow.sync2.linking.deviceNames
 import io.github.aedev.flow.sync2.linking.join
+import io.github.aedev.flow.sync2.linking.listen
 import io.github.aedev.flow.sync2.linking.newOffer
-import io.github.aedev.flow.sync2.linking.readOffer
+import io.github.aedev.flow.sync2.linking.readCode
 import io.github.aedev.flow.sync2.linking.removeDevice
 import io.github.aedev.flow.sync2.linking.renameDevice
 import io.github.aedev.flow.sync2.linking.restoreGroup
@@ -158,22 +162,44 @@ class LinkedActions
 
         suspend fun syncNow(): LastSync = sync.syncNow()
 
+        /** Shows a member's code, answered through the server's mailbox or over the LAN. */
         fun addDevice() =
             start {
                 val record = linked()
                 val device = keys.load()
                 val store = sync.store(record, device)
-                val offer = newOffer(record.storeUrl, meta().name)
+                val offer = newOffer(record.storeUrl, meta().name, listen())
                 phase.value = LinkPhase.Waiting(offer.qr)
                 addDevice(Session.open(db, store, device), store, offer, device, ::confirm)
             }
 
-        fun join(code: String) =
+        /** Answers another device's code: a member's when this device isn't linked, a new device's when it is. */
+        fun enterCode(text: String) =
+            start {
+                val device = keys.load()
+                when (val code = readCode(text)) {
+                    is Code.Member -> {
+                        ensureUnlinked()
+                        val store = ServerStore.connect(code.storeUrl, device, null, null)
+                        join(db, store, store, code, device, meta(), ::confirm)
+                        linkedNow()
+                    }
+
+                    is Code.New -> {
+                        addScanned(session(), code, device, ::confirm)
+                    }
+                }
+            }
+
+        /** Shows a new device's code, for a member on the same network to scan: how a TV joins. */
+        fun showCode() =
             start {
                 ensureUnlinked()
                 val device = keys.load()
-                val store = ServerStore.connect(readOffer(code).s.u, device, null, null)
-                join(db, store, store, code, device, meta(), ::confirm)
+                val offer = newOffer(null, meta().name, listen() ?: throw LinkedException.LanUnreachable())
+                phase.value = LinkPhase.Waiting(offer.qr)
+                val welcomed = answerShown(offer, device, meta(), ::confirm)
+                welcomed.finish(db, ServerStore.connect(welcomed.storeUrl, device, welcomed.instance, welcomed.group))
                 linkedNow()
             }
 

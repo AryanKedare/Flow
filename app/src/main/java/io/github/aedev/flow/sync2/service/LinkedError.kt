@@ -22,6 +22,7 @@ enum class LinkedError(
     WRONG_WORDS,
     RECOVERY_USED,
     ALREADY_LINKED,
+    LAN_UNREACHABLE,
     UNEXPECTED,
 }
 
@@ -50,6 +51,8 @@ fun Throwable.linkedError(): LinkedError =
         is LinkedException.RecoveryUsed -> LinkedError.RECOVERY_USED
 
         is LinkedException.AlreadyLinked -> LinkedError.ALREADY_LINKED
+
+        is LinkedException.LanUnreachable -> LinkedError.LAN_UNREACHABLE
 
         is LinkedException.Unexpected -> LinkedError.UNEXPECTED
 
