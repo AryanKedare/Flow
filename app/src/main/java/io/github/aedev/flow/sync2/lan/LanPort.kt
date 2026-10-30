@@ -22,6 +22,15 @@ suspend fun WsServer.listenOnLastPort(context: Context): Int {
     return port
 }
 
+/** The port this device's LAN service listens on, chosen now when there is none yet, for pairing to name. */
+suspend fun lanPort(context: Context): Int {
+    val store = context.linkedDeviceDataStore
+    store.data.first()[LAN_PORT]?.let { return it }
+    val port = ServerSocket(0).use { it.localPort }
+    store.edit { it[LAN_PORT] = port }
+    return port
+}
+
 /** [port] once it is free, as the previous listener may take a moment to let go of it; null if it stays taken. */
 private suspend fun freed(port: Int): Int? {
     repeat(PORT_TRIES) {
