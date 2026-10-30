@@ -207,6 +207,15 @@ class LinkedActions
             return restored.also { linkedNow() }
         }
 
+        /** Replaces a WebDAV login the server refused, then syncs with it. */
+        suspend fun updateLogin(
+            user: String,
+            password: String,
+        ) {
+            credentials.save(WebDavLogin(user, password))
+            syncNow()
+        }
+
         suspend fun confirmRecoverySaved() = db.groups().setRecoverySaved(true)
 
         suspend fun rename(

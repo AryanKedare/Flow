@@ -68,6 +68,7 @@ internal fun LinkedDevicesSection(
                 onRename = viewModel::rename,
                 onRemove = viewModel::remove,
                 onForget = viewModel::forget,
+                onUpdateLogin = viewModel::updateLogin,
                 onAccept = viewModel::accept,
                 onDecline = viewModel::decline,
             )
@@ -75,14 +76,16 @@ internal fun LinkedDevicesSection(
 
         else -> {
             LinkedSetup(
-                hostOnly,
-                state.busy,
-                viewModel::create,
-                viewModel::createOnNetwork,
-                viewModel::enterCode,
-                viewModel::joinWithAdmin,
-                viewModel::showCode,
-                viewModel::restore,
+                hostOnly = hostOnly,
+                busy = state.busy,
+                onCreate = viewModel::create,
+                onCreateOnWebDav = viewModel::createOnWebDav,
+                onCreateOnNetwork = viewModel::createOnNetwork,
+                onEnterCode = viewModel::enterCode,
+                onJoinWithAdmin = viewModel::joinWithAdmin,
+                onShowCode = viewModel::showCode,
+                onRestore = viewModel::restore,
+                onRestoreFromWebDav = viewModel::restoreFromWebDav,
             )
         }
     }
