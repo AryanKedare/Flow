@@ -194,12 +194,26 @@ class HandoffTest {
         val laptop = "cc".repeat(16)
         devices.heard(LiveReceived(tv, 1, playing.copy(state = LiveMessage.PAUSED)), at = 1_000)
         devices.heard(LiveReceived(laptop, 1, playing), at = 2_000)
-        assertTrue("a LAN redial comes within the minute", devices.isOnline(tv, at = 62_000))
+        assertTrue("heard within 90 s", devices.isOnline(tv, at = 62_000))
         assertFalse("nothing for over 90 s", devices.isOnline(tv, at = 92_000))
 
         assertEquals(tv, devices.controlled(tv, at = 3_000)?.did)
         assertEquals("the latest session when none is chosen", laptop, devices.controlled(null, at = 3_000)?.did)
         assertEquals("not a chosen device that went quiet", null, devices.controlled(tv, at = 100_000))
+    }
+
+    @Test
+    fun a_lan_peer_stays_online_while_its_address_answers() {
+        val devices = LiveDevices()
+        val mac = "bb".repeat(16)
+        devices.heard(LiveReceived(mac, 1, playing.copy(state = LiveMessage.PAUSED)), at = 1_000)
+        devices.lanPeers { it + mac }
+        devices.serverPeers(emptySet())
+        assertTrue("quiet, but its LAN address answered", devices.isOnline(mac, at = 600_000))
+        assertEquals(mac, devices.controlled(mac, at = 600_000)?.did)
+
+        devices.lanPeers { it - mac }
+        assertFalse(devices.isOnline(mac, at = 600_000))
     }
 
     @Test

@@ -7,10 +7,7 @@ import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * A device heard from recently counts as online even without the server saying so. Every LAN session
- * opens with presence and LAN redials each minute, so a device quiet for longer has left the network.
- */
+/** A device heard from recently counts as online even when no transport lists it, as one that only dialed this one. */
 private const val HEARD_MS = 90_000L
 
 /** What this device knows of another one from the live channel. */
@@ -43,15 +40,28 @@ class LiveDevices
     @Inject
     constructor() {
         private val peers = MutableStateFlow<Map<String, LivePeer>>(emptyMap())
-        private val serverOnline = MutableStateFlow<Set<String>>(emptySet())
+        private var server = emptySet<String>()
+        private var lan = emptySet<String>()
+        private val reachable = MutableStateFlow<Set<String>>(emptySet())
 
         val devices: StateFlow<Map<String, LivePeer>> = peers.asStateFlow()
 
-        /** The devices the server reports connected to the live channel (spec/live.md, Server relay). */
-        val online: StateFlow<Set<String>> = serverOnline.asStateFlow()
+        /**
+         * The devices a transport reaches now: the server reports them connected to the live channel
+         * (spec/live.md, Server relay), or their LAN address answered this device's last session.
+         */
+        val online: StateFlow<Set<String>> = reachable.asStateFlow()
 
+        @Synchronized
         fun serverPeers(online: Set<String>) {
-            serverOnline.value = online
+            server = online
+            reachable.value = server + lan
+        }
+
+        @Synchronized
+        fun lanPeers(change: (Set<String>) -> Set<String>) {
+            lan = change(lan)
+            reachable.value = server + lan
         }
 
         fun heard(
@@ -70,11 +80,11 @@ class LiveDevices
             }
         }
 
-        /** Whether [did] can be reached now: the server lists it, or it spoke lately. */
+        /** Whether [did] can be reached now: a transport reaches it, or it spoke lately. */
         fun isOnline(
             did: String,
             at: Long = System.currentTimeMillis(),
-        ): Boolean = did in serverOnline.value || (peers.value[did]?.heardAt ?: 0) > at - HEARD_MS
+        ): Boolean = did in reachable.value || (peers.value[did]?.heardAt ?: 0) > at - HEARD_MS
 
         /** The reachable device that last told of something loaded, playing or paused: the one a remote player drives. */
         fun current(at: Long = System.currentTimeMillis()): LivePeer? =

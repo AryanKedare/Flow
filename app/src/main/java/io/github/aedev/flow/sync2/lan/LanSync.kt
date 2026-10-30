@@ -20,6 +20,7 @@ import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.live.LiveChannel
+import io.github.aedev.flow.sync2.live.LiveDevices
 import io.github.aedev.flow.sync2.live.LiveTransport
 import io.github.aedev.flow.sync2.service.LinkedSync
 import io.github.aedev.flow.sync2.service.linkedError
@@ -55,8 +56,6 @@ private const val QUIET_MS = 3_000L
 private const val CONNECT_TIMEOUT_MS = 3_000L
 private const val ATTEMPT_MS = 30_000L
 
-/** A peer met this recently is brought live messages over a new session. */
-private const val LIVE_REACH_MS = 10 * 60_000L
 private const val HOUR_S = 3_600L
 private const val HOUR_MS = HOUR_S * 1_000
 private const val FIRST_RETRY_MS = 5_000L
@@ -77,10 +76,11 @@ class LanSync
         private val local: LocalStore,
         private val sync: LinkedSync,
         private val live: LiveChannel,
+        private val devices: LiveDevices,
         @ApplicationScope private val scope: CoroutineScope,
     ) {
-        /** Addresses this device reached, and when, to bring them live messages later. */
-        private val reached = ConcurrentHashMap<String, Long>()
+        /** The address each member this device dialed serves on, to bring it live messages later. */
+        private val reached = ConcurrentHashMap<String, String>()
         private val open = ConcurrentHashMap.newKeySet<String>()
         private val seen = MutableStateFlow<Map<String, Long>>(emptyMap())
         private val dialed = ConcurrentHashMap<String, Long>()
@@ -95,15 +95,19 @@ class LanSync
             if (running?.isActive == true || !SyncProfile.syncsHere(context)) return
             running =
                 scope.launch {
-                    db
-                        .groups()
-                        .observeGroup()
-                        .map { it?.groupId }
-                        .distinctUntilChanged()
-                        .collectLatest { id ->
-                            if (id != group) forgetPeers(id)
-                            if (id != null) db.groups().observeEpoch().collectLatest { if (it != null) keepServing() }
-                        }
+                    try {
+                        db
+                            .groups()
+                            .observeGroup()
+                            .map { it?.groupId }
+                            .distinctUntilChanged()
+                            .collectLatest { id ->
+                                if (id != group) forgetPeers(id)
+                                if (id != null) db.groups().observeEpoch().collectLatest { if (it != null) keepServing() }
+                            }
+                    } finally {
+                        devices.lanPeers { emptySet() }
+                    }
                 }
         }
 
@@ -132,6 +136,7 @@ class LanSync
             seen.value = emptyMap()
             reached.clear()
             dialed.clear()
+            devices.lanPeers { emptySet() }
         }
 
         /** Serves afresh each hour, when the tag changes, and again after a failure, until cancelled. */
@@ -166,12 +171,11 @@ class LanSync
                     discovery.discover(name) { host, peerPort, tag ->
                         if (tag in tags && LocalNetworkAddress.isLocal(host)) launch { dial(host, peerPort) }
                     }
-                    // A live message for a peer met lately, with no session open to it now, opens one.
+                    // A live message for a member reached before, with no session open to it now, opens one.
                     launch {
                         live.envelopes.collect { envelope ->
-                            val since = System.currentTimeMillis() - LIVE_REACH_MS
-                            for ((address, at) in reached) {
-                                if (at >= since && address !in open) launch { dial(address, envelope) }
+                            for (address in reached.values) {
+                                if (address !in open) launch { dial(address, envelope) }
                             }
                         }
                     }
@@ -204,8 +208,15 @@ class LanSync
             if (!open.add(address)) return
             try {
                 val connection =
-                    withTimeoutOrNull(CONNECT_TIMEOUT_MS) { runCatching { WsClient(OkHttpClient()).connect(url) }.getOrNull() } ?: return
-                if (meet(connection, accepting = false, envelope)) reached[address] = System.currentTimeMillis()
+                    withTimeoutOrNull(CONNECT_TIMEOUT_MS) { runCatching { WsClient(OkHttpClient()).connect(url) }.getOrNull() }
+                val peer = connection?.let { meet(it, accepting = false, envelope) }
+                if (peer != null) {
+                    reached[peer] = address
+                    devices.lanPeers { it + peer }
+                } else {
+                    val gone = reached.filterValues { it == address }.keys
+                    devices.lanPeers { it - gone }
+                }
             } finally {
                 open.remove(address)
             }
@@ -213,15 +224,15 @@ class LanSync
 
         /**
          * One session with another member: both pull, live messages travel while it lasts, then the
-         * usual sync merges what arrived. Returns whether it got that far.
+         * usual sync merges what arrived. Returns the member when it got that far.
          */
         private suspend fun meet(
             connection: SyncConnection,
             accepting: Boolean,
             envelope: ByteArray? = null,
-        ): Boolean {
+        ): String? {
             try {
-                val session = session() ?: return false
+                val session = session() ?: return null
                 val link = if (accepting) acceptLink(connection, session) else connectLink(connection, session)
                 coroutineScope {
                     val peer = LanPeer(link, session, local) { live.receive(it) }
@@ -244,12 +255,12 @@ class LanSync
                 }
                 seen.update { it + (link.peer to System.currentTimeMillis()) }
                 sync.syncNow()
-                return true
+                return link.peer
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "LAN session failed: ${e.linkedError()}")
-                return false
+                return null
             } finally {
                 connection.close()
             }
