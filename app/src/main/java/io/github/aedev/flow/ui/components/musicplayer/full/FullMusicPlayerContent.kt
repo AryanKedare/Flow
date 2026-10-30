@@ -61,6 +61,7 @@ import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActions
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicVideoSwitchViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
+import io.github.aedev.flow.ui.screens.playon.LocalPlayOn
 import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 
@@ -80,6 +81,13 @@ internal fun FullMusicPlayerContent(
     videoSwitch: MusicVideoSwitchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    // While the user drives another device from here, the player follows what plays there.
+    val isPlaying =
+        LocalPlayOn.current
+            ?.elsewhere
+            ?.collectAsState()
+            ?.value
+            ?.playing ?: uiState.isPlaying
     val positionState = viewModel.currentPositionMs.collectAsState()
     val density = LocalDensity.current
     val colorScheme = MaterialTheme.colorScheme
@@ -245,7 +253,7 @@ internal fun FullMusicPlayerContent(
                 visible =
                     isPlayerSheetExpanded && videoPlayer == null && (immersiveBackground || !hideArtwork) &&
                         !showLyricsSheet && !queueCoversArtwork,
-                playing = uiState.isPlaying,
+                playing = isPlaying,
                 shown = artworkDragPreview == null && previewDirection == null,
             )
 
@@ -267,7 +275,7 @@ internal fun FullMusicPlayerContent(
                 artwork = { modifier ->
                     PlayerArtworkFrame(
                         immersive = immersiveBackground,
-                        isPlaying = uiState.isPlaying,
+                        isPlaying = isPlaying,
                         modifier = modifier,
                     ) {
                         PlayerArtwork(
@@ -330,7 +338,7 @@ internal fun FullMusicPlayerContent(
                             // The tree stays composed while collapsed (warm for a jank-free expand), so the
                             // squiggly/wavy per-frame wave animations must stop when nobody can see them —
                             // they otherwise burn a frame budget for the whole background-listening session.
-                            isPlaying = uiState.isPlaying && isPlayerSheetExpanded,
+                            isPlaying = isPlaying && isPlayerSheetExpanded,
                             modifier = modifier,
                         )
                     }
@@ -338,7 +346,7 @@ internal fun FullMusicPlayerContent(
                 controls = { modifier ->
                     MaterialTheme(colorScheme = controlScheme) {
                         MediaPlaybackControls(
-                            isPlaying = uiState.isPlaying,
+                            isPlaying = isPlaying,
                             isBuffering = uiState.isBuffering && isPlayerSheetExpanded,
                             onPreviousClick = { viewModel.skipToPrevious() },
                             onPlayPauseToggle = { viewModel.togglePlayPause() },
@@ -412,7 +420,7 @@ internal fun FullMusicPlayerContent(
                                 radioTracks = uiState.autoplaySuggestions,
                                 currentIndex = uiState.currentQueueIndex,
                                 // The warm tree stays composed while collapsed; the row waveform must not animate there.
-                                isPlaying = uiState.isPlaying && isPlayerSheetExpanded,
+                                isPlaying = isPlaying && isPlayerSheetExpanded,
                                 isRadioLoading = uiState.isRadioLoading,
                                 endlessRadioEnabled = uiState.endlessRadioEnabled,
                                 downloadedTrackIds = uiState.downloadedTrackIds,
@@ -450,7 +458,7 @@ internal fun FullMusicPlayerContent(
                 queue = uiState.queue,
                 radioTracks = uiState.autoplaySuggestions,
                 currentIndex = uiState.currentQueueIndex,
-                isPlaying = uiState.isPlaying,
+                isPlaying = isPlaying,
                 isRadioLoading = uiState.isRadioLoading,
                 endlessRadioEnabled = uiState.endlessRadioEnabled,
                 shuffleEnabled = uiState.shuffleEnabled,

@@ -15,9 +15,9 @@ class ActiveMiniPlayerTest {
     ) = resolveActiveMiniPlayer(hasVideo, videoVisible, videoInBackground, onShortsPlayer, hasMusic, musicSuppressed, remoteSession)
 
     @Test
-    fun `another device's session shows the remote bar only when nothing is loaded here`() {
+    fun `a video on the controlled device shows the remote bar over the music this device holds`() {
         assertThat(resolve(remoteSession = true)).isEqualTo(ActiveMiniPlayer.Remote)
-        assertThat(resolve(remoteSession = true, hasMusic = true)).isEqualTo(ActiveMiniPlayer.Music)
+        assertThat(resolve(remoteSession = true, hasMusic = true)).isEqualTo(ActiveMiniPlayer.Remote)
         assertThat(resolve(remoteSession = true, hasVideo = true, videoVisible = true)).isEqualTo(ActiveMiniPlayer.Video)
     }
 

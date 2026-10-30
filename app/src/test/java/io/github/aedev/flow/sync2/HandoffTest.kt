@@ -19,6 +19,7 @@ import io.github.aedev.flow.sync2.live.LiveReceived
 import io.github.aedev.flow.sync2.live.LiveTransport
 import io.github.aedev.flow.sync2.live.LocalPlayback
 import io.github.aedev.flow.sync2.live.NowPlaying
+import io.github.aedev.flow.sync2.live.queueWindow
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -197,5 +198,15 @@ class HandoffTest {
         assertEquals(tv, devices.controlled(tv, at = 3_000)?.did)
         assertEquals("the latest session when none is chosen", laptop, devices.controlled(null, at = 3_000)?.did)
         assertEquals("not a chosen device that went quiet", null, devices.controlled(tv, at = 100_000))
+    }
+
+    @Test
+    fun a_played_queue_is_cut_to_the_limit_around_the_chosen_item() {
+        val queue = (0 until 120).map { "v$it" }
+        val (ids, at) = checkNotNull(queueWindow(queue, 100))
+        assertEquals(LiveMessage.QUEUE_LIMIT, ids.size)
+        assertEquals("v100", ids[at])
+        assertEquals(listOf("v1", "v2") to 1, queueWindow(listOf("v1", "v2"), 1))
+        assertEquals(null, queueWindow(queue, 120))
     }
 }

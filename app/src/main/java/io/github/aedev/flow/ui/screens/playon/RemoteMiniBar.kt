@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.sync2.live.LiveMessage
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
@@ -48,7 +47,7 @@ internal fun RemoteMiniBar(
     val playOn = LocalPlayOn.current ?: return
     val elsewhere by playOn.elsewhere.collectAsStateWithLifecycle()
     val remote = elsewhere ?: return
-    val playing = remote.now.state == LiveMessage.PLAYING
+    val playing = remote.playing
     val busy by playOn.busy.collectAsStateWithLifecycle()
     val transportTint = MaterialTheme.colorScheme.onSurfaceVariant
     val density = LocalDensity.current

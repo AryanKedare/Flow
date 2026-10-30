@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.sync2.lan.LanSync
 import io.github.aedev.flow.sync2.live.ConsentAnswer
 import io.github.aedev.flow.sync2.live.ConsentRequest
@@ -17,6 +16,8 @@ import io.github.aedev.flow.sync2.live.LiveMessage
 import io.github.aedev.flow.sync2.live.LivePeer
 import io.github.aedev.flow.sync2.live.LocalPlayback
 import io.github.aedev.flow.sync2.live.NowPlaying
+import io.github.aedev.flow.sync2.live.RemoteChoice
+import io.github.aedev.flow.sync2.live.TrackDetails
 import io.github.aedev.flow.sync2.live.deviceKind
 import io.github.aedev.flow.sync2.service.LinkedActions
 import io.github.aedev.flow.sync2.service.LinkedDevice
@@ -26,11 +27,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -61,7 +60,9 @@ data class Elsewhere(
     val did: String,
     val name: String,
     val now: LiveMessage.Now,
-)
+) {
+    val playing: Boolean get() = now.state == LiveMessage.PLAYING
+}
 
 /** What plays on the active device, with when [now] was read, to move its position on. */
 data class PlayOnSession(
@@ -83,6 +84,8 @@ class PlayOnViewModel
         private val playback: LocalPlayback,
         private val nowPlaying: NowPlaying,
         private val consent: LiveConsent,
+        private val remote: RemoteChoice,
+        private val details: TrackDetails,
         lan: LanSync,
         sheet: PlayOnSheet,
     ) : ViewModel() {
@@ -92,14 +95,11 @@ class PlayOnViewModel
         private val me = MutableStateFlow<String?>(null)
 
         private val names = MutableStateFlow<Map<String, String>>(emptyMap())
-        private val remote = RemoteChoice()
-        private val albumArt = ConcurrentHashMap<String, String>()
 
         val open: MutableStateFlow<Boolean> = sheet.open
 
         init {
             viewModelScope.launch { names.value = channel.names() }
-            viewModelScope.launch { remote.watch(nowPlaying.playing, merge(live.devices, live.online)) { live.isOnline(it) } }
         }
 
         /**
@@ -175,7 +175,7 @@ class PlayOnViewModel
             act {
                 when {
                     device.thisDevice -> {
-                        handoff.pull(remote.did.value).also { if (it) remote.clear() }
+                        handoff.pull(remote.did.value)
                     }
 
                     local.value?.state != LiveMessage.PLAYING && device.now?.video != null -> {
@@ -204,13 +204,8 @@ class PlayOnViewModel
             }
         }
 
-        /** A song's album art from the music service, asked once per song. */
-        suspend fun musicArt(video: String): String? =
-            albumArt[video] ?: InnertubeMusicService
-                .fetchQueue(videoIds = listOf(video))
-                .firstOrNull()
-                ?.highResThumbnailUrl
-                ?.also { albumArt[video] = it }
+        /** A song's album art from the music service. */
+        suspend fun musicArt(video: String): String? = details.songs(listOf(video))[video]?.highResThumbnailUrl
 
         fun answer(
             request: ConsentRequest,

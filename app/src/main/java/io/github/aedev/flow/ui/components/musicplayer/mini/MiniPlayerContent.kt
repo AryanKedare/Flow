@@ -58,7 +58,6 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
-import io.github.aedev.flow.sync2.live.LiveMessage
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
 import io.github.aedev.flow.ui.screens.playon.LocalPlayOn
@@ -87,9 +86,12 @@ internal fun MiniPlayerContent(
 ) {
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
-    // While the user drives another device from here, this bar shows it and its controls drive that device.
-    val playOn = LocalPlayOn.current
-    val elsewhere = playOn?.elsewhere?.collectAsStateWithLifecycle()?.value
+    // While the user drives another device from here, the player follows it and its controls go there.
+    val elsewhere =
+        LocalPlayOn.current
+            ?.elsewhere
+            ?.collectAsStateWithLifecycle()
+            ?.value
 
     val animatedProgress by animateFloatAsState(
         targetValue =
@@ -231,15 +233,7 @@ internal fun MiniPlayerContent(
         ) {
             if (elsewhere != null) PlayOnButton()
             if (showPrevious) {
-                IconButton(onClick = {
-                    if (elsewhere !=
-                        null
-                    ) {
-                        playOn?.controlElsewhere("previous")
-                    } else {
-                        EnhancedMusicPlayerManager.playPrevious()
-                    }
-                }) {
+                IconButton(onClick = { EnhancedMusicPlayerManager.playPrevious() }) {
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = stringResource(R.string.previous),
@@ -248,19 +242,14 @@ internal fun MiniPlayerContent(
                 }
             }
             MediaPlayPauseButton(
-                isPlaying = elsewhere?.let { it.now.state == LiveMessage.PLAYING } ?: playerState.isPlaying,
+                isPlaying = elsewhere?.playing ?: playerState.isPlaying,
                 isBuffering = elsewhere == null && playerState.isBuffering && animationsEnabled,
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    val remote = elsewhere
-                    if (remote != null) {
-                        playOn?.controlElsewhere(if (remote.now.state == LiveMessage.PLAYING) "pause" else "play")
-                    } else {
-                        EnhancedMusicPlayerManager.togglePlayPause()
-                    }
+                    EnhancedMusicPlayerManager.togglePlayPause()
                 },
             )
-            IconButton(onClick = { if (elsewhere != null) playOn?.controlElsewhere("next") else EnhancedMusicPlayerManager.playNext() }) {
+            IconButton(onClick = { EnhancedMusicPlayerManager.playNext() }) {
                 Icon(
                     imageVector = Icons.Rounded.SkipNext,
                     contentDescription = stringResource(R.string.next),

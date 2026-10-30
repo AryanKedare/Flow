@@ -123,7 +123,20 @@ class Handoff
             cmd: String,
             pos: Long? = null,
             vol: Int? = null,
-        ): Boolean = request(LiveMessage.Cmd(to, cmd, pos, vol))?.ok == true
+            queue: List<String>? = null,
+        ): Boolean = request(LiveMessage.Cmd(to, cmd, pos, vol, queue))?.ok == true
+
+        /** Starts [queue] at [index] on [to], the device the user drives from here; true once it started. */
+        suspend fun play(
+            to: String,
+            queue: List<String>,
+            index: Int,
+            music: Boolean,
+        ): Boolean {
+            val (ids, at) = queueWindow(queue, index) ?: return false
+            val play = LiveMessage.Play(to, ids[at], 0, music, now.snapshot().link, ids, at, LiveMessage.PLAYING)
+            return request(play)?.ok == true
+        }
 
         private suspend fun request(message: LiveMessage): LiveMessage.Result? {
             val seq = live.send(message) ?: return null
@@ -137,3 +150,13 @@ class Handoff
             }
         }
     }
+
+/** At most [LiveMessage.QUEUE_LIMIT] of [queue] around [index], with where [index] lands in it; null when [index] is outside. */
+internal fun queueWindow(
+    queue: List<String>,
+    index: Int,
+): Pair<List<String>, Int>? {
+    if (index !in queue.indices) return null
+    val start = (index - LiveMessage.QUEUE_LIMIT / 2).coerceIn(0, (queue.size - LiveMessage.QUEUE_LIMIT).coerceAtLeast(0))
+    return queue.subList(start, (start + LiveMessage.QUEUE_LIMIT).coerceAtMost(queue.size)) to index - start
+}

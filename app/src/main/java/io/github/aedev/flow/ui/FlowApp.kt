@@ -366,7 +366,9 @@ fun FlowApp(
             LocalPlayOn.current
                 ?.elsewhere
                 ?.collectAsStateWithLifecycle()
-                ?.value != null
+                ?.value
+                ?.now
+                ?.music == false
         val activeMiniPlayer =
             resolveActiveMiniPlayer(
                 hasVideo = playerUiState.cachedVideo != null,

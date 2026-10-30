@@ -10,6 +10,7 @@ import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.lan.LanSync
 import io.github.aedev.flow.sync2.live.Handoff
 import io.github.aedev.flow.sync2.live.NowPlaying
+import io.github.aedev.flow.sync2.live.RemoteDriver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,12 +36,14 @@ class LinkedForeground
         private val lan: LanSync,
         private val now: NowPlaying,
         private val handoff: Handoff,
+        private val remote: RemoteDriver,
         @ApplicationScope private val scope: CoroutineScope,
     ) : DefaultLifecycleObserver {
         private val foreground = MutableStateFlow(false)
 
         fun install() {
             ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+            remote.install()
             scope.launch {
                 combine(foreground, now.playing) { shown, playing -> shown || playing }
                     .distinctUntilChanged()
@@ -54,6 +57,7 @@ class LinkedForeground
             try {
                 coroutineScope {
                     launch { handoff.run() }
+                    launch { remote.run() }
                     now.run()
                 }
             } finally {

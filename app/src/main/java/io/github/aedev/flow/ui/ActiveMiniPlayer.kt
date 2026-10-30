@@ -6,7 +6,8 @@ internal enum class ActiveMiniPlayer { None, Video, VideoBar, Music, Remote }
 /**
  * A video wins over music because starting either clears the other, so both are only cached
  * together for the moment a hand-over takes. A video playing in the background gets the bar.
- * With nothing loaded here, the device the user chose in "Play on" gets the remote bar.
+ * A video on the device the user drives from here gets the remote bar; music there shows in the
+ * music player, which follows it.
  */
 internal fun resolveActiveMiniPlayer(
     hasVideo: Boolean,
@@ -21,7 +22,7 @@ internal fun resolveActiveMiniPlayer(
         hasVideo && onShortsPlayer -> ActiveMiniPlayer.None
         hasVideo && videoInBackground -> ActiveMiniPlayer.VideoBar
         hasVideo -> if (videoVisible) ActiveMiniPlayer.Video else ActiveMiniPlayer.None
-        hasMusic && !musicSuppressed -> ActiveMiniPlayer.Music
         remoteSession -> ActiveMiniPlayer.Remote
+        hasMusic && !musicSuppressed -> ActiveMiniPlayer.Music
         else -> ActiveMiniPlayer.None
     }
