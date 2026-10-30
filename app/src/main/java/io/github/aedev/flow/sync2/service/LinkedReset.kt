@@ -5,6 +5,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.profile.ActiveProfile
 import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore
 import io.github.aedev.flow.sync2.data.LinkedDatabase
+import io.github.aedev.flow.sync2.device.StoreCredentials
 import io.github.aedev.flow.sync2.store.LocalStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,12 +21,14 @@ class LinkedReset
         private val db: LinkedDatabase,
         private val local: LocalStore,
         private val ledger: SyncChangeLedgerStore,
+        private val credentials: StoreCredentials,
     ) {
         /** Leaves the group on this device only: its state and what it holds go, its keys stay. */
         suspend fun forget() {
             LinkedSyncWorker.cancel(context)
             withContext(Dispatchers.IO) { db.clearAllTables() }
             local.clear()
+            credentials.clear()
         }
 
         /**

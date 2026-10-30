@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync2.data.LAN_STORE
+import io.github.aedev.flow.sync2.data.WEBDAV_STORE
 import io.github.aedev.flow.sync2.service.LinkedDevice
 import io.github.aedev.flow.sync2.service.LinkedError
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
@@ -72,7 +73,14 @@ internal fun LinkedOverview(
             FlowNavRow(
                 title = stringResource(R.string.linked_server),
                 onClick = {},
-                supportingText = if (state.storeUrl == LAN_STORE) stringResource(R.string.linked_server_lan) else state.storeUrl,
+                supportingText =
+                    if (state.storeUrl ==
+                        LAN_STORE
+                    ) {
+                        stringResource(R.string.linked_server_lan)
+                    } else {
+                        state.storeUrl?.removePrefix(WEBDAV_STORE)
+                    },
                 leadingIcon = Icons.Outlined.Cloud,
                 showChevron = false,
                 shape = shape,

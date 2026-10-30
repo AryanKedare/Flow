@@ -131,7 +131,7 @@ class FileLayoutTest {
                             join(
                                 dbN,
                                 heldStore(dbN),
-                                layout,
+                                { layout },
                                 layout,
                                 readCode(offer.qr) as Code.Member,
                                 newcomer,
