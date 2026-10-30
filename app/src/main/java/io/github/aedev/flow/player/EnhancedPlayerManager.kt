@@ -1661,6 +1661,7 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { addVideoToQueueNext(video) }
             return
         }
+        PlaybackTarget.current?.let { return it.playNext(video.id) }
         autoNextLog("addVideoToQueueNext ${video.id}")
         when (queue.addNext(video, GlobalPlayerState.currentVideo.value)) {
             QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)
@@ -1681,6 +1682,7 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { addVideoToQueue(video) }
             return
         }
+        PlaybackTarget.current?.let { return it.addToQueue(video.id) }
         autoNextLog("addVideoToQueue ${video.id}")
         when (queue.append(video, GlobalPlayerState.currentVideo.value)) {
             QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)

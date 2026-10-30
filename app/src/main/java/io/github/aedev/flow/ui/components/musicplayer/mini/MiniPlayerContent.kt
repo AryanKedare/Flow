@@ -242,8 +242,8 @@ internal fun MiniPlayerContent(
                 }
             }
             MediaPlayPauseButton(
-                isPlaying = elsewhere?.playing ?: playerState.isPlaying,
-                isBuffering = elsewhere == null && playerState.isBuffering && animationsEnabled,
+                isPlaying = playerState.isPlaying,
+                isBuffering = playerState.isBuffering && animationsEnabled,
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     EnhancedMusicPlayerManager.togglePlayPause()

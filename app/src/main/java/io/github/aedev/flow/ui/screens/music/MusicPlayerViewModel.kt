@@ -295,6 +295,8 @@ class MusicPlayerViewModel
                 return
             }
             if (isLocalMediaId(track.videoId)) {
+                // A file on this device plays here, which ends driving another device.
+                PlaybackTarget.current?.release()
                 val localUris = (queue + track).mapNotNull { t -> LocalMediaIds.audioUri(t.videoId)?.let { t.videoId to it } }.toMap()
                 playLocalMusic(track, queue.filter { isLocalMediaId(it.videoId) }, localUris)
                 return

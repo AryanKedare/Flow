@@ -10,6 +10,8 @@ class PlaybackTargetTest {
     private val remote =
         object : RemotePlayer {
             override val playing = true
+            override val queue = listOf("a", "b")
+            override val index = 0
 
             override fun command(
                 cmd: String,
@@ -26,8 +28,12 @@ class PlaybackTargetTest {
                 sent += "play ${queue[index]}"
             }
 
-            override fun queue(ids: List<String>) {
+            override fun setQueue(ids: List<String>) {
                 sent += "queue $ids"
+            }
+
+            override fun release() {
+                sent += "release"
             }
         }
 
@@ -57,5 +63,13 @@ class PlaybackTargetTest {
 
         assertThat(sent).isEmpty()
         assertThat(PlaybackTarget.current).isSameInstanceAs(remote)
+    }
+
+    @Test
+    fun `play next and add to queue edit the driven device's queue`() {
+        remote.playNext("c")
+        remote.addToQueue("d")
+
+        assertThat(sent).containsExactly("queue [a, c, b]", "queue [a, b, d]").inOrder()
     }
 }

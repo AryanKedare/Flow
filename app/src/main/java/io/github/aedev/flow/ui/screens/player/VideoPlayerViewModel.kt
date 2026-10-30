@@ -349,6 +349,8 @@ class VideoPlayerViewModel
             video: Video,
             contentUri: String,
         ) {
+            // A file on this device plays here, which ends driving another device.
+            PlaybackTarget.current?.release()
             takeOverPlayback()
             armStartPaused(video.id, userOpened = true)
             loads.prepareDeviceFile(video, contentUri)
@@ -432,8 +434,15 @@ class VideoPlayerViewModel
         ) {
             if (videos.isEmpty()) return
             val startVideo = videos.getOrNull(startIndex) ?: videos.first()
-            if (!LocalMediaIds.isLocal(startVideo.id)) {
-                PlaybackTarget.current?.let { return it.play(videos.map(Video::id), videos.indexOf(startVideo), music = false) }
+            PlaybackTarget.current?.let { remote ->
+                if (LocalMediaIds.isLocal(
+                        startVideo.id,
+                    )
+                ) {
+                    remote.release()
+                } else {
+                    return remote.play(videos.map(Video::id), videos.indexOf(startVideo), music = false)
+                }
             }
 
             EnhancedMusicPlayerManager.stop()

@@ -12,24 +12,23 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** The remote player follows the user's choice only, and drops it when playback returns or the device leaves. */
+/** The remote player follows the user's choice only, and drops it when it is cleared or the device leaves. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RemoteChoiceTest {
     private val tv = "bb".repeat(16)
 
     @Test
-    fun a_choice_survives_the_release_here_and_ends_when_playback_starts_here() =
+    fun a_choice_lasts_until_it_is_cleared() =
         runTest(UnconfinedTestDispatcher()) {
             val choice = RemoteChoice()
-            val playingHere = MutableStateFlow(true)
-            val watching = launch { choice.watch(playingHere, MutableStateFlow(Unit)) { true } }
+            val watching = launch { choice.watch(MutableStateFlow(Unit)) { true } }
             assertNull("nothing is chosen until the user picks a device", choice.did.value)
 
             choice.choose(tv)
-            playingHere.value = false
+            advanceTimeBy(QUIET_CHECK_MS * 3)
             assertEquals(tv, choice.did.value)
 
-            playingHere.value = true
+            choice.clear()
             assertNull(choice.did.value)
             watching.cancel()
         }
@@ -39,7 +38,7 @@ class RemoteChoiceTest {
         runTest(UnconfinedTestDispatcher()) {
             val choice = RemoteChoice()
             val online = MutableStateFlow(setOf(tv))
-            val watching = launch { choice.watch(MutableStateFlow(false), online) { it in online.value } }
+            val watching = launch { choice.watch(online) { it in online.value } }
             choice.choose(tv)
             assertEquals(tv, choice.did.value)
 
@@ -53,7 +52,7 @@ class RemoteChoiceTest {
         runTest(UnconfinedTestDispatcher()) {
             val choice = RemoteChoice()
             var reachable = true
-            val watching = launch { choice.watch(MutableStateFlow(false), MutableStateFlow(Unit)) { reachable } }
+            val watching = launch { choice.watch(MutableStateFlow(Unit)) { reachable } }
             choice.choose(tv)
             reachable = false
             assertEquals("nothing has said so yet", tv, choice.did.value)

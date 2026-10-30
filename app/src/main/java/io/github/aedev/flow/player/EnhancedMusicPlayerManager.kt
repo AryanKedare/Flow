@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.core.os.bundleOf
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -285,7 +286,11 @@ object EnhancedMusicPlayerManager {
                 PlayerDiagnostics.logError("EnhancedMusicPlayer", "music service unavailable: ${e.message}", e)
                 return false
             }
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        controllerFuture =
+            MediaController
+                .Builder(context, sessionToken)
+                .setConnectionHints(bundleOf(APP_CONTROLLER_HINT to true))
+                .buildAsync()
 
         controllerFuture?.addListener({
             try {
@@ -825,7 +830,7 @@ object EnhancedMusicPlayerManager {
     /** Saves an edited queue, and hands it to the device the user drives from here, if any. */
     private fun queueEdited() {
         triggerQueueSave()
-        PlaybackTarget.current?.queue(_queue.value.map { it.videoId })
+        PlaybackTarget.current?.setQueue(_queue.value.map { it.videoId })
     }
 
     private fun triggerQueueSave() {
@@ -996,7 +1001,8 @@ object EnhancedMusicPlayerManager {
 
     /**
      * Shows the music session of the device the user drives from here: its queue and song, loaded
-     * but stopped, so the players show it and playing here later starts from it.
+     * but stopped, so the players show it and playing here later starts from it. The session reports
+     * that device's play state and position ([PlaybackTarget.followed]).
      */
     fun follow(
         tracks: List<MusicTrack>,
@@ -1018,17 +1024,8 @@ object EnhancedMusicPlayerManager {
             _queue.value = tracks
             _currentQueueIndex.value = index
             _currentTrack.value = track
-            followPosition(position, duration)
+            _playerState.value = _playerState.value.copy(duration = duration, isPreparing = false)
         }
-    }
-
-    /** Moves the followed session's position on, as the device that plays it reports. */
-    fun followPosition(
-        position: Long,
-        duration: Long,
-    ) {
-        _currentPosition.value = position
-        _playerState.value = _playerState.value.copy(position = position, duration = duration, isBuffering = false, isPreparing = false)
     }
 
     fun addToQueue(track: MusicTrack) {

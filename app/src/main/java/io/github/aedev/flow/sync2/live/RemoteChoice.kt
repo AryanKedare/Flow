@@ -8,8 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,7 +17,8 @@ const val QUIET_CHECK_MS = 10_000L
 
 /**
  * The device the user chose in "Play on" to drive from here, by moving playback to it or by
- * controlling it. Another device playing on its own is never chosen for them.
+ * controlling it. Another device playing on its own is never chosen for them, and only playback
+ * coming back here ends the choice, besides the device going away.
  */
 @Singleton
 class RemoteChoice
@@ -38,16 +37,13 @@ class RemoteChoice
         }
 
         /**
-         * Forgets the choice when playback starts here or the device can no longer be reached, checked
-         * whenever [changes] emits and, while a device is chosen, every [QUIET_CHECK_MS]. Runs until cancelled.
+         * Forgets the choice when the device can no longer be reached, checked whenever [changes] emits
+         * and, while a device is chosen, every [QUIET_CHECK_MS]. Runs until cancelled.
          */
         suspend fun watch(
-            playingHere: Flow<Boolean>,
             changes: Flow<*>,
             reachable: (String) -> Boolean,
         ) = coroutineScope {
-            // Only a start counts: a transfer's own release here must not undo the choice it made.
-            launch { playingHere.drop(1).filter { it }.collect { clear() } }
             launch {
                 chosen.collectLatest { did ->
                     while (did != null) {

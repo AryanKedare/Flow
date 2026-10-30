@@ -7,6 +7,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.PlaybackTarget
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -60,6 +61,7 @@ class NowPlaying
                             EnhancedMusicPlayerManager.currentTrack.map { it?.videoId },
                             EnhancedMusicPlayerManager.playerState.map { it.isPlaying },
                             EnhancedMusicPlayerManager.queue.map { it.size },
+                            PlaybackTarget.followed.map { it != null },
                         ).map { false },
                         // A seek always goes out, however short.
                         merge(video.seekEvent, EnhancedMusicPlayerManager.seekEvent).map { true },
@@ -68,9 +70,8 @@ class NowPlaying
                 while (true) {
                     delay(REPEAT_MS)
                     // The players' state flows tell without touching a player, which only the main thread may.
-                    if (GlobalPlayerState.playerState.value.isPlaying ||
-                        EnhancedMusicPlayerManager.playerState.value.isPlaying
-                    ) {
+                    val playing = GlobalPlayerState.playerState.value.isPlaying || EnhancedMusicPlayerManager.playerState.value.isPlaying
+                    if (playing && PlaybackTarget.followed.value == null) {
                         publish(force = true)
                     }
                 }
@@ -98,6 +99,8 @@ class NowPlaying
         /** Reads both players; ExoPlayer and the Media3 controller throw anywhere but the main thread. */
         @MainThread
         private fun readOnMain(): LiveMessage.Now {
+            // Music shown here only follows the device this one drives; nothing is loaded here.
+            if (PlaybackTarget.followed.value != null) return LiveMessage.Now(video = null)
             val track = EnhancedMusicPlayerManager.currentTrack.value
             val music = EnhancedMusicPlayerManager.playerState.value
             val vol = volume()
