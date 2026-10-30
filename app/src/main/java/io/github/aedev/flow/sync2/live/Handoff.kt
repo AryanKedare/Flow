@@ -2,6 +2,9 @@ package io.github.aedev.flow.sync2.live
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
@@ -27,6 +30,10 @@ class Handoff
         private val now: NowPlaying,
     ) {
         private val waiting = ConcurrentHashMap<Long, CompletableDeferred<LiveMessage.Result>>()
+        private val applied = MutableSharedFlow<String>(extraBufferCapacity = 4)
+
+        /** Devices whose `play` or `cmd` this device just applied, so it can say who drives it. */
+        val controlledBy: SharedFlow<String> = applied.asSharedFlow()
 
         /** Results that came back before their request was registered, on a fast LAN. */
         private val early = ConcurrentHashMap<Long, LiveMessage.Result>()
@@ -72,6 +79,7 @@ class Handoff
         ) {
             val reason = if (consent.allows(received.sender)) apply() else "declined"
             live.send(LiveMessage.Result(received.sender, received.seq, reason == null, reason))
+            if (reason == null) applied.emit(received.sender)
         }
 
         /** Moves this device's session to [to]; this device pauses only once [to] says it started, so a failed handoff never stops the music. */

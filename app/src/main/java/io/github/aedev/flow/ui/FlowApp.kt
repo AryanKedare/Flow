@@ -63,6 +63,7 @@ import io.github.aedev.flow.ui.screens.equalizer.EqualizerViewModel
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.playon.PlayOnHost
 import io.github.aedev.flow.ui.screens.sync.linked.LinkedSyncAlerts
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.screens.update.UpdateLaunchEffect
@@ -511,6 +512,7 @@ fun FlowApp(
                                 ) {
                                     if (needsOnboarding == false) SubscriptionBellAlerts(snackbarHostState)
                                     LinkedSyncAlerts(snackbarHostState)
+                                    PlayOnHost()
                                     NavHost(
                                         navController = navController,
                                         startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,

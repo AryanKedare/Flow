@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.sync2.device.WebDavLogin
+import io.github.aedev.flow.sync2.live.LiveConsent
 import io.github.aedev.flow.sync2.service.LastSync
 import io.github.aedev.flow.sync2.service.LinkPhase
 import io.github.aedev.flow.sync2.service.LinkedActions
@@ -57,7 +58,19 @@ internal class LinkedDevicesViewModel
     @Inject
     constructor(
         private val actions: LinkedActions,
+        private val liveConsent: LiveConsent,
     ) : ViewModel() {
+        /** Which devices may play here and control playback (spec/live.md, Consent). */
+        val consent: StateFlow<Map<String, Boolean>> =
+            liveConsent.remembered.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+        fun setConsent(
+            id: String,
+            allowed: Boolean?,
+        ) {
+            viewModelScope.launch { if (allowed == null) liveConsent.forget(id) else liveConsent.remember(id, allowed) }
+        }
+
         private val local = MutableStateFlow(Local())
 
         val state: StateFlow<LinkedUiState> =

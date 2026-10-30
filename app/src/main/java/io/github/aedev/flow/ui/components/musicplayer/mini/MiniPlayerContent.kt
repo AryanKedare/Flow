@@ -60,6 +60,8 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
+import io.github.aedev.flow.ui.screens.playon.LocalPlayOn
+import io.github.aedev.flow.ui.screens.playon.PlayOnButton
 import io.github.aedev.flow.ui.theme.ArtworkScrimContent
 import io.github.aedev.flow.ui.theme.ArtworkScrimNowPlaying
 
@@ -84,6 +86,9 @@ internal fun MiniPlayerContent(
 ) {
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
+    // While another linked device plays, this bar shows it and its controls drive that device.
+    val playOn = LocalPlayOn.current
+    val elsewhere = playOn?.elsewhere?.collectAsStateWithLifecycle()?.value
 
     val animatedProgress by animateFloatAsState(
         targetValue =
@@ -210,9 +215,9 @@ internal fun MiniPlayerContent(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = track.artist,
+                    text = elsewhere?.let { stringResource(R.string.play_on_playing_on, it) } ?: track.artist,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (elsewhere != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -223,8 +228,17 @@ internal fun MiniPlayerContent(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            PlayOnButton()
             if (showPrevious) {
-                IconButton(onClick = { EnhancedMusicPlayerManager.playPrevious() }) {
+                IconButton(onClick = {
+                    if (elsewhere !=
+                        null
+                    ) {
+                        playOn?.controlElsewhere("previous")
+                    } else {
+                        EnhancedMusicPlayerManager.playPrevious()
+                    }
+                }) {
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = stringResource(R.string.previous),
@@ -233,14 +247,14 @@ internal fun MiniPlayerContent(
                 }
             }
             MediaPlayPauseButton(
-                isPlaying = playerState.isPlaying,
-                isBuffering = playerState.isBuffering && animationsEnabled,
+                isPlaying = elsewhere != null || playerState.isPlaying,
+                isBuffering = elsewhere == null && playerState.isBuffering && animationsEnabled,
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    EnhancedMusicPlayerManager.togglePlayPause()
+                    if (elsewhere != null) playOn?.controlElsewhere("pause") else EnhancedMusicPlayerManager.togglePlayPause()
                 },
             )
-            IconButton(onClick = { EnhancedMusicPlayerManager.playNext() }) {
+            IconButton(onClick = { if (elsewhere != null) playOn?.controlElsewhere("next") else EnhancedMusicPlayerManager.playNext() }) {
                 Icon(
                     imageVector = Icons.Rounded.SkipNext,
                     contentDescription = stringResource(R.string.next),
