@@ -962,6 +962,19 @@ object EnhancedMusicPlayerManager {
         triggerQueueSave()
     }
 
+    /**
+     * Replaces the queue with [tracks] around the track playing, which goes on uninterrupted, as a
+     * linked device's `cmd queue` asks. False when nothing is loaded.
+     */
+    fun replaceQueue(tracks: List<MusicTrack>): Boolean {
+        val current = _currentTrack.value ?: return false
+        val (before, after) = aroundCurrent(tracks) { it.videoId == current.videoId }
+        _queue.value = before + current + after
+        player?.replaceAround(before.map { buildMediaItem(it) }, after.map { buildMediaItem(it) })
+        triggerQueueSave()
+        return true
+    }
+
     fun addToQueue(track: MusicTrack) {
         val currentQ = _queue.value.toMutableList()
         currentQ.add(track)

@@ -115,7 +115,7 @@ class LocalPlayback
                     "next" -> if (music) EnhancedMusicPlayerManager.playNext() else video.playNext()
                     "previous" -> if (music) EnhancedMusicPlayerManager.playPrevious() else video.playPrevious()
                     "volume" -> setVolume(cmd.vol ?: return@withContext "invalid")
-                    "queue" -> if (music) return@withContext "unsupported" else videoQueue(cmd.queue ?: return@withContext "invalid")
+                    "queue" -> return@withContext queue(music, cmd.queue ?: return@withContext "invalid")
                     else -> return@withContext "invalid"
                 }
                 null
@@ -128,10 +128,27 @@ class LocalPlayback
             if (music) EnhancedMusicPlayerManager.seekTo(pos) else video.seekTo(pos)
         }
 
-        /** Replaces what plays next: around the video playing when the new queue holds it, else from its start. */
-        private fun videoQueue(ids: List<String>) {
+        /**
+         * Replaces the queue around what plays, without restarting it. A song stays and the rest goes
+         * around or after it; a video not in the new queue gives way to its start.
+         */
+        private fun queue(
+            music: Boolean,
+            ids: List<String>,
+        ): String? {
+            if (music) {
+                return if (EnhancedMusicPlayerManager.replaceQueue(
+                        ids.map { MusicTrack(it, "", "", thumbnail(it), 0) },
+                    )
+                ) {
+                    null
+                } else {
+                    "unavailable"
+                }
+            }
             val index = ids.indexOf(GlobalPlayerState.currentVideo.value?.id)
             video.setQueue(ids.map { videoOf(it, null) }, index.coerceAtLeast(0), startPlayback = index < 0)
+            return null
         }
 
         private fun setVolume(percent: Int) {
