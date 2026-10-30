@@ -12,6 +12,7 @@ internal fun LinkedError.message(): String =
             LinkedError.INSECURE -> R.string.linked_error_insecure
             LinkedError.UNREACHABLE -> R.string.linked_error_unreachable
             LinkedError.REFUSED -> R.string.linked_error_refused
+            LinkedError.GROUP_MISSING -> R.string.linked_error_group_missing
             LinkedError.LOGIN_REFUSED -> R.string.linked_error_login_refused
             LinkedError.BUSY -> R.string.linked_error_busy
             LinkedError.INSTANCE_CHANGED -> R.string.linked_error_instance_changed

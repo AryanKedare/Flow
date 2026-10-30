@@ -2705,6 +2705,11 @@
     <string name="linked_leave">Leave the group</string>
     <string name="linked_leave_title">Leave the group?</string>
     <string name="linked_leave_body">This device leaves the group and deletes its keys and its copy of the group\'s data. Your other devices keep everything and switch to new keys without it. To link it again, pair it as a new device.</string>
+    <string name="linked_leave_failed_title">Your other devices couldn\'t be told</string>
+    <string name="linked_leave_failed_body">%1$s\n\nYou can forget this group on this device anyway: it deletes its keys and its copy of the group, as leaving would. Your other devices keep listing it until you remove it under Linked devices on one of them.</string>
+    <string name="linked_forget_anyway">Forget this group on this device anyway</string>
+    <string name="linked_keep_group">Keep the group</string>
+    <string name="linked_error_group_missing">The server no longer has this group. It may have been reset, or the address now points to another server.</string>
     <string name="linked_removed_title">This device was removed</string>
     <string name="linked_removed_body">This device is no longer in the group, so it stopped syncing. Forget the group here to link it again.</string>
     <string name="linked_recovery_unsaved">Your recovery words aren\'t confirmed yet.</string>

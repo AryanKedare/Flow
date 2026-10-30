@@ -23,6 +23,7 @@ class LinkedErrorTest {
         assertEquals(LinkedError.LOCAL, DamagedKeysException().linkedError())
         assertEquals(LinkedError.BUSY, StoreException.Refused(429, "rate_limited").linkedError())
         assertEquals(LinkedError.REFUSED, StoreException.Refused(401, "unauthorized").linkedError())
+        assertEquals(LinkedError.GROUP_MISSING, StoreException.Refused(503, "unclaimed").linkedError())
         assertEquals(LinkedError.STOPPED, LinkedException.Stopped().linkedError())
     }
 

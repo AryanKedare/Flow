@@ -270,3 +270,30 @@ private fun LoginAgain(
         confirmEnabled = !busy && user.isNotBlank() && password.isNotEmpty(),
     )
 }
+
+/**
+ * A leave that couldn't tell the other devices, for [reason]: forget the group here anyway, as a
+ * leave would, or keep it. The other devices can remove this one themselves.
+ */
+@Composable
+internal fun LeaveAnyway(
+    reason: LinkedError,
+    busy: Boolean,
+    onForget: () -> Unit,
+    onKeep: () -> Unit,
+) {
+    SyncStepHeader(
+        icon = Icons.Outlined.ErrorOutline,
+        title = stringResource(R.string.linked_leave_failed_title),
+        body = stringResource(R.string.linked_leave_failed_body, reason.message()),
+        containerColor = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    )
+    SyncActionRow(
+        confirmLabel = stringResource(R.string.linked_forget_anyway),
+        onConfirm = onForget,
+        confirmEnabled = !busy,
+        dismissLabel = stringResource(R.string.linked_keep_group),
+        onDismiss = onKeep,
+    )
+}

@@ -153,7 +153,7 @@ class LinkedSync
             applier.exportPayload(collections, identity.hlcNode(), identity.newClock().now().encode())
 
         private suspend fun run(announce: Boolean) {
-            if (!SyncProfile.syncsHere(context)) return
+            if (!SyncProfile.syncsHere(context) || reset.leaveFailed.value != null) return
             val record = db.groups().group() ?: return
             val device = keys.load()
             val me = SyncBytes.toHex(device.did)

@@ -28,6 +28,7 @@ internal fun LinkedDevicesSection(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val link by viewModel.link.collectAsStateWithLifecycle()
+    val leaveFailed by viewModel.leaveFailed.collectAsStateWithLifecycle()
     // Each finished sync may have changed the devices and when the server last heard from them.
     LaunchedEffect(state.linked, state.lastSync?.atMs) { if (state.linked) viewModel.refreshDevices() }
     // Devices asking to join with the admin token show up while this screen is open.
@@ -57,6 +58,10 @@ internal fun LinkedDevicesSection(
                 viewModel.enterCode(it)
             }
             SyncActionRow(confirmLabel = stringResource(R.string.linked_back), onConfirm = { scanning = false })
+        }
+
+        leaveFailed != null -> {
+            LeaveAnyway(checkNotNull(leaveFailed), state.busy, viewModel::forget, viewModel::keepGroup)
         }
 
         state.linked -> {

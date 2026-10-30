@@ -18,6 +18,7 @@ import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.device.StoreCredentials
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.roster.Op
+import io.github.aedev.flow.sync2.service.LinkedError
 import io.github.aedev.flow.sync2.service.LinkedReset
 import io.github.aedev.flow.sync2.service.LinkedSync
 import io.github.aedev.flow.sync2.store.StoreException
@@ -87,7 +88,7 @@ class LinkedResetTest {
         }
 
     @Test
-    fun replaced_data_leaves_the_group_and_forgets_what_was_sent_and_held() =
+    fun replaced_data_asks_before_forgetting_a_group_it_can_t_leave_then_forgets_all_of_it() =
         runTest {
             val g = LinkedGroup(this).apply { create() }
             val db = g.deviceDb()
@@ -99,13 +100,25 @@ class LinkedResetTest {
             val ledger = SyncChangeLedgerStore(context)
             ledger.update(SyncCollection.WATCH_HISTORY) { CollectionLedger(true, mapOf("aaaaaaaaaaa" to LedgerEntry(hash = 1, atMs = 1))) }
 
-            LinkedReset(context, db, local, ledger, DeviceKeys(context), StoreCredentials(context), unreachable).dataReplaced()
+            val keys =
+                mockk<DeviceKeys> {
+                    coEvery { load() } returns g.a
+                    coJustRun { delete() }
+                }
+            val reset = LinkedReset(context, db, local, ledger, keys, StoreCredentials(context), unreachable)
+            reset.dataReplaced()
 
+            assertEquals(CollectionLedger(), ledger.load(SyncCollection.WATCH_HISTORY))
+            assertEquals("the user is asked, nothing is forgotten silently", LinkedError.UNREACHABLE, reset.leaveFailed.value)
+            assertTrue(db.groups().group() != null)
+
+            reset.forget()
+            assertNull(reset.leaveFailed.value)
             assertNull(db.groups().group())
             assertTrue(db.sent().forCollection(SyncCollection.WATCH_HISTORY).isEmpty())
             assertTrue(local.entries().isEmpty())
             assertNull(local.getObject(path))
-            assertEquals(CollectionLedger(), ledger.load(SyncCollection.WATCH_HISTORY))
+            coVerify { keys.delete() }
         }
 
     @Test
