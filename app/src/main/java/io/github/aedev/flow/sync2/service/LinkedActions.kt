@@ -160,6 +160,19 @@ class LinkedActions
         ): String =
             createGroup(db, url.trim(), adminToken.trim(), newMembership(), meta(), ActiveProfile.get(context).id).also { linkedNow() }
 
+        /**
+         * Resets a server that already holds a group, deleting that group's objects for every device,
+         * then creates a new group on it with the same admin token.
+         */
+        suspend fun resetAndCreate(
+            url: String,
+            adminToken: String,
+        ): String {
+            val device = newMembership()
+            ServerStore.connect(url.trim(), device, null, null).resetServer(adminToken.trim())
+            return createGroup(db, url.trim(), adminToken.trim(), device, meta(), ActiveProfile.get(context).id).also { linkedNow() }
+        }
+
         /** Creates a group in an empty WebDAV folder and returns the recovery words. */
         suspend fun createOnWebDav(
             url: String,

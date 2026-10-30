@@ -174,6 +174,34 @@ class ServerStoreTest {
     }
 
     @Test
+    fun a_reset_confirms_with_the_admin_token_and_a_wrong_token_or_a_ban_is_said_plainly() {
+        var body = ""
+        server =
+            StandInServer {
+                when (request.headers["Authorization"]) {
+                    "Bearer admin" -> {
+                        body = receiveText()
+                        respond(HttpStatusCode.NoContent)
+                    }
+
+                    "Bearer banned" -> {
+                        respondJson(429, """{"error":"rate_limited"}""")
+                    }
+
+                    else -> {
+                        respondJson(401, """{"error":"unauthorized"}""")
+                    }
+                }
+            }
+        runTest {
+            store().resetServer("admin")
+            assertEquals("""{"confirm":"reset"}""", body)
+            assertTrue(runCatching { store().resetServer("wrong") }.exceptionOrNull() is StoreException.AdminRefused)
+            assertTrue(runCatching { store().resetServer("banned") }.exceptionOrNull() is StoreException.AdminBlocked)
+        }
+    }
+
+    @Test
     fun redirects_are_not_followed() {
         serve {
             response.header("Location", "https://elsewhere.example/")

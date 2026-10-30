@@ -192,8 +192,26 @@ class ServerStore private constructor(
                 put("wraps", wrapsJson(wraps))
             }
         send(admin(adminToken, "v1/claim").post(body.toString().toRequestBody(JSON)).build()).use {
-            if (it.code == 409) throw LinkedException.ServerHasGroup() else check(it)
+            if (it.code == 409) throw LinkedException.ServerHasGroup() else adminChecked(it)
         }
+    }
+
+    /** Deletes every group object on the server, which becomes unclaimed (spec/api.md, `POST /v1/admin/reset`). */
+    suspend fun resetServer(adminToken: String) {
+        val body = buildJsonObject { put("confirm", "reset") }
+        adminChecked(send(admin(adminToken, "v1/admin/reset").post(body.toString().toRequestBody(JSON)).build())).close()
+    }
+
+    /** A refused admin token, and the ban after repeated ones, said plainly (spec/api.md, Limits). */
+    private fun adminChecked(response: Response): Response {
+        val refusal =
+            when (response.code) {
+                401, 403 -> StoreException.AdminRefused()
+                429 -> StoreException.AdminBlocked()
+                else -> return check(response)
+            }
+        response.close()
+        throw refusal
     }
 
     private fun admin(
@@ -212,7 +230,7 @@ class ServerStore private constructor(
                 put("id", id)
                 put("name", name)
             }
-        check(send(admin(adminToken, "v1/join").post(body.toString().toRequestBody(JSON)).build())).close()
+        adminChecked(send(admin(adminToken, "v1/join").post(body.toString().toRequestBody(JSON)).build())).close()
     }
 
     /** The code a member answered a join request with, or null until one does; a declined request throws. */

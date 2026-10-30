@@ -84,7 +84,9 @@ internal fun LinkedDevicesSection(
             LinkedSetup(
                 hostOnly = hostOnly,
                 busy = state.busy,
+                error = state.error,
                 onCreate = viewModel::create,
+                onResetAndCreate = viewModel::resetAndCreate,
                 onCreateOnWebDav = viewModel::createOnWebDav,
                 onCreateOnNetwork = viewModel::createOnNetwork,
                 onEnterCode = viewModel::enterCode,

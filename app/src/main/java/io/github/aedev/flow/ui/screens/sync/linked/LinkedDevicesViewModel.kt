@@ -120,6 +120,11 @@ internal class LinkedDevicesViewModel
             password: String,
         ) = run { actions.updateLogin(user, password) }
 
+        fun resetAndCreate(
+            url: String,
+            adminToken: String,
+        ) = run { local.update { it.copy(words = actions.resetAndCreate(url, adminToken)) } }
+
         fun createOnNetwork() = run { local.update { it.copy(words = actions.createOnNetwork()) } }
 
         fun restore(

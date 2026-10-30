@@ -2735,6 +2735,17 @@
     <string name="linked_error_wrong_words">These aren\'t 24 valid recovery words.</string>
     <string name="linked_error_recovery_used">These recovery words were already used. Use the newer words that were shown then.</string>
     <string name="linked_error_lan_unreachable">Couldn\'t reach the other device. Keep both on the same network and try again.</string>
+    <string name="linked_error_admin_refused">The server refused the admin token. Check it: after 5 wrong tries the server blocks this network for 15 minutes.</string>
+    <string name="linked_error_admin_blocked">Too many wrong admin tokens: the server blocks admin requests from this network for 15 minutes. Try again later.</string>
+    <string name="linked_has_group_title">This server already has a group</string>
+    <string name="linked_has_group_body">Join it from a device that\'s still in the group, or reset the server to start a new one.</string>
+    <string name="linked_has_group_join">Join the group</string>
+    <string name="linked_has_group_join_body">Needs a device that\'s still in the group</string>
+    <string name="linked_reset_server">Reset the server and start a new group</string>
+    <string name="linked_reset_server_body">Deletes the old group and its synced data on the server</string>
+    <string name="linked_reset_server_title">Reset the server?</string>
+    <string name="linked_reset_server_warning">This permanently deletes the group and all its synced data on the server, for every device. Devices still in that group stop syncing. Data on each device stays. This can\'t be undone.</string>
+    <string name="linked_reset_server_confirm">Reset and create</string>
     <string name="linked_error_server_has_group">This server already has a group. Join it from a device that\'s already linked.</string>
     <string name="linked_error_needs_member">This is a new device\'s code. Scan it from a device that\'s already in the group.</string>
     <string name="linked_error_already_linked">This device is already in a group.</string>

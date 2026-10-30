@@ -97,6 +97,12 @@ sealed class StoreException(
         val rateLimited: Boolean get() = status == 429
     }
 
+    /** The Flow server refused the admin token. */
+    class AdminRefused : StoreException("The server refused the admin token")
+
+    /** The Flow server blocks admin requests from this address for a while after repeated wrong tokens. */
+    class AdminBlocked : StoreException("The server is blocking admin requests for now")
+
     /** The Flow server issues this device no token: it is no longer in the group, and can't read the roster to see that. */
     class SignInRefused : StoreException("The server refused this device's sign-in")
 

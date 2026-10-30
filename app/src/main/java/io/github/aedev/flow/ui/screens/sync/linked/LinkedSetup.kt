@@ -1,18 +1,23 @@
 package io.github.aedev.flow.ui.screens.sync.linked
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddLink
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,9 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync2.device.WebDavLogin
+import io.github.aedev.flow.sync2.service.LinkedError
 import io.github.aedev.flow.ui.screens.sync.SyncActionRow
+import io.github.aedev.flow.ui.screens.sync.SyncCard
 import io.github.aedev.flow.ui.screens.sync.SyncManualEntryContent
 import io.github.aedev.flow.ui.screens.sync.SyncOption
 import io.github.aedev.flow.ui.screens.sync.SyncOptions
@@ -55,7 +63,10 @@ private enum class Setup {
 internal fun LinkedSetup(
     hostOnly: Boolean,
     busy: Boolean,
+    /** Why the last setup step failed. */
+    error: LinkedError?,
     onCreate: (url: String, adminToken: String) -> Unit,
+    onResetAndCreate: (url: String, adminToken: String) -> Unit,
     onCreateOnWebDav: (url: String, user: String, password: String) -> Unit,
     onCreateOnNetwork: () -> Unit,
     onEnterCode: (code: String, login: WebDavLogin?) -> Unit,
@@ -69,6 +80,11 @@ internal fun LinkedSetup(
     var joinLogin by remember { mutableStateOf<WebDavLogin?>(null) }
     val back = { setup = Setup.CHOOSE }
     val join = if (hostOnly) Setup.JOIN_PASTE else Setup.JOIN_SCAN
+    if (error != null && error != LinkedError.SERVER_HAS_GROUP) {
+        SyncCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
+            Text(error.message(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onErrorContainer)
+        }
+    }
     when (setup) {
         Setup.CHOOSE -> {
             SyncStepHeader(
@@ -130,16 +146,20 @@ internal fun LinkedSetup(
         Setup.CREATE_SERVER -> {
             var url by rememberSaveable { mutableStateOf("") }
             var token by rememberSaveable { mutableStateOf("") }
-            SyncStepHeader(icon = Icons.Outlined.Dns, title = stringResource(R.string.linked_where_server))
-            ServerField(url) { url = it }
-            AdminTokenField(token) { token = it }
-            SyncActionRow(
-                confirmLabel = stringResource(R.string.linked_create),
-                onConfirm = { onCreate(url, token) },
-                confirmEnabled = !busy && url.isNotBlank() && token.isNotBlank(),
-                dismissLabel = stringResource(R.string.linked_back),
-                onDismiss = { setup = Setup.CREATE_WHERE },
-            )
+            if (error == LinkedError.SERVER_HAS_GROUP) {
+                ServerHasGroup(busy, onJoin = { setup = join }, onReset = { onResetAndCreate(url, token) })
+            } else {
+                SyncStepHeader(icon = Icons.Outlined.Dns, title = stringResource(R.string.linked_where_server))
+                ServerField(url) { url = it }
+                AdminTokenField(token) { token = it }
+                SyncActionRow(
+                    confirmLabel = stringResource(R.string.linked_create),
+                    onConfirm = { onCreate(url, token) },
+                    confirmEnabled = !busy && url.isNotBlank() && token.isNotBlank(),
+                    dismissLabel = stringResource(R.string.linked_back),
+                    onDismiss = { setup = Setup.CREATE_WHERE },
+                )
+            }
         }
 
         Setup.CREATE_WEBDAV -> {
@@ -242,6 +262,55 @@ internal fun LinkedSetup(
                 onRestoreFromWebDav(url, user, password, words)
             }
         }
+    }
+}
+
+/**
+ * A server that already holds a group, which nobody here can join: join it from a device still in it,
+ * or reset the server, after a warning, and create the new group there.
+ */
+@Composable
+private fun ServerHasGroup(
+    busy: Boolean,
+    onJoin: () -> Unit,
+    onReset: () -> Unit,
+) {
+    var confirming by rememberSaveable { mutableStateOf(false) }
+    SyncStepHeader(
+        icon = Icons.Outlined.Dns,
+        title = stringResource(R.string.linked_has_group_title),
+        body = stringResource(R.string.linked_has_group_body),
+    )
+    SyncOptions(
+        listOf(
+            SyncOption(
+                Icons.Outlined.QrCodeScanner,
+                stringResource(R.string.linked_has_group_join),
+                stringResource(R.string.linked_has_group_join_body),
+                onJoin,
+            ),
+            SyncOption(
+                Icons.Outlined.DeleteForever,
+                stringResource(R.string.linked_reset_server),
+                stringResource(R.string.linked_reset_server_body),
+            ) {
+                if (!busy) confirming = true
+            },
+        ),
+    )
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(stringResource(R.string.linked_reset_server_title)) },
+            text = { Text(stringResource(R.string.linked_reset_server_warning)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    onReset()
+                }) { Text(stringResource(R.string.linked_reset_server_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.linked_cancel)) } },
+        )
     }
 }
 
