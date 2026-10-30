@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
@@ -32,17 +30,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync2.live.LiveMessage
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
+import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
+import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import kotlin.math.roundToInt
 
 /**
- * The mini player for another device's session while nothing plays here, as music's mini player
- * shows it: what plays, "Playing on <name>", and transport that drives that device. Tapping it
- * opens "Play on". It rests where the shell's mini bars rest.
+ * The mini player for the device the user chose in "Play on", with music's mini player buttons: what
+ * plays, "Playing on <name>", and transport that drives that device. Tapping it opens "Play on". It
+ * rests where the shell's mini bars rest.
  */
 @Composable
 internal fun RemoteMiniBar(
@@ -55,6 +54,8 @@ internal fun RemoteMiniBar(
     val remote = elsewhere ?: return
     val video = remote.now.video ?: return
     val playing = remote.now.state == LiveMessage.PLAYING
+    val busy by playOn.busy.collectAsStateWithLifecycle()
+    val transportTint = MaterialTheme.colorScheme.onSurfaceVariant
     val density = LocalDensity.current
     val heightPx = with(density) { MediaMiniBarDefaults.Height.toPx() }
     val spacerPx = with(density) { MediaMiniBarDefaults.BottomSpacer.toPx() }
@@ -68,15 +69,16 @@ internal fun RemoteMiniBar(
                 .clickable { playOn.open.value = true },
     ) {
         Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = "https://i.ytimg.com/vi/$video/hqdefault.jpg",
+            VideoThumbnailImage(
+                videoId = video,
+                model = null,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
                         .padding(vertical = 10.dp)
                         .fillMaxHeight()
-                        .aspectRatio(if (remote.now.music) 1f else 16f / 9f)
+                        .aspectRatio(16f / 9f)
                         .clip(RoundedCornerShape(12.dp)),
             )
             Column(Modifier.padding(horizontal = 12.dp).weight(1f), verticalArrangement = Arrangement.Center) {
@@ -90,16 +92,15 @@ internal fun RemoteMiniBar(
                 )
             }
             IconButton(onClick = { playOn.controlElsewhere("previous") }) {
-                Icon(Icons.Rounded.SkipPrevious, contentDescription = stringResource(R.string.previous))
+                Icon(Icons.Rounded.SkipPrevious, contentDescription = stringResource(R.string.previous), tint = transportTint)
             }
-            IconButton(onClick = { playOn.controlElsewhere(if (playing) "pause" else "play") }) {
-                Icon(
-                    if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                )
-            }
+            MediaPlayPauseButton(
+                isPlaying = playing,
+                isBuffering = busy,
+                onClick = { playOn.controlElsewhere(if (playing) "pause" else "play") },
+            )
             IconButton(onClick = { playOn.controlElsewhere("next") }) {
-                Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.next))
+                Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.next), tint = transportTint)
             }
         }
     }

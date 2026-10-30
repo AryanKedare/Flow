@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -89,30 +90,28 @@ class PlayOnViewModel
         private val me = MutableStateFlow<String?>(null)
 
         private val names = MutableStateFlow<Map<String, String>>(emptyMap())
+        private val remote = RemoteChoice()
 
         val open: MutableStateFlow<Boolean> = sheet.open
 
         init {
             viewModelScope.launch { names.value = channel.names() }
+            viewModelScope.launch { remote.watch(nowPlaying.playing, merge(live.devices, live.online)) { live.isOnline(it) } }
         }
 
         /**
-         * Another device's session, playing or paused, which the players show and drive while nothing
-         * plays here (Spotify Connect style).
+         * The session of the device the user chose to drive from here, which the players then show
+         * and control (Spotify Connect style).
          */
         val elsewhere: StateFlow<Elsewhere?> =
-            combine(live.devices, live.online, names, nowPlaying.playing) { _, _, known, playingHere ->
-                if (playingHere) {
-                    null
-                } else {
-                    live.current()?.let { peer -> peer.now?.let { Elsewhere(peer.did, known[peer.did] ?: peer.did.take(8), it) } }
-                }
+            combine(remote.did, live.devices, names) { did, peers, known ->
+                did?.let { peers[it]?.now }?.takeIf { it.video != null }?.let { Elsewhere(did, known[did] ?: did.take(8), it) }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
         /** Drives the device the players show as playing elsewhere. */
         fun controlElsewhere(cmd: String) {
-            val session = session(System.currentTimeMillis())?.takeIf { !it.device.thisDevice } ?: return
-            control(session, cmd)
+            val did = remote.did.value ?: return
+            act { handoff.control(did, cmd) }
         }
 
         /** Shown when the group can reach a device: the server's live channel is up, or a LAN peer is near. */
@@ -145,7 +144,11 @@ class PlayOnViewModel
             val mine = list.firstOrNull { it.thisDevice }
             val here = local.value?.takeIf { it.video != null }
             if (mine != null && here?.state == LiveMessage.PLAYING) return PlayOnSession(mine, here, at)
-            live.current(at)?.let { peer ->
+            val chosen =
+                remote.did.value
+                    ?.let { live.devices.value[it] }
+                    ?.takeIf { it.now?.video != null }
+            (chosen ?: live.current(at))?.let { peer ->
                 val now = peer.now ?: return@let
                 // Before the sheet reads the roster, the live channel says enough about the device.
                 val device =
@@ -165,10 +168,26 @@ class PlayOnViewModel
             }
         }
 
-        /** Moves playback to [device]: this device pulls it, another one gets this device's session. */
+        /**
+         * Picks [device]: this device pulls playback back; another one is driven from here, getting
+         * this device's session first when this one plays or it holds nothing to drive.
+         */
         fun playOn(device: PlayOnDevice) =
             act {
-                if (device.thisDevice) handoff.pull() else handoff.transfer(device.did)
+                when {
+                    device.thisDevice -> {
+                        handoff.pull().also { if (it) remote.clear() }
+                    }
+
+                    local.value?.state != LiveMessage.PLAYING && device.now?.video != null -> {
+                        remote.choose(device.did)
+                        true
+                    }
+
+                    else -> {
+                        handoff.transfer(device.did).also { if (it) remote.choose(device.did) }
+                    }
+                }
             }
 
         /** Drives the active session, here or on another device. */
@@ -181,6 +200,7 @@ class PlayOnViewModel
             if (session.device.thisDevice) {
                 playback.command(LiveMessage.Cmd(session.device.did, cmd, pos, vol)) == null
             } else {
+                remote.choose(session.device.did)
                 handoff.control(session.device.did, cmd, pos, vol)
             }
         }

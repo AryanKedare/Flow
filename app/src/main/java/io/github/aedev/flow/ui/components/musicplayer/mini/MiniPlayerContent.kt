@@ -87,7 +87,7 @@ internal fun MiniPlayerContent(
 ) {
     val playerState by EnhancedMusicPlayerManager.playerState.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
-    // While another linked device plays, this bar shows it and its controls drive that device.
+    // While the user drives another device from here, this bar shows it and its controls drive that device.
     val playOn = LocalPlayOn.current
     val elsewhere = playOn?.elsewhere?.collectAsStateWithLifecycle()?.value
 
@@ -229,7 +229,7 @@ internal fun MiniPlayerContent(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlayOnButton()
+            if (elsewhere != null) PlayOnButton()
             if (showPrevious) {
                 IconButton(onClick = {
                     if (elsewhere !=

@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.playon
 
 import android.app.Application
 import android.content.Context
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -18,7 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
-/** "Play on": devices grouped as playing, available and offline, and tapping one to move playback there. */
+/** "Play on": devices as playing, available or offline in one list, and tapping one to pick it. */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class, qualifiers = "w360dp-h1600dp")
 class PlayOnTest {
@@ -67,14 +68,17 @@ class PlayOnTest {
     }
 
     @Test
-    fun the_sections_say_what_each_device_does_and_a_tap_moves_playback() {
+    fun one_devices_list_says_what_each_device_does_and_a_tap_picks_it() {
         val picked = ArrayList<String>()
-        rule.setContent { Column { DeviceSections(devices(), busy = false) { picked += it.did } } }
-        rule.onNodeWithText(context.getString(R.string.play_on_playing_now)).assertExists()
+        rule.setContent { Column { DeviceList(devices(), busy = false) { picked += it.did } } }
+        rule.onNodeWithText(context.getString(R.string.linked_devices)).assertExists()
         rule.onNodeWithText(context.getString(R.string.play_on_status_playing, "Song")).assertExists()
         rule.onNodeWithText(context.getString(R.string.play_on_status_paused, "Old song")).assertExists()
         rule.onNodeWithText(context.getString(R.string.play_on_status_ready)).assertExists()
-        rule.onNodeWithText(context.getString(R.string.play_on_offline)).assertExists()
+        rule
+            .onNodeWithText(
+                context.getString(R.string.play_on_last_seen, DateUtils.getRelativeTimeSpanString(1_000).toString()),
+            ).assertExists()
 
         rule.onNodeWithText("Tablet").performClick()
         rule.onNodeWithText("Laptop").performClick()

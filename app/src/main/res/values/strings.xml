@@ -2628,12 +2628,11 @@
     <string name="play_on_subtitle">Choose where it plays</string>
     <string name="play_on_button">Play on another device</string>
     <string name="play_on_playing_on">Playing on %1$s</string>
-    <string name="play_on_on_device">On %1$s</string>
     <string name="play_on_nothing">Nothing is playing on your devices</string>
-    <string name="play_on_playing_now">Playing now</string>
-    <string name="play_on_available">Available</string>
-    <string name="play_on_offline">Offline</string>
     <string name="play_on_this_device">%1$s (this device)</string>
+    <string name="play_on_this_phone">On this phone</string>
+    <string name="play_on_this_tablet">On this tablet</string>
+    <string name="play_on_this_tv">On this TV</string>
     <string name="play_on_status_playing">Playing · %1$s</string>
     <string name="play_on_status_paused">Paused · %1$s</string>
     <string name="play_on_status_ready">Ready</string>
