@@ -55,7 +55,7 @@ fun PlayerTopBar(
                         color = contentColor.copy(alpha = 0.9f),
                     )
                     Text(
-                        text = elsewhere?.let { stringResource(R.string.play_on_playing_on, it) } ?: playingFrom,
+                        text = elsewhere?.let { stringResource(R.string.play_on_playing_on, it.name) } ?: playingFrom,
                         style = MaterialTheme.typography.bodyMedium,
                         color = contentColor.copy(alpha = 0.7f),
                         maxLines = 1,

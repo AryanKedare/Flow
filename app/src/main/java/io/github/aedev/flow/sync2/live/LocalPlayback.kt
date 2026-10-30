@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync2.live
 import android.content.Context
 import android.media.AudioManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -41,17 +42,27 @@ class LocalPlayback
         /** Videos a handoff asks the app to open. */
         val openVideo: SharedFlow<String> = videos.asSharedFlow()
 
-        /** Starts [play]'s session here; returns why it couldn't, or null once it started. */
-        suspend fun start(play: LiveMessage.Play): String? = if (play.music) startMusic(play) else startVideo(play)
+        /**
+         * Starts [play]'s session here; returns why it couldn't, or null once it started. [known] is the
+         * sender's latest `now`, whose title and channel or artist name the video it hands over.
+         */
+        suspend fun start(
+            play: LiveMessage.Play,
+            known: LiveMessage.Now? = null,
+        ): String? {
+            val about = known?.takeIf { it.video == play.video }
+            return if (play.music) startMusic(play, about) else startVideo(play, about)
+        }
 
-        private suspend fun startMusic(play: LiveMessage.Play): String? {
+        private suspend fun startMusic(
+            play: LiveMessage.Play,
+            about: LiveMessage.Now?,
+        ): String? {
             val tracks =
-                play.queue
-                    .ifEmpty {
-                        listOf(
-                            play.video,
-                        )
-                    }.map { MusicTrack(it, "", "", "https://i.ytimg.com/vi/$it/hqdefault.jpg", 0) }
+                play.queue.ifEmpty { listOf(play.video) }.map { id ->
+                    val known = about?.takeIf { it.video == id }
+                    MusicTrack(id, known?.title.orEmpty(), known?.by.orEmpty(), thumbnail(id), 0)
+                }
             val index = tracks.indexOfFirst { it.videoId == play.video }.takeIf { it >= 0 } ?: return "invalid"
             withContext(Dispatchers.Main) {
                 // The music service resolves the stream from the id, as when a track is tapped.
@@ -61,24 +72,36 @@ class LocalPlayback
             return null
         }
 
-        private suspend fun startVideo(play: LiveMessage.Play): String? {
+        private suspend fun startVideo(
+            play: LiveMessage.Play,
+            about: LiveMessage.Now?,
+        ): String? {
             withContext(Dispatchers.Main) { EnhancedMusicPlayerManager.pause() }
             if (!videos.tryEmit(play.video)) return "busy"
             withTimeoutOrNull(START_MS) {
                 GlobalPlayerState.playerState.first { it.currentVideoId == play.video && it.isPrepared }
             } ?: return "unavailable"
             withContext(Dispatchers.Main) {
+                // The sender's queue goes around the video already playing, which goes on where it is.
+                if (play.queue.size > 1) video.setQueue(play.queue.map { videoOf(it, about) }, play.index, startPlayback = false)
                 video.seekTo(play.pos)
                 if (play.state != LiveMessage.PLAYING) video.pause()
             }
             return null
         }
 
-        /** Pauses whatever plays here, once another device has taken over. */
-        suspend fun pause() =
+        /**
+         * Lets go once another device has taken over: music pauses and keeps its mini player, which
+         * then drives that device; a video closes, so the remote mini player takes its place.
+         */
+        suspend fun release() =
             withContext(Dispatchers.Main) {
-                EnhancedMusicPlayerManager.pause()
-                video.pause()
+                if (musicInUse()) {
+                    EnhancedMusicPlayerManager.pause()
+                } else {
+                    video.stop()
+                    GlobalPlayerState.hideMiniPlayer()
+                }
             }
 
         /** Applies [cmd] to the player in use; returns why it couldn't, or null. */
@@ -86,48 +109,30 @@ class LocalPlayback
             withContext(Dispatchers.Main) {
                 val music = musicInUse()
                 when (cmd.cmd) {
-                    "play" -> {
-                        if (music) EnhancedMusicPlayerManager.play() else video.play()
-                    }
-
-                    "pause" -> {
-                        if (music) EnhancedMusicPlayerManager.pause() else video.pause()
-                    }
-
-                    "seek" -> {
-                        (cmd.pos ?: return@withContext "invalid").let {
-                            if (music) {
-                                EnhancedMusicPlayerManager.seekTo(
-                                    it,
-                                )
-                            } else {
-                                video.seekTo(it)
-                            }
-                        }
-                    }
-
-                    "next" -> {
-                        if (music) EnhancedMusicPlayerManager.playNext() else video.playNext()
-                    }
-
-                    "previous" -> {
-                        if (music) EnhancedMusicPlayerManager.playPrevious() else video.playPrevious()
-                    }
-
-                    "volume" -> {
-                        setVolume(cmd.vol ?: return@withContext "invalid")
-                    }
-
-                    "queue" -> {
-                        return@withContext "unsupported"
-                    }
-
-                    else -> {
-                        return@withContext "invalid"
-                    }
+                    "play" -> if (music) EnhancedMusicPlayerManager.play() else video.play()
+                    "pause" -> if (music) EnhancedMusicPlayerManager.pause() else video.pause()
+                    "seek" -> seek(music, cmd.pos ?: return@withContext "invalid")
+                    "next" -> if (music) EnhancedMusicPlayerManager.playNext() else video.playNext()
+                    "previous" -> if (music) EnhancedMusicPlayerManager.playPrevious() else video.playPrevious()
+                    "volume" -> setVolume(cmd.vol ?: return@withContext "invalid")
+                    "queue" -> if (music) return@withContext "unsupported" else videoQueue(cmd.queue ?: return@withContext "invalid")
+                    else -> return@withContext "invalid"
                 }
                 null
             }
+
+        private fun seek(
+            music: Boolean,
+            pos: Long,
+        ) {
+            if (music) EnhancedMusicPlayerManager.seekTo(pos) else video.seekTo(pos)
+        }
+
+        /** Replaces what plays next: around the video playing when the new queue holds it, else from its start. */
+        private fun videoQueue(ids: List<String>) {
+            val index = ids.indexOf(GlobalPlayerState.currentVideo.value?.id)
+            video.setQueue(ids.map { videoOf(it, null) }, index.coerceAtLeast(0), startPlayback = index < 0)
+        }
 
         private fun setVolume(percent: Int) {
             val audio = context.getSystemService(AudioManager::class.java) ?: return
@@ -135,3 +140,14 @@ class LocalPlayback
             audio.setStreamVolume(AudioManager.STREAM_MUSIC, percent.coerceIn(0, 100) * max / 100, 0)
         }
     }
+
+private fun thumbnail(id: String) = "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+
+/** A video known by its id, and by [about]'s title and channel when it is the one [about] plays. */
+private fun videoOf(
+    id: String,
+    about: LiveMessage.Now?,
+): Video {
+    val known = about?.takeIf { it.video == id }
+    return Video(id, known?.title.orEmpty(), known?.by.orEmpty(), "", thumbnail(id), 0, 0, uploadDate = "")
+}

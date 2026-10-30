@@ -11,7 +11,15 @@ class ActiveMiniPlayerTest {
         onShortsPlayer: Boolean = false,
         hasMusic: Boolean = false,
         musicSuppressed: Boolean = false,
-    ) = resolveActiveMiniPlayer(hasVideo, videoVisible, videoInBackground, onShortsPlayer, hasMusic, musicSuppressed)
+        remoteSession: Boolean = false,
+    ) = resolveActiveMiniPlayer(hasVideo, videoVisible, videoInBackground, onShortsPlayer, hasMusic, musicSuppressed, remoteSession)
+
+    @Test
+    fun `another device's session shows the remote bar only when nothing is loaded here`() {
+        assertThat(resolve(remoteSession = true)).isEqualTo(ActiveMiniPlayer.Remote)
+        assertThat(resolve(remoteSession = true, hasMusic = true)).isEqualTo(ActiveMiniPlayer.Music)
+        assertThat(resolve(remoteSession = true, hasVideo = true, videoVisible = true)).isEqualTo(ActiveMiniPlayer.Video)
+    }
 
     @Test
     fun `nothing playing shows nothing`() {

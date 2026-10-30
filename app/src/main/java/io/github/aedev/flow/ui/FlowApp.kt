@@ -63,6 +63,7 @@ import io.github.aedev.flow.ui.screens.equalizer.EqualizerViewModel
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.playon.LocalPlayOn
 import io.github.aedev.flow.ui.screens.playon.PlayOnHost
 import io.github.aedev.flow.ui.screens.sync.linked.LinkedSyncAlerts
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
@@ -361,6 +362,11 @@ fun FlowApp(
             }
         }
 
+        val remoteSession =
+            LocalPlayOn.current
+                ?.elsewhere
+                ?.collectAsStateWithLifecycle()
+                ?.value != null
         val activeMiniPlayer =
             resolveActiveMiniPlayer(
                 hasVideo = playerUiState.cachedVideo != null,
@@ -369,6 +375,7 @@ fun FlowApp(
                 onShortsPlayer = isShortsPlayerRoute,
                 hasMusic = currentMusicTrack != null,
                 musicSuppressed = suppressMusicMiniAfterVideo,
+                remoteSession = remoteSession,
             )
         val isMusicSheetShown = activeMiniPlayer == ActiveMiniPlayer.Music
         val isPlayerCoveringContent =
@@ -385,8 +392,9 @@ fun FlowApp(
                 currentDestinationRoute != "onboarding" &&
                 !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
         val showVideoBar = activeMiniPlayer == ActiveMiniPlayer.VideoBar && !isInPipMode
+        val showRemoteBar = activeMiniPlayer == ActiveMiniPlayer.Remote && !isInPipMode
         val isMiniBarObscuringContent =
-            (isMusicSheetShown && !musicPlayerSheetState.isDismissed && !musicPlayerSheetState.isExpanded) || showVideoBar
+            (isMusicSheetShown && !musicPlayerSheetState.isDismissed && !musicPlayerSheetState.isExpanded) || showVideoBar || showRemoteBar
         val motionScheme = MaterialTheme.motionScheme
         val barFraction = remember { Animatable(if (isBottomNavShown) 1f else 0f) }
         LaunchedEffect(isBottomNavShown) {
@@ -569,6 +577,7 @@ fun FlowApp(
             miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
             showMusicSheet = isMusicSheetShown,
             showVideoBar = showVideoBar,
+            showRemoteBar = showRemoteBar,
             musicPlayerSheetState = musicPlayerSheetState,
             containerWidth = maxWidth,
             containerHeight = with(density) { screenHeightPx.toDp() },

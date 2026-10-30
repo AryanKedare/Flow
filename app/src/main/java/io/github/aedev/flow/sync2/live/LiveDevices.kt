@@ -73,6 +73,12 @@ class LiveDevices
             at: Long = System.currentTimeMillis(),
         ): Boolean = did in serverOnline.value || (peers.value[did]?.heardAt ?: 0) > at - HEARD_MS
 
+        /** The reachable device that last told of something loaded, playing or paused: the one a remote player drives. */
+        fun current(at: Long = System.currentTimeMillis()): LivePeer? =
+            peers.value.values
+                .filter { it.now?.video != null && isOnline(it.did, at) }
+                .maxByOrNull { it.nowAt }
+
         /** The other device playing whose `now` arrived last, or null when none plays. */
         fun active(): LivePeer? =
             peers.value.values

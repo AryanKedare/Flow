@@ -52,7 +52,7 @@ class Handoff
             val me = live.me() ?: return
             when (val message = received.message) {
                 is LiveMessage.Play -> {
-                    if (message.to == me) answer(received) { local.start(message) }
+                    if (message.to == me) answer(received) { local.start(message, devices.devices.value[received.sender]?.now) }
                 }
 
                 is LiveMessage.Cmd -> {
@@ -98,22 +98,20 @@ class Handoff
                     LiveMessage.PLAYING,
                 )
             val ok = request(play)?.ok == true
-            if (ok) local.pause()
+            if (ok) local.release()
             return ok
         }
 
-        /** Brings the active device's session here: it pauses, and this device starts from its latest `now`. */
+        /** Brings the current device's session here: it pauses, and this device starts from its latest `now`. */
         suspend fun pull(): Boolean {
-            val active = devices.active() ?: return false
+            val active = devices.current() ?: return false
             val playing = active.now ?: return false
             val video = playing.video ?: return false
             val me = live.me() ?: return false
             live.send(LiveMessage.Cmd(active.did, "pause"))
             val position = active.position(System.currentTimeMillis())
-            return local.start(
-                LiveMessage.Play(me, video, position, playing.music, playing.link, playing.queue, playing.index, LiveMessage.PLAYING),
-            ) ==
-                null
+            val play = LiveMessage.Play(me, video, position, playing.music, playing.link, playing.queue, playing.index, LiveMessage.PLAYING)
+            return local.start(play, playing) == null
         }
 
         /** Controls playback on [to]; true once it applied the command. */

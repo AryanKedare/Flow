@@ -1528,15 +1528,21 @@ class EnhancedPlayerManager private constructor() {
 
     // ===== Queue Management =====
 
+    /**
+     * Plays [videos] from [startIndex]. With [startPlayback] false the queue is set around the video
+     * already playing, which sits at [startIndex], and playback goes on where it is: a handoff from
+     * another linked device attaches its queue this way.
+     */
     fun setQueue(
         videos: List<Video>,
         startIndex: Int,
         title: String? = null,
         shuffle: Boolean? = null,
+        startPlayback: Boolean = true,
     ) {
         if (!isOnMainThread()) {
             autoNextLog("setQueue posted to main size=${videos.size} start=$startIndex from=${Thread.currentThread().name}")
-            mainHandler.post { setQueue(videos, startIndex, title, shuffle) }
+            mainHandler.post { setQueue(videos, startIndex, title, shuffle, startPlayback) }
             return
         }
         val startVideo = queue.setQueue(videos, startIndex, title, shuffle)
@@ -1544,7 +1550,7 @@ class EnhancedPlayerManager private constructor() {
 
         updateQueueState()
 
-        if (startVideo != null) {
+        if (startVideo != null && startPlayback) {
             startPlaybackFromQueue(startVideo, loadStreamsInPlayer = false)
             preload.request("queue-set")
         }

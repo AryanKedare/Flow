@@ -58,6 +58,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.sync2.live.LiveMessage
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
 import io.github.aedev.flow.ui.screens.playon.LocalPlayOn
@@ -215,7 +216,7 @@ internal fun MiniPlayerContent(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = elsewhere?.let { stringResource(R.string.play_on_playing_on, it) } ?: track.artist,
+                    text = elsewhere?.let { stringResource(R.string.play_on_playing_on, it.name) } ?: track.artist,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (elsewhere != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -247,11 +248,16 @@ internal fun MiniPlayerContent(
                 }
             }
             MediaPlayPauseButton(
-                isPlaying = elsewhere != null || playerState.isPlaying,
+                isPlaying = elsewhere?.let { it.now.state == LiveMessage.PLAYING } ?: playerState.isPlaying,
                 isBuffering = elsewhere == null && playerState.isBuffering && animationsEnabled,
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    if (elsewhere != null) playOn?.controlElsewhere("pause") else EnhancedMusicPlayerManager.togglePlayPause()
+                    val remote = elsewhere
+                    if (remote != null) {
+                        playOn?.controlElsewhere(if (remote.now.state == LiveMessage.PLAYING) "pause" else "play")
+                    } else {
+                        EnhancedMusicPlayerManager.togglePlayPause()
+                    }
                 },
             )
             IconButton(onClick = { if (elsewhere != null) playOn?.controlElsewhere("next") else EnhancedMusicPlayerManager.playNext() }) {

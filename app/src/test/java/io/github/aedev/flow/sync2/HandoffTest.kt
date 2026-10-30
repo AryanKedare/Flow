@@ -45,6 +45,8 @@ class HandoffTest {
     private val playing =
         LiveMessage.Now(
             video = "aaaaaaaaaaa",
+            title = "Song",
+            by = "Artist",
             music = true,
             pos = 61_000,
             dur = 200_000,
@@ -74,7 +76,7 @@ class HandoffTest {
         val consent = LiveConsent(db)
         val local =
             mockk<LocalPlayback>(relaxed = true) {
-                coEvery { start(any()) } returns null
+                coEvery { start(any(), any()) } returns null
                 coEvery { command(any()) } returns null
             }
         val devices = LiveDevices()
@@ -119,9 +121,17 @@ class HandoffTest {
             val b = g.device(g.b, g.deviceDb())
             b.consent.remember(a.did, true)
             connect(a, b)
+            // A's `now` reaches B first, so B starts the track with its title and artist, not blank.
+            a.channel.send(playing)
+            b.devices.devices.first { it[a.did]?.now != null }
             assertTrue(a.handoff.transfer(b.did))
-            coVerify { b.local.start(LiveMessage.Play(b.did, "aaaaaaaaaaa", 61_000, true, null, playing.queue, 1, LiveMessage.PLAYING)) }
-            coVerify { a.local.pause() }
+            coVerify {
+                b.local.start(
+                    LiveMessage.Play(b.did, "aaaaaaaaaaa", 61_000, true, null, playing.queue, 1, LiveMessage.PLAYING),
+                    playing,
+                )
+            }
+            coVerify { a.local.release() }
         }
 
     @Test
@@ -130,10 +140,10 @@ class HandoffTest {
             val a = g.device(g.a, g.deviceDb())
             val b = g.device(g.b, g.deviceDb())
             b.consent.remember(a.did, true)
-            coEvery { b.local.start(any()) } returns "unavailable"
+            coEvery { b.local.start(any(), any()) } returns "unavailable"
             connect(a, b)
             assertFalse(a.handoff.transfer(b.did))
-            coVerify(exactly = 0) { a.local.pause() }
+            coVerify(exactly = 0) { a.local.release() }
         }
 
     @Test

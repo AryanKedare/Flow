@@ -53,6 +53,13 @@ data class PlayOnDevice(
     val seenAt: Long?,
 )
 
+/** Another device's session as the players show it. */
+data class Elsewhere(
+    val did: String,
+    val name: String,
+    val now: LiveMessage.Now,
+)
+
 /** What plays on the active device, with when [now] was read, to move its position on. */
 data class PlayOnSession(
     val device: PlayOnDevice,
@@ -89,12 +96,20 @@ class PlayOnViewModel
             viewModelScope.launch { names.value = channel.names() }
         }
 
-        /** The name of the other device playing now, which the players show instead of playing here. */
-        val elsewhere: StateFlow<String?> =
-            combine(live.devices, names) { _, known -> live.active()?.let { known[it.did] ?: it.did.take(8) } }
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        /**
+         * Another device's session, playing or paused, which the players show and drive while nothing
+         * plays here (Spotify Connect style).
+         */
+        val elsewhere: StateFlow<Elsewhere?> =
+            combine(live.devices, live.online, names, nowPlaying.playing) { _, _, known, playingHere ->
+                if (playingHere) {
+                    null
+                } else {
+                    live.current()?.let { peer -> peer.now?.let { Elsewhere(peer.did, known[peer.did] ?: peer.did.take(8), it) } }
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-        /** Drives the device playing elsewhere: the players' controls go there while it plays. */
+        /** Drives the device the players show as playing elsewhere. */
         fun controlElsewhere(cmd: String) {
             val session = session(System.currentTimeMillis())?.takeIf { !it.device.thisDevice } ?: return
             control(session, cmd)
@@ -127,7 +142,10 @@ class PlayOnViewModel
         /** The active device's session: another device playing, else what this one holds. */
         fun session(at: Long): PlayOnSession? {
             val list = devices.value
-            live.active()?.let { peer ->
+            val mine = list.firstOrNull { it.thisDevice }
+            val here = local.value?.takeIf { it.video != null }
+            if (mine != null && here?.state == LiveMessage.PLAYING) return PlayOnSession(mine, here, at)
+            live.current(at)?.let { peer ->
                 val now = peer.now ?: return@let
                 // Before the sheet reads the roster, the live channel says enough about the device.
                 val device =
@@ -135,9 +153,7 @@ class PlayOnViewModel
                         ?: PlayOnDevice(peer.did, nameOf(peer.did), peer.kind ?: "phone", false, PlayOnGroup.PLAYING, now, peer.heardAt)
                 return PlayOnSession(device, now.copy(pos = peer.position(at)), at)
             }
-            val mine = list.firstOrNull { it.thisDevice } ?: return null
-            val now = local.value?.takeIf { it.video != null } ?: return null
-            return PlayOnSession(mine, now, at)
+            return if (mine != null && here != null) PlayOnSession(mine, here, at) else null
         }
 
         /** Reads the devices once and what plays here; the sheet calls it while it shows. */
