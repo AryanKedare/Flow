@@ -13,6 +13,8 @@ enum class LinkedError(
     UNREACHABLE(retryable = true),
     REFUSED,
     GROUP_MISSING,
+    ADMIN_REFUSED,
+    ADMIN_BLOCKED,
     LOGIN_REFUSED,
     BUSY(retryable = true),
     INSTANCE_CHANGED,
@@ -49,6 +51,14 @@ fun Throwable.linkedError(): LinkedError =
                 code == "unclaimed" -> LinkedError.GROUP_MISSING
                 else -> LinkedError.REFUSED
             }
+        }
+
+        is StoreException.AdminRefused -> {
+            LinkedError.ADMIN_REFUSED
+        }
+
+        is StoreException.AdminBlocked -> {
+            LinkedError.ADMIN_BLOCKED
         }
 
         is StoreException.LoginRefused -> {

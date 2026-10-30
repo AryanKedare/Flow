@@ -2,6 +2,10 @@ package io.github.aedev.flow.ui.screens.sync.linked
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -11,6 +15,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.aedev.flow.R
+import io.github.aedev.flow.sync2.service.LinkedError
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -29,13 +34,17 @@ class LinkedSetupTest {
     private fun text(id: Int) = context.getString(id)
 
     private val created = ArrayList<List<String>>()
+    private val reset = ArrayList<List<String>>()
 
     private fun show() =
         rule.setContent {
+            var error by remember { mutableStateOf<LinkedError?>(null) }
             LinkedSetup(
                 hostOnly = false,
                 busy = false,
-                onCreate = { _, _ -> },
+                error = error,
+                onCreate = { _, _ -> error = LinkedError.SERVER_HAS_GROUP },
+                onResetAndCreate = { url, token -> reset += listOf(url, token) },
                 onCreateOnWebDav = { url, user, password -> created += listOf(url, user, password) },
                 onCreateOnNetwork = {},
                 onEnterCode = { _, _ -> },
@@ -76,5 +85,23 @@ class LinkedSetupTest {
         rule.onNodeWithText(text(R.string.linked_restore_title)).performClick()
         rule.onNodeWithText(text(R.string.linked_where_webdav)).assertExists()
         rule.onNodeWithText(text(R.string.linked_create_lan_title)).assertDoesNotExist()
+    }
+
+    @Test
+    fun a_server_that_already_has_a_group_offers_joining_or_a_confirmed_reset() {
+        show()
+        rule.onNodeWithText(text(R.string.linked_create_title)).performClick()
+        rule.onNodeWithText(text(R.string.linked_where_server)).performClick()
+        rule.onNodeWithText(text(R.string.linked_server_url)).performTextInput("https://sync.example.org")
+        rule.onNodeWithText(text(R.string.linked_admin_token)).performTextInput("admin")
+        rule.onNodeWithText(text(R.string.linked_create)).performClick()
+
+        rule.onNodeWithText(text(R.string.linked_has_group_title)).assertExists()
+        rule.onNodeWithText(text(R.string.linked_has_group_join)).assertExists()
+        rule.onNodeWithText(text(R.string.linked_reset_server)).performClick()
+        assertEquals("nothing is reset before the warning is confirmed", emptyList<List<String>>(), reset)
+        rule.onNodeWithText(text(R.string.linked_reset_server_warning)).assertExists()
+        rule.onNodeWithText(text(R.string.linked_reset_server_confirm)).performClick()
+        assertEquals(listOf(listOf("https://sync.example.org", "admin")), reset)
     }
 }
