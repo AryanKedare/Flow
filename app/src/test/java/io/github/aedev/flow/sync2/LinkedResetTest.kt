@@ -16,9 +16,17 @@ import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync2.data.SentRecord
 import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.device.StoreCredentials
+import io.github.aedev.flow.sync2.engine.Session
+import io.github.aedev.flow.sync2.roster.Op
 import io.github.aedev.flow.sync2.service.LinkedReset
+import io.github.aedev.flow.sync2.service.LinkedSync
+import io.github.aedev.flow.sync2.store.StoreException
 import io.github.aedev.flow.sync2.store.StorePaths
+import io.mockk.coEvery
+import io.mockk.coJustRun
+import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import kotlinx.coroutines.test.runTest
@@ -29,12 +37,26 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import java.io.IOException
 
 /** A restore or import while linked starts both syncs over instead of sending every missing record as a deletion. */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class)
 class LinkedResetTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    /** A store that can't be reached, as when restoring offline. */
+    private val unreachable =
+        dagger.Lazy {
+            mockk<LinkedSync> {
+                coEvery {
+                    open(
+                        any(),
+                        any(),
+                    )
+                } throws StoreException.Network(IOException())
+            }
+        }
 
     @Before
     fun workManager() {
@@ -56,6 +78,7 @@ class LinkedResetTest {
                     SyncChangeLedgerStore(context),
                     DeviceKeys(context),
                     StoreCredentials(context),
+                    unreachable,
                 ).dataReplaced()
             } finally {
                 unmockkObject(ActiveProfile)
@@ -76,12 +99,38 @@ class LinkedResetTest {
             val ledger = SyncChangeLedgerStore(context)
             ledger.update(SyncCollection.WATCH_HISTORY) { CollectionLedger(true, mapOf("aaaaaaaaaaa" to LedgerEntry(hash = 1, atMs = 1))) }
 
-            LinkedReset(context, db, local, ledger, DeviceKeys(context), StoreCredentials(context)).dataReplaced()
+            LinkedReset(context, db, local, ledger, DeviceKeys(context), StoreCredentials(context), unreachable).dataReplaced()
 
             assertNull(db.groups().group())
             assertTrue(db.sent().forCollection(SyncCollection.WATCH_HISTORY).isEmpty())
             assertTrue(local.entries().isEmpty())
             assertNull(local.getObject(path))
             assertEquals(CollectionLedger(), ledger.load(SyncCollection.WATCH_HISTORY))
+        }
+
+    @Test
+    fun replaced_data_tells_the_other_devices_this_one_left() =
+        runTest {
+            val g = LinkedGroup(this).apply { create() }
+            val db = g.deviceDb()
+            val keys =
+                mockk<DeviceKeys> {
+                    coEvery { load() } returns g.a
+                    coJustRun { delete() }
+                }
+            val sync = dagger.Lazy { mockk<LinkedSync> { coEvery { open(any(), any()) } coAnswers { Session.open(db, g.store, g.a) } } }
+
+            LinkedReset(context, db, heldStore(db), SyncChangeLedgerStore(context), keys, StoreCredentials(context), sync).dataReplaced()
+
+            assertEquals(
+                "a leave carries no data, so nothing is sent as a deletion",
+                Op.LEAVE,
+                g.store.roster
+                    .last()
+                    .op,
+            )
+            assertTrue(g.store.objects.isEmpty())
+            assertEquals(null, db.groups().group())
+            coVerify { keys.delete() }
         }
 }
