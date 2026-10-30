@@ -32,7 +32,7 @@ class LinkedSyncTest {
     fun a_cancelled_sync_is_not_reported_as_failed() =
         runTest {
             val db = mockk<LinkedDatabase> { every { groups() } returns mockk { coEvery { group() } coAnswers { awaitCancellation() } } }
-            val sync = LinkedSync(context, db, DeviceKeys(context), mockk(), mockk(), mockk(), SyncIndicator(context), mockk())
+            val sync = LinkedSync(context, db, DeviceKeys(context), mockk(), mockk(), mockk(), SyncIndicator(context), mockk(), mockk())
             val running = launch { sync.syncNow() }
             sync.syncing.first { it }
             running.cancelAndJoin()

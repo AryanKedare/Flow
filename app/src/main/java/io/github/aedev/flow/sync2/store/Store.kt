@@ -97,6 +97,9 @@ sealed class StoreException(
         val rateLimited: Boolean get() = status == 429
     }
 
+    /** The Flow server issues this device no token: it is no longer in the group, and can't read the roster to see that. */
+    class SignInRefused : StoreException("The server refused this device's sign-in")
+
     /** A file store refused the user name or password; nothing more is sent with them. */
     class LoginRefused : StoreException("The store refused the user name or password")
 

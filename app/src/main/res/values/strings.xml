@@ -2701,11 +2701,12 @@
     <string name="linked_done_title">Linked</string>
     <string name="linked_done_body">The devices are linked and will keep each other up to date.</string>
     <string name="linked_done">Done</string>
-    <string name="linked_forget">Leave the group on this device</string>
-    <string name="linked_forget_title">Leave the group?</string>
-    <string name="linked_forget_body">This device stops syncing and forgets the group. Your other devices aren\'t changed; remove this device there too.</string>
+    <string name="linked_forget">Forget the group on this device</string>
+    <string name="linked_leave">Leave the group</string>
+    <string name="linked_leave_title">Leave the group?</string>
+    <string name="linked_leave_body">This device leaves the group and deletes its keys and its copy of the group\'s data. Your other devices keep everything and switch to new keys without it. To link it again, pair it as a new device.</string>
     <string name="linked_removed_title">This device was removed</string>
-    <string name="linked_removed_body">Another device removed this one from the group. Leave the group here to link it again.</string>
+    <string name="linked_removed_body">This device is no longer in the group, so it stopped syncing. Forget the group here to link it again.</string>
     <string name="linked_recovery_unsaved">Your recovery words aren\'t confirmed yet.</string>
     <string name="linked_words_title">Write down your recovery words</string>
     <string name="linked_words_body">They are the only way back in if you lose every device. They are shown once; keep them somewhere safe and offline.</string>

@@ -147,6 +147,12 @@ internal class LinkedDevicesViewModel
                 local.update { it.copy(devices = actions.devices()) }
             }
 
+        fun leave() =
+            run {
+                actions.leave()
+                local.value = Local()
+            }
+
         fun forget() =
             run {
                 actions.forget()

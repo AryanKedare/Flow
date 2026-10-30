@@ -49,12 +49,13 @@ internal fun LinkedOverview(
     onScanNewDevice: (() -> Unit)?,
     onRename: (id: String, name: String) -> Unit,
     onRemove: (id: String) -> Unit,
+    onLeave: () -> Unit,
     onForget: () -> Unit,
     onUpdateLogin: (user: String, password: String) -> Unit,
     onAccept: (id: String) -> Unit,
     onDecline: (id: String) -> Unit,
 ) {
-    var confirmForget by rememberSaveable { mutableStateOf(false) }
+    var confirmLeave by rememberSaveable { mutableStateOf(false) }
     if (state.error == LinkedError.REMOVED) {
         SyncStepHeader(
             icon = Icons.Outlined.ErrorOutline,
@@ -129,21 +130,21 @@ internal fun LinkedOverview(
         confirmLabel = stringResource(R.string.linked_add_device),
         onConfirm = onAddDevice,
         confirmEnabled = !state.busy,
-        dismissLabel = stringResource(R.string.linked_forget),
-        onDismiss = { confirmForget = true },
+        dismissLabel = stringResource(R.string.linked_leave),
+        onDismiss = { confirmLeave = true },
     )
-    if (confirmForget) {
+    if (confirmLeave) {
         AlertDialog(
-            onDismissRequest = { confirmForget = false },
-            title = { Text(stringResource(R.string.linked_forget_title)) },
-            text = { Text(stringResource(R.string.linked_forget_body)) },
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(stringResource(R.string.linked_leave_title)) },
+            text = { Text(stringResource(R.string.linked_leave_body)) },
             confirmButton = {
                 TextButton(onClick = {
-                    confirmForget = false
-                    onForget()
-                }) { Text(stringResource(R.string.linked_forget)) }
+                    confirmLeave = false
+                    onLeave()
+                }) { Text(stringResource(R.string.linked_leave)) }
             },
-            dismissButton = { TextButton(onClick = { confirmForget = false }) { Text(stringResource(R.string.linked_cancel)) } },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(stringResource(R.string.linked_cancel)) } },
         )
     }
 }

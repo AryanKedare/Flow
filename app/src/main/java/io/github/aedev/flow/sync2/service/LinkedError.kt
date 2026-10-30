@@ -44,6 +44,8 @@ fun Throwable.linkedError(): LinkedError =
 
         is StoreException.InstanceChanged -> LinkedError.INSTANCE_CHANGED
 
+        is StoreException.SignInRefused -> LinkedError.REMOVED
+
         is StoreException.Malformed, is ProtocolException -> LinkedError.PROTOCOL
 
         is LinkedException.NotLinked -> LinkedError.NOT_LINKED

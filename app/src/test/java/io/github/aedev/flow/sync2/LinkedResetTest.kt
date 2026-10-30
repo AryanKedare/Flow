@@ -14,6 +14,7 @@ import io.github.aedev.flow.sync.apply.SyncChangeLedgerStore
 import io.github.aedev.flow.sync.crypto.SyncBytes
 import io.github.aedev.flow.sync.protocol.SyncCollection
 import io.github.aedev.flow.sync2.data.SentRecord
+import io.github.aedev.flow.sync2.device.DeviceKeys
 import io.github.aedev.flow.sync2.device.StoreCredentials
 import io.github.aedev.flow.sync2.service.LinkedReset
 import io.github.aedev.flow.sync2.store.StorePaths
@@ -48,7 +49,14 @@ class LinkedResetTest {
             mockkObject(ActiveProfile)
             try {
                 every { ActiveProfile.get(any()) } returns RunningProfile(id = "b", isDefault = false)
-                LinkedReset(context, db, heldStore(db), SyncChangeLedgerStore(context), StoreCredentials(context)).dataReplaced()
+                LinkedReset(
+                    context,
+                    db,
+                    heldStore(db),
+                    SyncChangeLedgerStore(context),
+                    DeviceKeys(context),
+                    StoreCredentials(context),
+                ).dataReplaced()
             } finally {
                 unmockkObject(ActiveProfile)
             }
@@ -68,7 +76,7 @@ class LinkedResetTest {
             val ledger = SyncChangeLedgerStore(context)
             ledger.update(SyncCollection.WATCH_HISTORY) { CollectionLedger(true, mapOf("aaaaaaaaaaa" to LedgerEntry(hash = 1, atMs = 1))) }
 
-            LinkedReset(context, db, local, ledger, StoreCredentials(context)).dataReplaced()
+            LinkedReset(context, db, local, ledger, DeviceKeys(context), StoreCredentials(context)).dataReplaced()
 
             assertNull(db.groups().group())
             assertTrue(db.sent().forCollection(SyncCollection.WATCH_HISTORY).isEmpty())

@@ -149,6 +149,31 @@ class ServerStoreTest {
         }
 
     @Test
+    fun a_device_the_server_no_longer_lets_sign_in_is_told_so() {
+        server =
+            StandInServer {
+                when (request.path()) {
+                    "/v1/auth/challenge" -> {
+                        respondJson(
+                            200,
+                            """{"challenge":"${SyncBytes.b64urlEncode(
+                                ByteArray(32),
+                            )}","instance":"$instanceId","group":"$groupId","time":0}""",
+                        )
+                    }
+
+                    else -> {
+                        respondJson(401, """{"error":"unauthorized"}""")
+                    }
+                }
+            }
+        runTest {
+            val error = runCatching { store().rosterAfter(-1) }.exceptionOrNull()
+            assertTrue("$error", error is StoreException.SignInRefused)
+        }
+    }
+
+    @Test
     fun redirects_are_not_followed() {
         serve {
             response.header("Location", "https://elsewhere.example/")
