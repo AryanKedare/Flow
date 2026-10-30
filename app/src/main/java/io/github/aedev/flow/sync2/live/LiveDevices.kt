@@ -9,9 +9,9 @@ import javax.inject.Singleton
 
 /**
  * A device heard from recently counts as online even without the server saying so. Every LAN session
- * opens with presence, so a device quiet for longer has left the network.
+ * opens with presence and LAN redials each minute, so a device quiet for longer has left the network.
  */
-private const val HEARD_MS = 45_000L
+private const val HEARD_MS = 90_000L
 
 /** What this device knows of another one from the live channel. */
 data class LivePeer(

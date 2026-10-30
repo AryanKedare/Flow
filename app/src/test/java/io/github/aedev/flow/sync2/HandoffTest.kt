@@ -191,11 +191,11 @@ class HandoffTest {
         val laptop = "cc".repeat(16)
         devices.heard(LiveReceived(tv, 1, playing.copy(state = LiveMessage.PAUSED)), at = 1_000)
         devices.heard(LiveReceived(laptop, 1, playing), at = 2_000)
-        assertTrue(devices.isOnline(tv, at = 45_000))
-        assertFalse("nothing for over 45 s", devices.isOnline(tv, at = 47_000))
+        assertTrue("a LAN redial comes within the minute", devices.isOnline(tv, at = 62_000))
+        assertFalse("nothing for over 90 s", devices.isOnline(tv, at = 92_000))
 
         assertEquals(tv, devices.controlled(tv, at = 3_000)?.did)
         assertEquals("the latest session when none is chosen", laptop, devices.controlled(null, at = 3_000)?.did)
-        assertEquals("not a chosen device that went quiet", null, devices.controlled(tv, at = 60_000))
+        assertEquals("not a chosen device that went quiet", null, devices.controlled(tv, at = 100_000))
     }
 }
