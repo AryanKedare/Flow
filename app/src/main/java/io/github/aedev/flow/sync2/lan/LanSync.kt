@@ -15,7 +15,9 @@ import io.github.aedev.flow.sync2.crypto.Purpose
 import io.github.aedev.flow.sync2.crypto.lanTag
 import io.github.aedev.flow.sync2.crypto.purposeKey
 import io.github.aedev.flow.sync2.data.LinkedDatabase
+import io.github.aedev.flow.sync2.data.observeEpoch
 import io.github.aedev.flow.sync2.device.DeviceKeys
+import io.github.aedev.flow.sync2.engine.LinkedException
 import io.github.aedev.flow.sync2.engine.Session
 import io.github.aedev.flow.sync2.live.LiveChannel
 import io.github.aedev.flow.sync2.live.LiveTransport
@@ -26,12 +28,14 @@ import io.github.aedev.flow.sync2.store.LocalStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -54,6 +58,9 @@ private const val ATTEMPT_MS = 30_000L
 /** A peer met this recently is brought live messages over a new session. */
 private const val LIVE_REACH_MS = 10 * 60_000L
 private const val HOUR_S = 3_600L
+private const val HOUR_MS = HOUR_S * 1_000
+private const val FIRST_RETRY_MS = 5_000L
+private const val LAST_RETRY_MS = 5 * 60_000L
 
 /**
  * Syncs linked devices on the same network (spec/live.md, LAN transport), for LAN groups and groups
@@ -78,21 +85,25 @@ class LanSync
         private val seen = MutableStateFlow<Map<String, Long>>(emptyMap())
         private val dialed = ConcurrentHashMap<String, Long>()
         private var running: Job? = null
+        private var group: String? = null
 
-        /** Devices met on this network while this process runs, and when. */
+        /** Devices of this group met on this network while this process runs, and when. */
         val nearby: StateFlow<Map<String, Long>> = seen.asStateFlow()
 
+        /** Serves the group this device is in, starting over when it joins another one or the epoch moves on. */
         fun start() {
             if (running?.isActive == true || !SyncProfile.syncsHere(context)) return
             running =
                 scope.launch {
-                    try {
-                        serve()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.w(TAG, "LAN sync stopped: ${e.linkedError()}")
-                    }
+                    db
+                        .groups()
+                        .observeGroup()
+                        .map { it?.groupId }
+                        .distinctUntilChanged()
+                        .collectLatest { id ->
+                            if (id != group) forgetPeers(id)
+                            if (id != null) db.groups().observeEpoch().collectLatest { if (it != null) keepServing() }
+                        }
                 }
         }
 
@@ -110,12 +121,39 @@ class LanSync
 
         private suspend fun session(): Session? {
             db.groups().group() ?: return null
-            return Session.open(db, GroupStore(local, null), keys.load())
+            return open()
         }
 
-        private suspend fun serve() =
+        private suspend fun open(): Session = Session.open(db, GroupStore(local, null), keys.load())
+
+        /** Peers met in another group are no longer this device's. */
+        private fun forgetPeers(id: String?) {
+            group = id
+            seen.value = emptyMap()
+            reached.clear()
+            dialed.clear()
+        }
+
+        /** Serves afresh each hour, when the tag changes, and again after a failure, until cancelled. */
+        private suspend fun keepServing() {
+            var retry = FIRST_RETRY_MS
+            while (true) {
+                try {
+                    withTimeoutOrNull(HOUR_MS - System.currentTimeMillis() % HOUR_MS) { serve() }
+                    retry = FIRST_RETRY_MS
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "LAN sync stopped: ${e.linkedError()}")
+                    delay(retry)
+                    retry = (retry * 2).coerceAtMost(LAST_RETRY_MS)
+                }
+            }
+        }
+
+        private suspend fun serve(): Nothing =
             coroutineScope {
-                val session = session() ?: return@coroutineScope
+                val session = open()
                 val lanKey = purposeKey(session.currentKey(), session.group, session.state.epoch, Purpose.LAN)
                 val server = WsServer(SESSION_PATH) { connection -> meet(connection, accepting = true) }
                 val discovery = LanDiscovery(context)
@@ -137,7 +175,8 @@ class LanSync
                             }
                         }
                     }
-                    awaitCancellation()
+                    discovery.failed.await()
+                    throw LinkedException.LanUnreachable()
                 } finally {
                     discovery.stop()
                     server.stop()
