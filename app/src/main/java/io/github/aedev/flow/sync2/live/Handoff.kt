@@ -102,9 +102,12 @@ class Handoff
             return ok
         }
 
-        /** Brings the current device's session here: it pauses, and this device starts from its latest `now`. */
-        suspend fun pull(): Boolean {
-            val active = devices.current() ?: return false
+        /**
+         * Brings the session of the device the user drives, [from], or else the current device's,
+         * here: it pauses, and this device starts from its latest `now`.
+         */
+        suspend fun pull(from: String? = null): Boolean {
+            val active = devices.controlled(from) ?: return false
             val playing = active.now ?: return false
             val video = playing.video ?: return false
             val me = live.me() ?: return false

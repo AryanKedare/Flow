@@ -4,6 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -41,6 +42,21 @@ class RemoteChoiceTest {
             assertEquals(tv, choice.did.value)
 
             online.value = emptySet()
+            assertNull(choice.did.value)
+            watching.cancel()
+        }
+
+    @Test
+    fun a_quiet_device_drops_without_another_message() =
+        runTest(UnconfinedTestDispatcher()) {
+            val choice = RemoteChoice()
+            var reachable = true
+            val watching = launch { choice.watch(MutableStateFlow(false), MutableStateFlow(Unit)) { reachable } }
+            choice.choose(tv)
+            reachable = false
+            assertEquals("nothing has said so yet", tv, choice.did.value)
+
+            advanceTimeBy(QUIET_CHECK_MS + 1)
             assertNull(choice.did.value)
             watching.cancel()
         }

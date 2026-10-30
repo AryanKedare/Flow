@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.sync2.lan.LanSync
 import io.github.aedev.flow.sync2.live.ConsentAnswer
 import io.github.aedev.flow.sync2.live.ConsentRequest
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -91,6 +93,7 @@ class PlayOnViewModel
 
         private val names = MutableStateFlow<Map<String, String>>(emptyMap())
         private val remote = RemoteChoice()
+        private val albumArt = ConcurrentHashMap<String, String>()
 
         val open: MutableStateFlow<Boolean> = sheet.open
 
@@ -144,11 +147,7 @@ class PlayOnViewModel
             val mine = list.firstOrNull { it.thisDevice }
             val here = local.value?.takeIf { it.video != null }
             if (mine != null && here?.state == LiveMessage.PLAYING) return PlayOnSession(mine, here, at)
-            val chosen =
-                remote.did.value
-                    ?.let { live.devices.value[it] }
-                    ?.takeIf { it.now?.video != null }
-            (chosen ?: live.current(at))?.let { peer ->
+            live.controlled(remote.did.value, at)?.let { peer ->
                 val now = peer.now ?: return@let
                 // Before the sheet reads the roster, the live channel says enough about the device.
                 val device =
@@ -176,7 +175,7 @@ class PlayOnViewModel
             act {
                 when {
                     device.thisDevice -> {
-                        handoff.pull().also { if (it) remote.clear() }
+                        handoff.pull(remote.did.value).also { if (it) remote.clear() }
                     }
 
                     local.value?.state != LiveMessage.PLAYING && device.now?.video != null -> {
@@ -204,6 +203,14 @@ class PlayOnViewModel
                 handoff.control(session.device.did, cmd, pos, vol)
             }
         }
+
+        /** A song's album art from the music service, asked once per song. */
+        suspend fun musicArt(video: String): String? =
+            albumArt[video] ?: InnertubeMusicService
+                .fetchQueue(videoIds = listOf(video))
+                .firstOrNull()
+                ?.highResThumbnailUrl
+                ?.also { albumArt[video] = it }
 
         fun answer(
             request: ConsentRequest,

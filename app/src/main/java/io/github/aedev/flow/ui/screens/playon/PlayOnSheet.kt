@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,10 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,7 +52,6 @@ import io.github.aedev.flow.ui.components.musicplayer.controls.expressiveSliderS
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.MediaPlaybackControls
-import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionRow
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsGroup
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsSheet
@@ -188,21 +184,10 @@ private fun SessionPanel(
     onControl: (cmd: String, vol: Int?) -> Unit,
 ) {
     val now = session.now
-    val video = now.video ?: return
+    if (now.video == null) return
     val playing = now.state == LiveMessage.PLAYING
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // A YouTube frame is 16:9; the crop drops the bars the fallback thumbnail pads it with.
-        VideoThumbnailImage(
-            videoId = video,
-            model = null,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(24.dp)),
-        )
+        SessionArtwork(now, RoundedCornerShape(24.dp), Modifier.fillMaxWidth())
         Column {
             Text(
                 now.title,

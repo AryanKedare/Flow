@@ -183,4 +183,19 @@ class HandoffTest {
         devices.heard(LiveReceived(other, 2, playing.copy(state = LiveMessage.PAUSED)), at = 6_000)
         assertEquals("a paused device isn't the active one", null, devices.active())
     }
+
+    @Test
+    fun a_quiet_device_goes_offline_and_pull_takes_the_chosen_device_first() {
+        val devices = LiveDevices()
+        val tv = "bb".repeat(16)
+        val laptop = "cc".repeat(16)
+        devices.heard(LiveReceived(tv, 1, playing.copy(state = LiveMessage.PAUSED)), at = 1_000)
+        devices.heard(LiveReceived(laptop, 1, playing), at = 2_000)
+        assertTrue(devices.isOnline(tv, at = 45_000))
+        assertFalse("nothing for over 45 s", devices.isOnline(tv, at = 47_000))
+
+        assertEquals(tv, devices.controlled(tv, at = 3_000)?.did)
+        assertEquals("the latest session when none is chosen", laptop, devices.controlled(null, at = 3_000)?.did)
+        assertEquals("not a chosen device that went quiet", null, devices.controlled(tv, at = 60_000))
+    }
 }

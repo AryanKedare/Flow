@@ -7,8 +7,11 @@ import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** A device heard from recently counts as online even without the server saying so. */
-private const val HEARD_MS = 2 * 60_000L
+/**
+ * A device heard from recently counts as online even without the server saying so. Every LAN session
+ * opens with presence, so a device quiet for longer has left the network.
+ */
+private const val HEARD_MS = 45_000L
 
 /** What this device knows of another one from the live channel. */
 data class LivePeer(
@@ -78,6 +81,12 @@ class LiveDevices
             peers.value.values
                 .filter { it.now?.video != null && isOnline(it.did, at) }
                 .maxByOrNull { it.nowAt }
+
+        /** The device the user drives, [chosen], while it can be reached with a session, else [current]. */
+        fun controlled(
+            chosen: String?,
+            at: Long = System.currentTimeMillis(),
+        ): LivePeer? = chosen?.let { peers.value[it] }?.takeIf { it.now?.video != null && isOnline(it.did, at) } ?: current(at)
 
         /** The other device playing whose `now` arrived last, or null when none plays. */
         fun active(): LivePeer? =

@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -22,8 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,7 +32,6 @@ import io.github.aedev.flow.sync2.live.LiveMessage
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarBounds
 import io.github.aedev.flow.ui.components.shared.MediaMiniBarDefaults
 import io.github.aedev.flow.ui.components.shared.MediaPlayPauseButton
-import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import kotlin.math.roundToInt
 
 /**
@@ -52,7 +48,6 @@ internal fun RemoteMiniBar(
     val playOn = LocalPlayOn.current ?: return
     val elsewhere by playOn.elsewhere.collectAsStateWithLifecycle()
     val remote = elsewhere ?: return
-    val video = remote.now.video ?: return
     val playing = remote.now.state == LiveMessage.PLAYING
     val busy by playOn.busy.collectAsStateWithLifecycle()
     val transportTint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -69,18 +64,7 @@ internal fun RemoteMiniBar(
                 .clickable { playOn.open.value = true },
     ) {
         Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            VideoThumbnailImage(
-                videoId = video,
-                model = null,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier
-                        .padding(vertical = 10.dp)
-                        .fillMaxHeight()
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(12.dp)),
-            )
+            SessionArtwork(remote.now, RoundedCornerShape(12.dp), Modifier.padding(vertical = 10.dp).fillMaxHeight(), byHeight = true)
             Column(Modifier.padding(horizontal = 12.dp).weight(1f), verticalArrangement = Arrangement.Center) {
                 Text(remote.now.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
