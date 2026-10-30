@@ -84,15 +84,25 @@ class LanSync
         private val open = ConcurrentHashMap.newKeySet<String>()
         private val seen = MutableStateFlow<Map<String, Long>>(emptyMap())
         private val dialed = ConcurrentHashMap<String, Long>()
+
+        /** The mDNS names this device advertised, which it never dials. */
+        private val names = ConcurrentHashMap.newKeySet<String>()
         private var running: Job? = null
+        private var users = 0
         private var group: String? = null
 
         /** Devices of this group met on this network while this process runs, and when. */
         val nearby: StateFlow<Map<String, Long>> = seen.asStateFlow()
 
-        /** Serves the group this device is in, starting over when it joins another one or the epoch moves on. */
+        /**
+         * Serves the group this device is in, starting over when it joins another one or the epoch moves
+         * on. Runs until every [start] has had its [stop].
+         */
+        @Synchronized
         fun start() {
+            users++
             if (running?.isActive == true || !SyncProfile.syncsHere(context)) return
+            Log.i(TAG, "LAN sync started")
             running =
                 scope.launch {
                     try {
@@ -111,16 +121,23 @@ class LanSync
                 }
         }
 
+        @Synchronized
         fun stop() {
+            users = (users - 1).coerceAtLeast(0)
+            if (users > 0) return
             running?.cancel()
             running = null
+            Log.i(TAG, "LAN sync stopped")
         }
 
         /** A short look for other members, for a periodic attempt on Wi-Fi. */
         suspend fun attempt() {
             start()
-            delay(ATTEMPT_MS)
-            stop()
+            try {
+                delay(ATTEMPT_MS)
+            } finally {
+                stop()
+            }
         }
 
         private suspend fun session(): Session? {
@@ -163,14 +180,16 @@ class LanSync
                 val server = WsServer(SESSION_PATH) { connection -> meet(connection, accepting = true) }
                 val discovery = LanDiscovery(context)
                 val name = "Flow-" + SyncBytes.toHex(SyncCrypto.randomBytes(2))
+                names += name
                 try {
                     val port = server.start()
                     val now = System.currentTimeMillis() / 1000
                     discovery.advertise(name, port, lanTag(lanKey, now))
                     val tags = listOf(now - HOUR_S, now, now + HOUR_S).map { SyncBytes.toHex(lanTag(lanKey, it)) }.toSet()
-                    discovery.discover(name) { host, peerPort, tag ->
+                    discovery.discover(names) { host, peerPort, tag ->
                         if (tag in tags && LocalNetworkAddress.isLocal(host)) launch { dial(host, peerPort) }
                     }
+                    Log.i(TAG, "LAN sync serving")
                     // A live message for a member reached before, with no session open to it now, opens one.
                     launch {
                         live.envelopes.collect { envelope ->
@@ -254,6 +273,7 @@ class LanSync
                     reader.join()
                 }
                 seen.update { it + (link.peer to System.currentTimeMillis()) }
+                Log.i(TAG, if (accepting) "LAN session accepted" else "LAN session dialed")
                 sync.syncNow()
                 return link.peer
             } catch (e: CancellationException) {

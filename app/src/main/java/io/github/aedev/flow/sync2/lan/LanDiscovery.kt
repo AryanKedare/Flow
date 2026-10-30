@@ -71,16 +71,16 @@ class LanDiscovery(
         registration = listener
     }
 
-    /** Reports each other Flow service that answers: its address, port and tag. */
+    /** Reports each Flow service that answers, other than this device's [own] names: its address, port and tag. */
     fun discover(
-        ownName: String,
+        own: Set<String>,
         onFound: (host: String, port: Int, tag: String?) -> Unit,
     ) {
         multicast?.acquire()
         val listener =
             object : NsdManager.DiscoveryListener {
                 override fun onServiceFound(info: NsdServiceInfo) {
-                    if (info.serviceName == ownName) return
+                    if (info.serviceName in own) return
                     @Suppress("DEPRECATION") // The replacement callback needs API 34.
                     nsd.resolveService(
                         info,
