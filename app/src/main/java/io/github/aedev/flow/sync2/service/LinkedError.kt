@@ -12,6 +12,7 @@ enum class LinkedError(
     INSECURE,
     UNREACHABLE(retryable = true),
     REFUSED,
+    GROUP_MISSING,
     LOGIN_REFUSED,
     BUSY(retryable = true),
     INSTANCE_CHANGED,
@@ -34,46 +35,92 @@ enum class LinkedError(
 
 fun Throwable.linkedError(): LinkedError =
     when (this) {
-        is StoreException.Insecure -> LinkedError.INSECURE
+        is StoreException.Insecure -> {
+            LinkedError.INSECURE
+        }
 
-        is StoreException.Network -> LinkedError.UNREACHABLE
+        is StoreException.Network -> {
+            LinkedError.UNREACHABLE
+        }
 
-        is StoreException.Refused -> if (rateLimited) LinkedError.BUSY else LinkedError.REFUSED
+        is StoreException.Refused -> {
+            when {
+                rateLimited -> LinkedError.BUSY
+                code == "unclaimed" -> LinkedError.GROUP_MISSING
+                else -> LinkedError.REFUSED
+            }
+        }
 
-        is StoreException.LoginRefused -> LinkedError.LOGIN_REFUSED
+        is StoreException.LoginRefused -> {
+            LinkedError.LOGIN_REFUSED
+        }
 
-        is StoreException.InstanceChanged -> LinkedError.INSTANCE_CHANGED
+        is StoreException.InstanceChanged -> {
+            LinkedError.INSTANCE_CHANGED
+        }
 
-        is StoreException.SignInRefused -> LinkedError.REMOVED
+        is StoreException.SignInRefused -> {
+            LinkedError.REMOVED
+        }
 
-        is StoreException.Malformed, is ProtocolException -> LinkedError.PROTOCOL
+        is StoreException.Malformed, is ProtocolException -> {
+            LinkedError.PROTOCOL
+        }
 
-        is LinkedException.NotLinked -> LinkedError.NOT_LINKED
+        is LinkedException.NotLinked -> {
+            LinkedError.NOT_LINKED
+        }
 
-        is LinkedException.Removed -> LinkedError.REMOVED
+        is LinkedException.Removed -> {
+            LinkedError.REMOVED
+        }
 
-        is LinkedException.Declined -> LinkedError.DECLINED
+        is LinkedException.Declined -> {
+            LinkedError.DECLINED
+        }
 
-        is LinkedException.TimedOut -> LinkedError.TIMED_OUT
+        is LinkedException.TimedOut -> {
+            LinkedError.TIMED_OUT
+        }
 
-        is LinkedException.JoinDeclined -> LinkedError.JOIN_DECLINED
+        is LinkedException.JoinDeclined -> {
+            LinkedError.JOIN_DECLINED
+        }
 
-        is LinkedException.WrongWords -> LinkedError.WRONG_WORDS
+        is LinkedException.WrongWords -> {
+            LinkedError.WRONG_WORDS
+        }
 
-        is LinkedException.RecoveryUsed -> LinkedError.RECOVERY_USED
+        is LinkedException.RecoveryUsed -> {
+            LinkedError.RECOVERY_USED
+        }
 
-        is LinkedException.AlreadyLinked -> LinkedError.ALREADY_LINKED
+        is LinkedException.AlreadyLinked -> {
+            LinkedError.ALREADY_LINKED
+        }
 
-        is LinkedException.LanUnreachable -> LinkedError.LAN_UNREACHABLE
+        is LinkedException.LanUnreachable -> {
+            LinkedError.LAN_UNREACHABLE
+        }
 
-        is LinkedException.ServerHasGroup -> LinkedError.SERVER_HAS_GROUP
+        is LinkedException.ServerHasGroup -> {
+            LinkedError.SERVER_HAS_GROUP
+        }
 
-        is LinkedException.NeedsMember -> LinkedError.NEEDS_MEMBER
+        is LinkedException.NeedsMember -> {
+            LinkedError.NEEDS_MEMBER
+        }
 
-        is LinkedException.Unexpected -> LinkedError.UNEXPECTED
+        is LinkedException.Unexpected -> {
+            LinkedError.UNEXPECTED
+        }
 
-        is LinkedException.Stopped -> LinkedError.STOPPED
+        is LinkedException.Stopped -> {
+            LinkedError.STOPPED
+        }
 
         // Damaged device keys, a failed merge, the database.
-        else -> LinkedError.LOCAL
+        else -> {
+            LinkedError.LOCAL
+        }
     }

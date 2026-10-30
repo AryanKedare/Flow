@@ -230,6 +230,11 @@ class LinkedActions
         /** Leaves the group, telling the others ([LinkedReset.leave]). */
         suspend fun leave() = reset.leave()
 
+        /** Why the last leave couldn't tell the other devices, while the user decides. */
+        val leaveFailed: StateFlow<LinkedError?> = reset.leaveFailed
+
+        fun keepGroup() = reset.keepGroup()
+
         /** Forgets the group and this device's keys without telling the others, as after being removed. */
         suspend fun forget() = reset.forget()
 

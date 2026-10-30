@@ -153,6 +153,10 @@ internal class LinkedDevicesViewModel
                 local.value = Local()
             }
 
+        val leaveFailed: StateFlow<LinkedError?> = actions.leaveFailed
+
+        fun keepGroup() = actions.keepGroup()
+
         fun forget() =
             run {
                 actions.forget()
