@@ -24,6 +24,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.filterNotNull
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -209,4 +211,54 @@ class HandoffTest {
         assertEquals(listOf("v1", "v2") to 1, queueWindow(listOf("v1", "v2"), 1))
         assertEquals(null, queueWindow(queue, 120))
     }
+
+    @Test
+    fun moving_the_driven_device_starts_its_session_on_the_other_and_only_then_pauses_it() =
+        live { g ->
+            val a = g.device(g.a, g.deviceDb())
+            val b = g.device(g.b, g.deviceDb())
+            val mac = "ee".repeat(16)
+            b.consent.remember(a.did, true)
+            connect(a, b)
+            val heardAt = System.currentTimeMillis() - 10_000
+            a.devices.heard(LiveReceived(mac, 1, playing.copy(link = "link")), at = heardAt)
+            val paused =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    b.channel.messages
+                        .first { (it.message as? LiveMessage.Cmd)?.to == mac }
+                        .message
+                }
+
+            assertTrue(a.handoff.move(mac, b.did))
+
+            coVerify {
+                b.local.start(
+                    match {
+                        it.to == b.did && it.video == playing.video && it.queue == playing.queue && it.index == 1 &&
+                            it.state == LiveMessage.PLAYING && it.link == "link" && it.pos >= 71_000 && it.pos < 120_000
+                    },
+                    any(),
+                )
+            }
+            assertEquals(LiveMessage.Cmd(mac, "pause"), paused.await())
+        }
+
+    @Test
+    fun a_failed_move_leaves_the_driven_device_playing() =
+        live { g ->
+            val a = g.device(g.a, g.deviceDb())
+            val b = g.device(g.b, g.deviceDb())
+            val mac = "ee".repeat(16)
+            b.consent.remember(a.did, true)
+            coEvery { b.local.start(any(), any()) } returns "unavailable"
+            connect(a, b)
+            a.devices.heard(LiveReceived(mac, 1, playing))
+            val paused =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    withTimeoutOrNull(2_000) { b.channel.messages.first { (it.message as? LiveMessage.Cmd)?.to == mac } }
+                }
+
+            assertFalse(a.handoff.move(mac, b.did))
+            assertEquals(null, paused.await())
+        }
 }

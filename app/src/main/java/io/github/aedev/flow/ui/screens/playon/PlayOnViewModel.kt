@@ -168,14 +168,19 @@ class PlayOnViewModel
         }
 
         /**
-         * Picks [device]: this device pulls playback back; another one is driven from here, getting
-         * this device's session first when this one plays or it holds nothing to drive.
+         * Picks [device]: this device pulls playback back; another one is driven from here, getting the
+         * driven device's session, or this device's when this one plays or it holds nothing to drive.
          */
         fun playOn(device: PlayOnDevice) =
             act {
+                val driven = remote.did.value
                 when {
                     device.thisDevice -> {
-                        handoff.pull(remote.did.value)
+                        handoff.pull(driven)
+                    }
+
+                    driven != null && driven != device.did -> {
+                        handoff.move(driven, device.did).also { if (it) remote.choose(device.did) }
                     }
 
                     local.value?.state != LiveMessage.PLAYING && device.now?.video != null -> {

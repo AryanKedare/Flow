@@ -117,6 +117,34 @@ class Handoff
             return local.start(play, playing) == null
         }
 
+        /**
+         * Moves the session of [from], the device the user drives from here, to [to]: [to] starts it
+         * from [from]'s latest `now`, and only then does [from] pause.
+         */
+        suspend fun move(
+            from: String,
+            to: String,
+        ): Boolean {
+            val source = devices.devices.value[from] ?: return false
+            val session = source.now ?: return false
+            val video = session.video ?: return false
+            val at = System.currentTimeMillis()
+            val play =
+                LiveMessage.Play(
+                    to,
+                    video,
+                    source.position(at),
+                    session.music,
+                    session.link,
+                    session.queue,
+                    session.index,
+                    session.state,
+                )
+            val ok = request(play)?.ok == true
+            if (ok) live.send(LiveMessage.Cmd(from, "pause"))
+            return ok
+        }
+
         /** Controls playback on [to]; true once it applied the command. */
         suspend fun control(
             to: String,
