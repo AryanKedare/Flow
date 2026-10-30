@@ -2,6 +2,7 @@ package io.github.aedev.flow.sync2.live
 
 import android.content.Context
 import android.media.AudioManager
+import androidx.annotation.MainThread
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -66,7 +67,12 @@ class NowPlaying
                 }
                 while (true) {
                     delay(REPEAT_MS)
-                    if (current().state == LiveMessage.PLAYING) publish(force = true)
+                    // The players' state flows tell without touching a player, which only the main thread may.
+                    if (GlobalPlayerState.playerState.value.isPlaying ||
+                        EnhancedMusicPlayerManager.playerState.value.isPlaying
+                    ) {
+                        publish(force = true)
+                    }
                 }
             }
 
@@ -85,11 +91,13 @@ class NowPlaying
             now: LiveMessage.Now,
         ): Boolean = previous.copy(pos = now.pos) != now
 
-        /** What plays here now, read on the main thread where the players live. */
+        /** What plays here now, read on the main thread where the players live; the only way to read them. */
         suspend fun snapshot(): LiveMessage.Now =
-            withContext(Dispatchers.Main.immediate) { current() }.copy(link = db.groups().group()?.link)
+            withContext(Dispatchers.Main.immediate) { readOnMain() }.copy(link = db.groups().group()?.link)
 
-        private fun current(): LiveMessage.Now {
+        /** Reads both players; ExoPlayer and the Media3 controller throw anywhere but the main thread. */
+        @MainThread
+        private fun readOnMain(): LiveMessage.Now {
             val track = EnhancedMusicPlayerManager.currentTrack.value
             val music = EnhancedMusicPlayerManager.playerState.value
             val vol = volume()

@@ -2,6 +2,7 @@ package io.github.aedev.flow.sync2.live
 
 import android.content.Context
 import android.media.AudioManager
+import androidx.annotation.MainThread
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -121,6 +122,7 @@ class LocalPlayback
                 null
             }
 
+        @MainThread
         private fun seek(
             music: Boolean,
             pos: Long,
@@ -132,6 +134,7 @@ class LocalPlayback
          * Replaces the queue around what plays, without restarting it. A song stays and the rest goes
          * around or after it; a video not in the new queue gives way to its start.
          */
+        @MainThread
         private fun queue(
             music: Boolean,
             ids: List<String>,
