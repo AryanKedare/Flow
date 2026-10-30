@@ -21,6 +21,7 @@ internal fun LinkedError.message(): String =
             LinkedError.REMOVED -> R.string.linked_error_removed
             LinkedError.DECLINED -> R.string.linked_error_declined
             LinkedError.TIMED_OUT -> R.string.linked_error_timed_out
+            LinkedError.JOIN_DECLINED -> R.string.linked_error_join_declined
             LinkedError.WRONG_WORDS -> R.string.linked_error_wrong_words
             LinkedError.RECOVERY_USED -> R.string.linked_error_recovery_used
             LinkedError.ALREADY_LINKED -> R.string.linked_error_already_linked
