@@ -47,10 +47,14 @@ class LocalPlayback
     ) {
         private val video = EnhancedPlayerManager.getInstance()
         private val videos = MutableSharedFlow<String>(extraBufferCapacity = 1)
+        private val songs = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         private var filling: Job? = null
 
         /** Videos a handoff asks the app to open. */
         val openVideo: SharedFlow<String> = videos.asSharedFlow()
+
+        /** Music a handoff started here, which the app shows as it shows a song started on this device. */
+        val musicStarted: SharedFlow<Unit> = songs.asSharedFlow()
 
         /**
          * Starts [play]'s session here; returns why it couldn't, or null once it started. [known] is the
@@ -80,6 +84,7 @@ class LocalPlayback
                     if (play.state != LiveMessage.PLAYING) EnhancedMusicPlayerManager.pause()
                 }
             }
+            songs.tryEmit(Unit)
             fillSongs(ids)
             return null
         }

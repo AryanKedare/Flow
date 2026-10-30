@@ -129,6 +129,8 @@ class PlayOnViewModel
 
         val controlledBy: SharedFlow<String> = handoff.controlledBy
 
+        val musicStarted: SharedFlow<Unit> = playback.musicStarted
+
         val devices: StateFlow<List<PlayOnDevice>> =
             combine(
                 roster,

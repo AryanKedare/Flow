@@ -286,6 +286,8 @@ fun FlowApp(
                     }
                 }
             }
+        val playOn = LocalPlayOn.current
+        LaunchedEffect(playOn, onMusicStarted) { playOn?.musicStarted?.collect { onMusicStarted() } }
         var handledMusicPlayerRequest by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(activeVideo?.id) {
@@ -363,7 +365,7 @@ fun FlowApp(
         }
 
         val remoteSession =
-            LocalPlayOn.current
+            playOn
                 ?.elsewhere
                 ?.collectAsStateWithLifecycle()
                 ?.value
