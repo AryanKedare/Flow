@@ -21,17 +21,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.abs
 
 /** Resend `now` this often while playing, so devices that joined late catch up. */
 private const val REPEAT_MS = 30_000L
 
-/** A position further than this from where the last `now` puts it is a seek. */
-private const val SEEK_MS = 2_000L
-
 /**
  * What this device plays, told to the group as `now` (spec/live.md, Playing on another device): when
- * the video, state, queue or volume changes, after a seek, and every 30 seconds while playing.
+ * the video, state, queue or volume changes, after every seek, and every 30 seconds while playing.
  */
 @Singleton
 class NowPlaying
@@ -44,7 +40,6 @@ class NowPlaying
         private val video = EnhancedPlayerManager.getInstance()
         private val lock = Mutex()
         private var last: LiveMessage.Now? = null
-        private var lastAt = 0L
 
         /** Whether either player is playing, which keeps live running in the background. */
         val playing: Flow<Boolean> =
@@ -57,13 +52,17 @@ class NowPlaying
             coroutineScope {
                 launch {
                     merge(
-                        GlobalPlayerState.currentVideo.map { it?.id },
-                        GlobalPlayerState.playerState.map { it.isPlaying },
-                        video.currentQueueIndexState,
-                        EnhancedMusicPlayerManager.currentTrack.map { it?.videoId },
-                        EnhancedMusicPlayerManager.playerState.map { it.isPlaying to it.position / SEEK_MS },
-                        EnhancedMusicPlayerManager.queue.map { it.size },
-                    ).collect { publish(force = false) }
+                        merge(
+                            GlobalPlayerState.currentVideo.map { it?.id },
+                            GlobalPlayerState.playerState.map { it.isPlaying },
+                            video.currentQueueIndexState,
+                            EnhancedMusicPlayerManager.currentTrack.map { it?.videoId },
+                            EnhancedMusicPlayerManager.playerState.map { it.isPlaying },
+                            EnhancedMusicPlayerManager.queue.map { it.size },
+                        ).map { false },
+                        // A seek always goes out, however short.
+                        merge(video.seekEvent, EnhancedMusicPlayerManager.seekEvent).map { true },
+                    ).collect { publish(force = it) }
                 }
                 while (true) {
                     delay(REPEAT_MS)
@@ -73,33 +72,28 @@ class NowPlaying
 
         private suspend fun publish(force: Boolean) {
             lock.withLock {
-                // The players live on the main thread.
-                val now = withContext(Dispatchers.Main.immediate) { current() }.copy(link = db.groups().group()?.link)
+                val now = snapshot()
                 val previous = last
                 if (!force && previous != null && !changed(previous, now)) return
-                if (live.send(now) != null) {
-                    last = now
-                    lastAt = System.currentTimeMillis()
-                }
+                if (live.send(now) != null) last = now
             }
         }
 
-        /** Anything but the position moving on as expected; nothing loaded counts once. */
+        /** Anything but the position, which moves on by itself; nothing loaded counts once. */
         private fun changed(
             previous: LiveMessage.Now,
             now: LiveMessage.Now,
-        ): Boolean {
-            if (previous.copy(pos = now.pos) != now) return true
-            val expected = previous.pos + if (previous.state == LiveMessage.PLAYING) System.currentTimeMillis() - lastAt else 0
-            return now.video != null && abs(now.pos - expected) > SEEK_MS
-        }
+        ): Boolean = previous.copy(pos = now.pos) != now
 
-        /** The player in use: music while it plays or when the video player is idle, otherwise video. */
+        /** What plays here now, read on the main thread where the players live. */
+        suspend fun snapshot(): LiveMessage.Now =
+            withContext(Dispatchers.Main.immediate) { current() }.copy(link = db.groups().group()?.link)
+
         private fun current(): LiveMessage.Now {
             val track = EnhancedMusicPlayerManager.currentTrack.value
             val music = EnhancedMusicPlayerManager.playerState.value
             val vol = volume()
-            if (track != null && (music.isPlaying || !GlobalPlayerState.playerState.value.isPlaying)) {
+            if (track != null && musicInUse()) {
                 val queue = EnhancedMusicPlayerManager.queue.value
                 return LiveMessage.Now(
                     video = track.videoId,

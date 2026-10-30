@@ -1,0 +1,81 @@
+package io.github.aedev.flow.sync2.live
+
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** A device heard from recently counts as online even without the server saying so. */
+private const val HEARD_MS = 2 * 60_000L
+
+/** What this device knows of another one from the live channel. */
+data class LivePeer(
+    val did: String,
+    val kind: String? = null,
+    val can: List<String> = emptyList(),
+    /** Its latest `now`, and when it arrived. */
+    val now: LiveMessage.Now? = null,
+    val nowAt: Long = 0,
+    val heardAt: Long = 0,
+) {
+    /** Where its playback is at [at]: `pos` moved on from when the `now` arrived while it plays (spec/live.md). */
+    fun position(at: Long): Long {
+        val now = now ?: return 0
+        if (now.state != LiveMessage.PLAYING) return now.pos
+        val moved = now.pos + (at - nowAt)
+        return if (now.dur > 0) moved.coerceAtMost(now.dur) else moved
+    }
+
+    val playing: Boolean get() = now?.video != null && now.state == LiveMessage.PLAYING
+}
+
+/**
+ * The group's other devices as the live channel shows them: their presence and latest `now`, which
+ * are online, and the active device, whose latest `now` is the most recent one playing.
+ */
+@Singleton
+class LiveDevices
+    @Inject
+    constructor() {
+        private val peers = MutableStateFlow<Map<String, LivePeer>>(emptyMap())
+        private val serverOnline = MutableStateFlow<Set<String>>(emptySet())
+
+        val devices: StateFlow<Map<String, LivePeer>> = peers.asStateFlow()
+
+        /** The devices the server reports connected to the live channel (spec/live.md, Server relay). */
+        val online: StateFlow<Set<String>> = serverOnline.asStateFlow()
+
+        fun serverPeers(online: Set<String>) {
+            serverOnline.value = online
+        }
+
+        fun heard(
+            received: LiveReceived,
+            at: Long = System.currentTimeMillis(),
+        ) {
+            peers.update { all ->
+                val peer = all[received.sender] ?: LivePeer(received.sender)
+                val updated =
+                    when (val message = received.message) {
+                        is LiveMessage.Presence -> peer.copy(kind = message.kind, can = message.can, heardAt = at)
+                        is LiveMessage.Now -> peer.copy(now = message, nowAt = at, heardAt = at)
+                        else -> peer.copy(heardAt = at)
+                    }
+                all + (received.sender to updated)
+            }
+        }
+
+        /** Whether [did] can be reached now: the server lists it, or it spoke lately. */
+        fun isOnline(
+            did: String,
+            at: Long = System.currentTimeMillis(),
+        ): Boolean = did in serverOnline.value || (peers.value[did]?.heardAt ?: 0) > at - HEARD_MS
+
+        /** The other device playing whose `now` arrived last, or null when none plays. */
+        fun active(): LivePeer? =
+            peers.value.values
+                .filter { it.playing }
+                .maxByOrNull { it.nowAt }
+    }

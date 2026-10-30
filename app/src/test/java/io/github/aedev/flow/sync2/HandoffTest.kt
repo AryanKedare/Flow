@@ -1,0 +1,176 @@
+package io.github.aedev.flow.sync2
+
+import android.app.Application
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.aedev.flow.sync.crypto.SyncBytes
+import io.github.aedev.flow.sync2.crypto.MemberSecrets
+import io.github.aedev.flow.sync2.data.LinkedDatabase
+import io.github.aedev.flow.sync2.device.DeviceKeys
+import io.github.aedev.flow.sync2.live.ConsentAnswer
+import io.github.aedev.flow.sync2.live.Handoff
+import io.github.aedev.flow.sync2.live.LiveChannel
+import io.github.aedev.flow.sync2.live.LiveConsent
+import io.github.aedev.flow.sync2.live.LiveDevices
+import io.github.aedev.flow.sync2.live.LiveMessage
+import io.github.aedev.flow.sync2.live.LivePeer
+import io.github.aedev.flow.sync2.live.LiveReceived
+import io.github.aedev.flow.sync2.live.LiveTransport
+import io.github.aedev.flow.sync2.live.LocalPlayback
+import io.github.aedev.flow.sync2.live.NowPlaying
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+
+/** Handoff and remote control between two devices (spec/live.md, Playing on another device, Consent). */
+@RunWith(AndroidJUnit4::class)
+@Config(sdk = [34], application = Application::class)
+class HandoffTest {
+    private val context: Context = ApplicationProvider.getApplicationContext()
+    private val playing =
+        LiveMessage.Now(
+            video = "aaaaaaaaaaa",
+            music = true,
+            pos = 61_000,
+            dur = 200_000,
+            state = LiveMessage.PLAYING,
+            queue = listOf("zzzzzzzzzzz", "aaaaaaaaaaa"),
+            index = 1,
+        )
+
+    private class Device(
+        val did: String,
+        val channel: LiveChannel,
+        val consent: LiveConsent,
+        val local: LocalPlayback,
+        val handoff: Handoff,
+        val devices: LiveDevices,
+    )
+
+    private suspend fun LinkedGroup.device(
+        secrets: MemberSecrets,
+        db: LinkedDatabase,
+        now: LiveMessage.Now = playing,
+    ): Device {
+        val held = heldStore(db)
+        held.addEntries(store.roster)
+        store.keys.forEach { (key, wrap) -> held.putKey(key.first, key.second, wrap) }
+        val channel = LiveChannel(context, db, mockk<DeviceKeys> { coEvery { load() } returns secrets }, held)
+        val consent = LiveConsent(db)
+        val local =
+            mockk<LocalPlayback>(relaxed = true) {
+                coEvery { start(any()) } returns null
+                coEvery { command(any()) } returns null
+            }
+        val devices = LiveDevices()
+        val handoff = Handoff(channel, devices, consent, local, mockk<NowPlaying> { coEvery { snapshot() } returns now })
+        return Device(SyncBytes.toHex(secrets.did), channel, consent, local, handoff, devices)
+    }
+
+    /** Each device's envelopes reach the other a moment later, as over a real transport. */
+    private suspend fun CoroutineScope.connect(
+        a: Device,
+        b: Device,
+    ) {
+        for ((from, to) in listOf(a to b, b to a)) {
+            from.channel.attach(
+                object : LiveTransport {
+                    override suspend fun send(envelope: ByteArray) {
+                        launch { to.channel.receive(envelope) }
+                    }
+                },
+            )
+            launch { from.handoff.run() }
+        }
+    }
+
+    private fun live(block: suspend CoroutineScope.(LinkedGroup) -> Unit) =
+        runTest {
+            val g = LinkedGroup(this).apply { create() }
+            withContext(Dispatchers.Default) {
+                val scope = CoroutineScope(coroutineContext + kotlinx.coroutines.SupervisorJob())
+                try {
+                    scope.block(g)
+                } finally {
+                    scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+                }
+            }
+        }
+
+    @Test
+    fun a_handoff_starts_the_session_there_and_only_then_pauses_here() =
+        live { g ->
+            val a = g.device(g.a, g.deviceDb())
+            val b = g.device(g.b, g.deviceDb())
+            b.consent.remember(a.did, true)
+            connect(a, b)
+            assertTrue(a.handoff.transfer(b.did))
+            coVerify { b.local.start(LiveMessage.Play(b.did, "aaaaaaaaaaa", 61_000, true, null, playing.queue, 1, LiveMessage.PLAYING)) }
+            coVerify { a.local.pause() }
+        }
+
+    @Test
+    fun a_failed_handoff_never_stops_the_music() =
+        live { g ->
+            val a = g.device(g.a, g.deviceDb())
+            val b = g.device(g.b, g.deviceDb())
+            b.consent.remember(a.did, true)
+            coEvery { b.local.start(any()) } returns "unavailable"
+            connect(a, b)
+            assertFalse(a.handoff.transfer(b.did))
+            coVerify(exactly = 0) { a.local.pause() }
+        }
+
+    @Test
+    fun a_declined_device_gets_nothing_applied_and_a_first_request_asks() =
+        live { g ->
+            val a = g.device(g.a, g.deviceDb())
+            val b = g.device(g.b, g.deviceDb())
+            connect(a, b)
+
+            val asked =
+                async {
+                    b.consent.request
+                        .filterNotNull()
+                        .first()
+                }
+            val first = async { a.handoff.control(b.did, "seek", pos = 5_000) }
+            b.consent.answer(asked.await(), ConsentAnswer.ONCE)
+            assertTrue(first.await())
+            coVerify { b.local.command(LiveMessage.Cmd(b.did, "seek", pos = 5_000)) }
+
+            b.consent.remember(a.did, false)
+            assertFalse(a.handoff.control(b.did, "pause"))
+            coVerify(exactly = 0) { b.local.command(LiveMessage.Cmd(b.did, "pause")) }
+        }
+
+    @Test
+    fun pulling_pauses_the_active_device_and_starts_here_where_it_is_now() {
+        val devices = LiveDevices()
+        val other = "bb".repeat(16)
+        devices.heard(LiveReceived(other, 1, playing), at = 1_000)
+        val active = checkNotNull(devices.active())
+        assertEquals(other, active.did)
+        assertEquals("position moves on while it plays", 65_000, active.position(5_000))
+        assertEquals("never past the end", 200_000, active.position(10_000_000))
+        assertEquals(61_000, LivePeer(other, now = playing.copy(state = LiveMessage.PAUSED), nowAt = 1_000).position(5_000))
+
+        devices.heard(LiveReceived(other, 2, playing.copy(state = LiveMessage.PAUSED)), at = 6_000)
+        assertEquals("a paused device isn't the active one", null, devices.active())
+    }
+}

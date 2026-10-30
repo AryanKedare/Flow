@@ -528,6 +528,10 @@ class EnhancedPlayerManager private constructor() {
     private val _decoderFailureEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val decoderFailureEvent: SharedFlow<Unit> = _decoderFailureEvent.asSharedFlow()
 
+    /** Emitted after every seek, however it was asked for, so other devices hear the new position at once. */
+    private val _seekEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val seekEvent: SharedFlow<Unit> = _seekEvent.asSharedFlow()
+
     private val _queueAutoAdvanceEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueAutoAdvanceEvent: SharedFlow<Unit> = _queueAutoAdvanceEvent.asSharedFlow()
 
@@ -976,6 +980,14 @@ class EnhancedPlayerManager private constructor() {
                     reason: Int,
                 ) {
                     autoNextLog("onTimelineChanged reason=$reason windows=${timeline.windowCount}")
+                }
+
+                override fun onPositionDiscontinuity(
+                    oldPosition: Player.PositionInfo,
+                    newPosition: Player.PositionInfo,
+                    reason: Int,
+                ) {
+                    if (reason == Player.DISCONTINUITY_REASON_SEEK) _seekEvent.tryEmit(Unit)
                 }
 
                 override fun onRenderedFirstFrame() {

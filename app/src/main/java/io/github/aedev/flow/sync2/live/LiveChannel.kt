@@ -87,6 +87,9 @@ class LiveChannel
             }
         }
 
+        /** This device's id in the group, or null when it isn't linked. */
+        suspend fun me(): String? = lock.withLock { session()?.me }
+
         private fun presence(): LiveMessage.Presence = LiveMessage.Presence(listOf("play", "remote"), deviceKind(context))
 
         /** A session on what this device holds, kept until the group's record changes. */

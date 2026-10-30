@@ -159,7 +159,12 @@ object EnhancedMusicPlayerManager {
     private val _playbackWarnings = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val playbackWarnings: SharedFlow<String> = _playbackWarnings.asSharedFlow()
 
+    /** Emitted after every seek, however it was asked for, so other devices hear the new position at once. */
+    private val _seekEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val seekEvent: SharedFlow<Unit> = _seekEvent.asSharedFlow()
+
     // Queue
+
     private val _queue = MutableStateFlow<List<MusicTrack>>(emptyList())
     val queue: StateFlow<List<MusicTrack>> = _queue.asStateFlow()
 
@@ -335,6 +340,14 @@ object EnhancedMusicPlayerManager {
         _shuffleEnabled.value = controller.shuffleModeEnabled
         controller.addListener(
             object : Player.Listener {
+                override fun onPositionDiscontinuity(
+                    oldPosition: Player.PositionInfo,
+                    newPosition: Player.PositionInfo,
+                    reason: Int,
+                ) {
+                    if (reason == Player.DISCONTINUITY_REASON_SEEK) _seekEvent.tryEmit(Unit)
+                }
+
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     updatePlayerState()
                     if (playbackState == Player.STATE_ENDED) {

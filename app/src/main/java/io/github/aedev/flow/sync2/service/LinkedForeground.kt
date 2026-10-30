@@ -8,8 +8,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.di.ApplicationScope
 import io.github.aedev.flow.sync2.data.LinkedDatabase
 import io.github.aedev.flow.sync2.lan.LanSync
+import io.github.aedev.flow.sync2.live.Handoff
 import io.github.aedev.flow.sync2.live.NowPlaying
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -32,6 +34,7 @@ class LinkedForeground
         private val live: LinkedLive,
         private val lan: LanSync,
         private val now: NowPlaying,
+        private val handoff: Handoff,
         @ApplicationScope private val scope: CoroutineScope,
     ) : DefaultLifecycleObserver {
         private val foreground = MutableStateFlow(false)
@@ -49,7 +52,10 @@ class LinkedForeground
             live.start()
             lan.start()
             try {
-                now.run()
+                coroutineScope {
+                    launch { handoff.run() }
+                    now.run()
+                }
             } finally {
                 live.stop()
                 lan.stop()
