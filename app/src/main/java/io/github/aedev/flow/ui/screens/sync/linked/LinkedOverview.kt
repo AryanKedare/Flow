@@ -30,7 +30,9 @@ import io.github.aedev.flow.sync2.data.LAN_STORE
 import io.github.aedev.flow.sync2.data.WEBDAV_STORE
 import io.github.aedev.flow.sync2.service.LinkedDevice
 import io.github.aedev.flow.sync2.service.LinkedError
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.screens.sync.SyncActionRow
 import io.github.aedev.flow.ui.screens.sync.SyncCard
 import io.github.aedev.flow.ui.screens.sync.SyncInfoRow
@@ -52,6 +54,9 @@ internal fun LinkedOverview(
     onLeave: () -> Unit,
     onForget: () -> Unit,
     onUpdateLogin: (user: String, password: String) -> Unit,
+    /** Each device's remembered playback answer: true allowed, false not, absent asks. */
+    consent: Map<String, Boolean>,
+    onConsent: (id: String, allowed: Boolean?) -> Unit,
     onAccept: (id: String) -> Unit,
     onDecline: (id: String) -> Unit,
 ) {
@@ -122,7 +127,7 @@ internal fun LinkedOverview(
             onDismiss = { onDecline(request.id) },
         )
     }
-    DeviceList(state.devices.orEmpty(), state.nearby, state.busy, onRename, onRemove)
+    DeviceList(state.devices.orEmpty(), state.nearby, state.busy, consent, onRename, onRemove, onConsent)
     onScanNewDevice?.let {
         SyncActionRow(confirmLabel = stringResource(R.string.linked_scan_new_device), onConfirm = it, confirmEnabled = !state.busy)
     }
@@ -154,8 +159,10 @@ private fun DeviceList(
     devices: List<LinkedDevice>,
     nearby: Map<String, Long>,
     busy: Boolean,
+    consent: Map<String, Boolean>,
     onRename: (id: String, name: String) -> Unit,
     onRemove: (id: String) -> Unit,
+    onConsent: (id: String, allowed: Boolean?) -> Unit,
 ) {
     var open by rememberSaveable { mutableStateOf<String?>(null) }
     Text(stringResource(R.string.linked_devices), Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
@@ -203,6 +210,8 @@ private fun DeviceList(
                 onRemove(device.id)
             },
             onDismiss = { open = null },
+            consent = consent[device.id],
+            onConsent = { onConsent(device.id, it) },
         )
     }
 }
@@ -216,6 +225,8 @@ private fun DeviceDialog(
     onRename: (String) -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
+    consent: Boolean?,
+    onConsent: (Boolean?) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf(device.name) }
     var removing by rememberSaveable { mutableStateOf(false) }
@@ -238,6 +249,17 @@ private fun DeviceDialog(
                         singleLine = true,
                     )
                     if (!device.thisDevice) {
+                        Text(stringResource(R.string.linked_consent_title), style = MaterialTheme.typography.titleSmall)
+                        FlowConnectedToggleGroup(
+                            options =
+                                listOf(
+                                    FlowToggleOption(null, stringResource(R.string.linked_consent_ask)),
+                                    FlowToggleOption(true, stringResource(R.string.linked_consent_allowed)),
+                                    FlowToggleOption(false, stringResource(R.string.linked_consent_declined)),
+                                ),
+                            selected = consent,
+                            onSelected = onConsent,
+                        )
                         TextButton(onClick = { removing = true }) { Text(stringResource(R.string.linked_remove)) }
                     }
                 }
