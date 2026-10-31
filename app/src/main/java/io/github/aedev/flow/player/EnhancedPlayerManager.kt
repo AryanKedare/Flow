@@ -528,6 +528,10 @@ class EnhancedPlayerManager private constructor() {
     private val _decoderFailureEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val decoderFailureEvent: SharedFlow<Unit> = _decoderFailureEvent.asSharedFlow()
 
+    /** Emitted after every seek, however it was asked for, so other devices hear the new position at once. */
+    private val _seekEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val seekEvent: SharedFlow<Unit> = _seekEvent.asSharedFlow()
+
     private val _queueAutoAdvanceEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueAutoAdvanceEvent: SharedFlow<Unit> = _queueAutoAdvanceEvent.asSharedFlow()
 
@@ -976,6 +980,14 @@ class EnhancedPlayerManager private constructor() {
                     reason: Int,
                 ) {
                     autoNextLog("onTimelineChanged reason=$reason windows=${timeline.windowCount}")
+                }
+
+                override fun onPositionDiscontinuity(
+                    oldPosition: Player.PositionInfo,
+                    newPosition: Player.PositionInfo,
+                    reason: Int,
+                ) {
+                    if (reason == Player.DISCONTINUITY_REASON_SEEK) _seekEvent.tryEmit(Unit)
                 }
 
                 override fun onRenderedFirstFrame() {
@@ -1516,15 +1528,21 @@ class EnhancedPlayerManager private constructor() {
 
     // ===== Queue Management =====
 
+    /**
+     * Plays [videos] from [startIndex]. With [startPlayback] false the queue is set around the video
+     * already playing, which sits at [startIndex], and playback goes on where it is: a handoff from
+     * another linked device attaches its queue this way.
+     */
     fun setQueue(
         videos: List<Video>,
         startIndex: Int,
         title: String? = null,
         shuffle: Boolean? = null,
+        startPlayback: Boolean = true,
     ) {
         if (!isOnMainThread()) {
             autoNextLog("setQueue posted to main size=${videos.size} start=$startIndex from=${Thread.currentThread().name}")
-            mainHandler.post { setQueue(videos, startIndex, title, shuffle) }
+            mainHandler.post { setQueue(videos, startIndex, title, shuffle, startPlayback) }
             return
         }
         val startVideo = queue.setQueue(videos, startIndex, title, shuffle)
@@ -1532,7 +1550,7 @@ class EnhancedPlayerManager private constructor() {
 
         updateQueueState()
 
-        if (startVideo != null) {
+        if (startVideo != null && startPlayback) {
             startPlaybackFromQueue(startVideo, loadStreamsInPlayer = false)
             preload.request("queue-set")
         }
@@ -1643,6 +1661,7 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { addVideoToQueueNext(video) }
             return
         }
+        PlaybackTarget.current?.let { return it.playNext(video.id) }
         autoNextLog("addVideoToQueueNext ${video.id}")
         when (queue.addNext(video, GlobalPlayerState.currentVideo.value)) {
             QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)
@@ -1663,6 +1682,7 @@ class EnhancedPlayerManager private constructor() {
             mainHandler.post { addVideoToQueue(video) }
             return
         }
+        PlaybackTarget.current?.let { return it.addToQueue(video.id) }
         autoNextLog("addVideoToQueue ${video.id}")
         when (queue.append(video, GlobalPlayerState.currentVideo.value)) {
             QueueAddOutcome.NoActiveQueue -> setQueue(listOf(video), 0)
